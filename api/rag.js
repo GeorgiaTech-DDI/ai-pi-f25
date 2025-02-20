@@ -121,17 +121,25 @@ async function ragQuery(question) {
         if (!queryVecEmbeddings || !Array.isArray(queryVecEmbeddings) || queryVecEmbeddings.length === 0 || !Array.isArray(queryVecEmbeddings[0])) {
             throw new Error("Failed to get valid embeddings for the question.");
         }
+        console.log("Query Vec Length:", queryVecEmbeddings.length);
         const queryVec = queryVecEmbeddings[0]; // Take the first (and hopefully only) embedding
         if (!Array.isArray(queryVec)) { // Double check embedding structure
             throw new Error("Unexpected embedding structure.");
         }
 
 
-        const queryResult = await index.query({
-            vector: queryVec,
-            topK: 5,
-            includeMetadata: true,
-        });
+        try {
+            const queryResult = await index.query({
+                vector: queryVec,
+                topK: 5,
+                includeMetadata: true,
+            });
+        } catch (error) {
+            console.error("Pinecone Query Error:", error);
+            console.error("Query Vec:", queryVecEmbeddings);
+            console.error("Query Vec Length:", queryVecEmbeddings.length);
+            throw error;
+        }
 
         const contexts = queryResult.matches.map(match => match.metadata.text);
         const contextStr = constructContext(contexts);
