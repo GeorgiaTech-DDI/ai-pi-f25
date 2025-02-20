@@ -127,19 +127,11 @@ async function ragQuery(question) {
             throw new Error("Unexpected embedding structure.");
         }
 
-
-        try {
-            const queryResult = await index.query({
-                vector: queryVec,
-                topK: 5,
-                includeMetadata: true,
-            });
-        } catch (error) {
-            console.error("Pinecone Query Error:", error);
-            console.error("Query Vec:", queryVecEmbeddings[0]);
-            console.error("Query Vec Length:", queryVecEmbeddings[0].length);
-            throw error;
-        }
+        const queryResult = await index.query({
+            vector: queryVec,
+            topK: 5,
+            includeMetadata: true,
+        });
 
         const contexts = queryResult.matches.map(match => match.metadata.text);
         const contextStr = constructContext(contexts);
