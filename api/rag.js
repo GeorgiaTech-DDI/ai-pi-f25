@@ -83,7 +83,7 @@ function constructContext(contexts, maxSectionLen = 5000) {
         }
         chosenSections.push(trimmedText);
     }
-    const concatenatedDoc = concatenatedDoc.join("\n");
+    const concatenatedDoc = chosenSections.join("\n");
     console.log(`Selected top ${chosenSections.length} document sections`); // Removed detailed log to reduce server logs
     return concatenatedDoc;
 }
