@@ -14,7 +14,7 @@ const sagemakerRuntime = new SageMakerRuntimeClient({
 // Initialize Pinecone Client
 const pinecone = new Pinecone({
     apiKey: process.env.PINECONE_API_KEY,
-    environment: process.env.PINECONE_ENVIRONMENT, // e.g., 'us-east-1-aws'
+    // environment: process.env.PINECONE_ENVIRONMENT, // e.g., 'us-east-1-aws'
 });
 const index = pinecone.index(process.env.PINECONE_INDEX_NAME);
 
