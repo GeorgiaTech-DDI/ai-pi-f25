@@ -71,7 +71,7 @@ function splitText(text, maxLength = 500) {
 }
 
 // --- Construct Context Function ---
-function constructContext(contexts, maxSectionLen = 5000, separator = "\n") {
+function constructContext(contexts, maxSectionLen = 5000) {
     let chosenSections = [];
     let chosenSectionsLen = 0;
 
@@ -83,7 +83,7 @@ function constructContext(contexts, maxSectionLen = 5000, separator = "\n") {
         }
         chosenSections.push(trimmedText);
     }
-    const concatenatedDoc = separator.join(chosenSections);
+    const concatenatedDoc = concatenatedDoc.join("\n");
     console.log(`Selected top ${chosenSections.length} document sections`); // Removed detailed log to reduce server logs
     return concatenatedDoc;
 }
