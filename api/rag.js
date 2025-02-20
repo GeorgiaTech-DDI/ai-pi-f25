@@ -122,7 +122,7 @@ async function ragQuery(question) {
             throw new Error("Failed to get valid embeddings for the question.");
         }
         console.log("Query Vec Length:", queryVecEmbeddings.length);
-        const queryVec = queryVecEmbeddings[0]; // Take the first (and hopefully only) embedding
+        const queryVec = queryVecEmbeddings[0][0]; // Take the first (and hopefully only) embedding
         if (!Array.isArray(queryVec)) { // Double check embedding structure
             throw new Error("Unexpected embedding structure.");
         }
@@ -136,8 +136,8 @@ async function ragQuery(question) {
             });
         } catch (error) {
             console.error("Pinecone Query Error:", error);
-            console.error("Query Vec:", queryVecEmbeddings);
-            console.error("Query Vec Length:", queryVecEmbeddings.length);
+            console.error("Query Vec:", queryVecEmbeddings[0]);
+            console.error("Query Vec Length:", queryVecEmbeddings[0].length);
             throw error;
         }
 
