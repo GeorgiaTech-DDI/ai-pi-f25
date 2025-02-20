@@ -14,7 +14,6 @@ const sagemakerRuntime = new SageMakerRuntimeClient({
 // Initialize Pinecone Client
 const pinecone = new Pinecone({
     apiKey: process.env.PINECONE_API_KEY,
-    // environment: process.env.PINECONE_ENVIRONMENT, // e.g., 'us-east-1-aws'
 });
 const index = pinecone.index(process.env.PINECONE_INDEX_NAME);
 
@@ -40,16 +39,6 @@ async function embedDocs(docs) {
             console.error("Unexpected embedding format from SageMaker:", embeddings_raw);
             throw new Error("Unexpected embedding format from SageMaker.");
         }
-
-        // Average embeddings if necessary (check your embedding endpoint output)
-        // Example:  if you get embeddings for each token and need sentence embedding
-        // const averagedEmbeddings = embeddings.map(embArray => {
-        //     if (Array.isArray(embArray[0])) { // Check if it's nested
-        //         return embArray[0].reduce((sum, val) => sum + val, 0) / embArray[0].length;
-        //     } else {
-        //         return embArray.reduce((sum, val) => sum + val, 0) / embArray.length;
-        //     }
-        // });
 
         // If the endpoint already returns sentence embeddings, just use them directly
         return embeddings;
