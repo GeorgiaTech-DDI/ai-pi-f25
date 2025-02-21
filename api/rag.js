@@ -7,7 +7,7 @@ const sagemakerRuntime = new SageMakerRuntimeClient({
     credentials: {
         accessKeyId: process.env.AWS_ACCESS_KEY_ID,
         secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-        sessionToken: process.env.AWS_SESSION_TOKEN, // Optional, if you are using session tokens
+        sessionToken: process.env.AWS_SESSION_TOKEN, // TODO: remove session tokens
     },
 });
 
@@ -90,8 +90,8 @@ function constructContext(contexts, maxSectionLen = 5000) {
 
 // --- Create Payload Function ---
 function createPayload(question, contextStr) {
-    const promptTemplate = `Answer the following QUESTION based on the CONTEXT given in LESS than 100 words. If you do not know the answer and the CONTEXT doesn't contain the answer truthfully say "I don't know".
-
+    const promptTemplate = `Answer the following QUESTION based on the CONTEXT given in LESS than 100 words. If the CONTEXT doesn't contain the answer truthfully say "I don't know, but I think" and provide your best guess.
+git 
     CONTEXT:
     {context}
 
