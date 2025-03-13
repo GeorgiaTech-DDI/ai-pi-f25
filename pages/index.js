@@ -22,6 +22,7 @@ export default function Home() {
         setContexts([
           { text: "Local context example", metadata: { filename: "test.txt" } },
           { text: "Another local context example", metadata: { filename: "test2.txt" } },
+          { text: "Yet another local context example", metadata: { filename: "test2.txt" } },
         ]);
       } else {
         const response = await fetch('/api/rag', { // Calls your Vercel Serverless Function
@@ -82,11 +83,24 @@ export default function Home() {
       {contexts.length > 0 && (
         <div className="contexts-container">
           <h3>Reference Sources:</h3>
-          {contexts.map((context, index) => (
+          {Object.entries(
+            contexts.reduce((acc, context) => {
+              const filename = context.metadata?.filename || `Reference ${Object.keys(acc).length + 1}`;
+              if (!acc[filename]) {
+                acc[filename] = [];
+              }
+              acc[filename].push(context);
+              return acc;
+            }, {})
+          ).map(([filename, fileContexts], index) => (
             <details key={index} className="context-accordion">
-              <summary>{(context.metadata && context.metadata.filename) || `Reference ${index + 1}`}</summary>
+              <summary>{filename}</summary>
               <div className="context-content">
-                <p>{typeof context === 'string' ? context : (context.text || JSON.stringify(context))}</p>
+                {fileContexts.map((context, contextIndex) => (
+                  <p key={contextIndex}>
+                    {(context.text || JSON.stringify(context))}
+                  </p>
+                ))}
               </div>
             </details>
           ))}
