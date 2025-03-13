@@ -5,12 +5,14 @@ export default function Home() {
   const [answer, setAnswer] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [contexts, setContexts] = useState([]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
     setLoading(true);
     setError('');
     setAnswer('');
+    setContexts([]);
 
     try {
       const response = await fetch('/api/rag', { // Calls your Vercel Serverless Function
@@ -28,6 +30,7 @@ export default function Home() {
 
       const data = await response.json();
       setAnswer(data.answer);
+      setContexts(data.contexts || []);
     } catch (e) {
       setError('Failed to get answer. Please try again.');
       console.error("Frontend error:", e);
@@ -65,6 +68,21 @@ export default function Home() {
           <p>{answer}</p>
         </div>
       )}
+
+      {contexts.length > 0 && (
+        <div className="contexts-container">
+          <h3>Reference Sources:</h3>
+          {contexts.map((context, index) => (
+            <details key={index} className="context-accordion">
+              <summary>{context.metadata?.filename || `Reference ${index + 1}`}</summary>
+              <div className="context-content">
+                <p>{context.text || context}</p>
+              </div>
+            </details>
+          ))}
+        </div>
+      )}
+
       <style jsx>{`
         .container {
           display: flex;
@@ -115,6 +133,27 @@ export default function Home() {
           margin: 10px 0 20px;
           text-align: center;
           max-width: 600px;
+        }
+        .contexts-container {
+          margin-top: 20px;
+          width: 100%;
+          max-width: 800px;
+        }
+        .context-accordion {
+          margin-bottom: 10px;
+          border: 1px solid #ddd;
+          border-radius: 5px;
+          overflow: hidden;
+        }
+        .context-accordion summary {
+          padding: 10px;
+          background-color: #f1f1f1;
+          cursor: pointer;
+          font-weight: bold;
+        }
+        .context-content {
+          padding: 10px;
+          background-color: #fafafa;
         }
       `}</style>
     </div>

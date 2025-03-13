@@ -121,7 +121,7 @@ async function ragQuery(question) {
         if (!queryVecEmbeddings || !Array.isArray(queryVecEmbeddings) || queryVecEmbeddings.length === 0 || !Array.isArray(queryVecEmbeddings[0])) {
             throw new Error("Failed to get valid embeddings for the question.");
         }
-        console.log("Query Vec Length:", queryVecEmbeddings.length);
+        // console.log("Query Vec Length:", queryVecEmbeddings.length);
         const queryVec = queryVecEmbeddings[0][0]; // Take the first (and hopefully only) embedding
         if (!Array.isArray(queryVec)) { // Double check embedding structure
             throw new Error("Unexpected embedding structure.");
@@ -149,7 +149,7 @@ async function ragQuery(question) {
         const llamaPayload = new TextDecoder().decode(llamaResponse.Body);
         const llamaOutput = JSON.parse(llamaPayload);
 
-        return llamaOutput.generated_text; // Adjust based on your LLM endpoint output
+        return llamaOutput.generated_text, contexts; // Adjust based on your LLM endpoint output
 
 
     } catch (error) {
@@ -172,8 +172,8 @@ export default async function handler(req, res) {
     }
 
     try {
-        const answer = await ragQuery(question);
-        return res.status(200).json({ answer });
+        const [answer, contexts] = await ragQuery(question);
+        return res.status(200).json({ answer, contexts });
     } catch (error) {
         console.error("API Error:", error); // Log detailed error on server side
         return res.status(500).json({ message: 'Error processing your request', error: error.message }); // Send generic error to client, avoid leaking server details
