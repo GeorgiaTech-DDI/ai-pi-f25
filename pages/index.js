@@ -1,66 +1,71 @@
 import { useState } from 'react';
-
+import { Analytics } from "@vercel/analytics/react"
 export default function Home() {
-    const [question, setQuestion] = useState('');
-    const [answer, setAnswer] = useState('');
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
+  const [question, setQuestion] = useState('');
+  const [answer, setAnswer] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-    const handleSubmit = async (event) => {
-        event.preventDefault();
-        setLoading(true);
-        setError('');
-        setAnswer('');
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    setLoading(true);
+    setError('');
+    setAnswer('');
 
-        try {
-            const response = await fetch('/api/rag', { // Calls your Vercel Serverless Function
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ question }),
-            });
+    try {
+      const response = await fetch('/api/rag', { // Calls your Vercel Serverless Function
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ question }),
+      });
 
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
-            }
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+      }
 
-            const data = await response.json();
-            setAnswer(data.answer);
-        } catch (e) {
-            setError('Failed to get answer. Please try again.');
-            console.error("Frontend error:", e);
-        } finally {
-            setLoading(false);
-        }
-    };
+      const data = await response.json();
+      setAnswer(data.answer);
+    } catch (e) {
+      setError('Failed to get answer. Please try again.');
+      console.error("Frontend error:", e);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    return (
-        <div className="container">
-            <h1>RAG Model Interface</h1>
-            <form onSubmit={handleSubmit}>
-                <input
-                    type="text"
-                    placeholder="Ask your question"
-                    value={question}
-                    onChange={(e) => setQuestion(e.target.value)}
-                    disabled={loading}
-                    required
-                />
-                <button type="submit" disabled={loading}>
-                    {loading ? 'Loading...' : 'Get Answer'}
-                </button>
-            </form>
+  return (
+    <div className="container">
+      <Analytics />
+      <h1>AI PI</h1>
+      <p className="disclaimer">
+        This is an AI-powered assistant. While we strive for accuracy, responses may not always be correct.
+        Please verify important information from reliable sources.
+      </p>
+      <form onSubmit={handleSubmit}>
+        <input
+          type="text"
+          placeholder="Ask your question"
+          value={question}
+          onChange={(e) => setQuestion(e.target.value)}
+          disabled={loading}
+          required
+        />
+        <button type="submit" disabled={loading}>
+          {loading ? 'Loading...' : 'Get Answer'}
+        </button>
+      </form>
 
-            {error && <p className="error">Error: {error}</p>}
-            {answer && (
-                <div className="answer-container">
-                    <h2>Answer:</h2>
-                    <p>{answer}</p>
-                </div>
-            )}
-            <style jsx>{`
+      {error && <p className="error">Error: {error}</p>}
+      {answer && (
+        <div className="answer-container">
+          <h2>Answer:</h2>
+          <p>{answer}</p>
+        </div>
+      )}
+      <style jsx>{`
         .container {
           display: flex;
           flex-direction: column;
@@ -101,7 +106,17 @@ export default function Home() {
           color: red;
           margin-top: 10px;
         }
+        .disclaimer {
+          font-size: 0.9rem;
+          color: #666;
+          background-color: #f5f5f5;
+          padding: 10px;
+          border-radius: 5px;
+          margin: 10px 0 20px;
+          text-align: center;
+          max-width: 600px;
+        }
       `}</style>
-        </div>
-    );
+    </div>
+  );
 }
