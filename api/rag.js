@@ -105,7 +105,7 @@ git
     return {
         inputs: textInput,
         parameters: {
-            max_new_tokens: 150,
+            max_new_tokens: 300,
             top_p: 0.9,
             temperature: 0.9,
             return_full_text: false,
@@ -129,7 +129,7 @@ async function ragQuery(question) {
 
         const queryResult = await index.query({
             vector: queryVec,
-            topK: 5,
+            topK: 15,
             includeMetadata: true,
         });
 
