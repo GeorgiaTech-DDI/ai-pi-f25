@@ -20,9 +20,8 @@ export default function Home() {
       if (window.location.hostname === 'localhost') {
         setAnswer("This is a test answer");
         setContexts([
-          { text: "Local context example", metadata: { filename: "test.txt" } },
-          { text: "Another local context example", metadata: { filename: "test2.txt" } },
-          { text: "Yet another local context example", metadata: { filename: "test2.txt" } },
+          { "id": "60", "score": 0.549824595, "values": [], "metadata": { "chunk_idx": 60, "filename": "Waterjet-Required&Optional.md", "original_idx": "0", "text": "[CLS] mark the machine down and contact a waterjet master / apprentice. * protomax specific steps * * image of disconnecting from the nozzle. * * image of disconnecting from the hopper. * * image of using compressed air. * * image : caption explains how to check for garnet flow on the protomax. * # # what files can be used * the waterjets natively support * *. dxf * * files. * if a user has a different file type, have them convert it to. dxf using inkscape on the laser computers. # # waterjet brick & alternatives ( bonus ) * * * waterjet bricks : * * located next to the pump of the larger waterjet. [SEP]", "total_chunks": 72 } },
+          { "id": "0", "score": 0.463381, "values": [], "metadata": { "chunk_idx": 0, "filename": "Waterjet-Required&Optional.md", "original_idx": "0", "text": "[CLS] # waterjet - required & optional this document covers operation of the maxiem, globalmax, and protomax waterjet cutters, including handling brittle materials, clearing clogs, using the saw mode, and etching / scribing", "total_chunks": 72 } }
         ]);
       } else {
         const response = await fetch('/api/rag', { // Calls your Vercel Serverless Function
@@ -98,7 +97,7 @@ export default function Home() {
               <div className="context-content">
                 {fileContexts.map((context, contextIndex) => (
                   <p key={contextIndex}>
-                    {(context.text || JSON.stringify(context))}
+                    {(context.metadata.text || JSON.stringify(context))}
                   </p>
                 ))}
               </div>
