@@ -90,8 +90,8 @@ function constructContext(contexts, maxSectionLen = 5000) {
 
 // --- Create Payload Function ---
 function createPayload(question, contextStr) {
-    const promptTemplate = `Answer the following QUESTION based on the CONTEXT given in LESS than 100 words. If the CONTEXT doesn't contain the answer truthfully say "I don't know, but I think" and provide your best guess.
-git
+    const promptTemplate = `Answer the following QUESTION based on the CONTEXT given in LESS than 200 words. If the CONTEXT doesn't contain the answer, say "I think that" and provide your best guess.
+
     CONTEXT:
     {context}
 
