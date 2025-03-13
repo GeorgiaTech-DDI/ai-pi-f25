@@ -14,23 +14,33 @@ export default function Home() {
     setAnswer('');
     setContexts([]);
 
+    // check if localhost
     try {
-      const response = await fetch('/api/rag', { // Calls your Vercel Serverless Function
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ question }),
-      });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+      if (window.location.hostname === 'localhost') {
+        setAnswer("This is a test answer");
+        setContexts([
+          { text: "Local context example", metadata: { filename: "test.txt" } },
+          { text: "Another local context example", metadata: { filename: "test2.txt" } },
+        ]);
+      } else {
+        const response = await fetch('/api/rag', { // Calls your Vercel Serverless Function
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ question }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        setAnswer(data.answer);
+        setContexts(data.contexts || []);
       }
-
-      const data = await response.json();
-      setAnswer(data.answer);
-      setContexts(data.contexts || []);
     } catch (e) {
       setError('Failed to get answer. Please try again.');
       console.error("Frontend error:", e);
@@ -74,9 +84,9 @@ export default function Home() {
           <h3>Reference Sources:</h3>
           {contexts.map((context, index) => (
             <details key={index} className="context-accordion">
-              <summary>{context.metadata?.filename || `Reference ${index + 1}`}</summary>
+              <summary>{(context.metadata && context.metadata.filename) || `Reference ${index + 1}`}</summary>
               <div className="context-content">
-                <p>{context.text || context}</p>
+                <p>{typeof context === 'string' ? context : (context.text || JSON.stringify(context))}</p>
               </div>
             </details>
           ))}

@@ -10,5 +10,11 @@
   },
   "devDependencies": {
     "@types/node": "^22.13.10"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
   }
 }
