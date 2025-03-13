@@ -49,26 +49,6 @@ async function embedDocs(docs) {
     }
 }
 
-
-// --- Split Text Function (Simplified - adjust as needed) ---
-function splitText(text, maxLength = 500) {
-    // Basic split by spaces, may need more sophisticated logic
-    const words = text.split(' ');
-    const chunks: string[] = [];
-    let currentChunk = '';
-    for (const word of words) {
-        if (currentChunk.length + word.length + 1 > maxLength && currentChunk.length > 0) {
-            chunks.push(currentChunk.trim());
-            currentChunk = '';
-        }
-        currentChunk += (currentChunk ? ' ' : '') + word;
-    }
-    if (currentChunk) {
-        chunks.push(currentChunk.trim());
-    }
-    return chunks;
-}
-
 // --- Construct Context Function ---
 function constructContext(contexts, maxSectionLen = 5000) {
     let chosenSections: string[] = [];
@@ -132,8 +112,8 @@ async function ragQuery(question): Promise<[string, any[]]> {
             includeMetadata: true,
         });
 
-        const contexts = queryResult.matches.map(match => match.metadata?.text);
-        const contextStr = constructContext(contexts);
+        const contexts = queryResult.matches
+        const contextStr = constructContext(contexts.map(match => match.metadata?.text));
         const payload = createPayload(question, contextStr);
 
         const llamaParams = {
