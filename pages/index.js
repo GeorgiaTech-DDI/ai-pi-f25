@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Analytics } from "@vercel/analytics/react"
+import { SpeedInsights } from "@vercel/speed-insights/next"
 export default function Home() {
   const [question, setQuestion] = useState('');
   const [answer, setAnswer] = useState('');
@@ -52,6 +53,7 @@ export default function Home() {
   return (
     <div className="container">
       <Analytics />
+      <SpeedInsights />
       <h1>AI PI</h1>
       <p className="disclaimer">
         This is an AI-powered assistant. While we strive for accuracy, responses may not always be correct.
