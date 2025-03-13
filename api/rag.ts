@@ -3,24 +3,23 @@ import { Pinecone } from '@pinecone-database/pinecone';
 
 // Initialize AWS SageMaker Runtime Client
 const sagemakerRuntime = new SageMakerRuntimeClient({
-    region: process.env.AWS_REGION,
+    region: process.env.AWS_REGION || 'us-east-1',
     credentials: {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-        // sessionToken: process.env.AWS_SESSION_TOKEN,
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID || "",
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || "",
     },
 });
 
 // Initialize Pinecone Client
 const pinecone = new Pinecone({
-    apiKey: process.env.PINECONE_API_KEY,
+    apiKey: process.env.PINECONE_API_KEY || "",
 });
-const index = pinecone.index(process.env.PINECONE_INDEX_NAME);
+const index = pinecone.index(process.env.PINECONE_INDEX_NAME || "llama-3-8b-embedding");
 
 // --- Embedding Function (using Sagemaker Embedding Endpoint) ---
 async function embedDocs(docs) {
     const params = {
-        EndpointName: process.env.SAGEMAKER_EMBEDDING_ENDPOINT_NAME, // e.g., 'minilm-embedding'
+        EndpointName: process.env.SAGEMAKER_EMBEDDING_ENDPOINT_NAME || "minilm-embedding",
         ContentType: 'application/json',
         Body: JSON.stringify({ inputs: docs }),
     };
@@ -55,7 +54,7 @@ async function embedDocs(docs) {
 function splitText(text, maxLength = 500) {
     // Basic split by spaces, may need more sophisticated logic
     const words = text.split(' ');
-    const chunks = [];
+    const chunks: string[] = [];
     let currentChunk = '';
     for (const word of words) {
         if (currentChunk.length + word.length + 1 > maxLength && currentChunk.length > 0) {
@@ -72,7 +71,7 @@ function splitText(text, maxLength = 500) {
 
 // --- Construct Context Function ---
 function constructContext(contexts, maxSectionLen = 5000) {
-    let chosenSections = [];
+    let chosenSections: string[] = [];
     let chosenSectionsLen = 0;
 
     for (const text of contexts) {
@@ -115,7 +114,7 @@ function createPayload(question, contextStr) {
 
 
 // --- RAG Query Function ---
-async function ragQuery(question) {
+async function ragQuery(question): Promise<[string, any[]]> {
     try {
         const queryVecEmbeddings = await embedDocs([question]); // Embed the question
         if (!queryVecEmbeddings || !Array.isArray(queryVecEmbeddings) || queryVecEmbeddings.length === 0 || !Array.isArray(queryVecEmbeddings[0])) {
@@ -133,7 +132,7 @@ async function ragQuery(question) {
             includeMetadata: true,
         });
 
-        const contexts = queryResult.matches.map(match => match.metadata.text);
+        const contexts = queryResult.matches.map(match => match.metadata?.text);
         const contextStr = constructContext(contexts);
         const payload = createPayload(question, contextStr);
 
@@ -149,7 +148,7 @@ async function ragQuery(question) {
         const llamaPayload = new TextDecoder().decode(llamaResponse.Body);
         const llamaOutput = JSON.parse(llamaPayload);
 
-        return llamaOutput.generated_text, contexts; // Adjust based on your LLM endpoint output
+        return [llamaOutput.generated_text, contexts]; // Adjust based on your LLM endpoint output
 
 
     } catch (error) {
@@ -172,7 +171,9 @@ export default async function handler(req, res) {
     }
 
     try {
-        const [answer, contexts] = await ragQuery(question);
+        const response = await ragQuery(question);
+        const answer = response[0];
+        const contexts = response[1];
         return res.status(200).json({ answer, contexts });
     } catch (error) {
         console.error("API Error:", error); // Log detailed error on server side
