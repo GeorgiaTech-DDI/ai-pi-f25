@@ -14,7 +14,7 @@ const sagemakerRuntime = new SageMakerRuntimeClient({
 const pinecone = new Pinecone({
     apiKey: process.env.PINECONE_API_KEY || "",
 });
-const index = pinecone.index(process.env.PINECONE_INDEX_NAME || "llama-3-8b-embedding");
+const index = pinecone.index(process.env.PINECONE_INDEX_NAME || "rag-embeddings");
 
 // --- Embedding Function (using Sagemaker Embedding Endpoint) ---
 async function embedDocs(docs) {
@@ -69,7 +69,7 @@ function constructContext(contexts, maxSectionLen = 5000) {
 
 // --- Create Payload Function ---
 function createPayload(question, contextStr) {
-    const promptTemplate = `Answer the following QUESTION based on the CONTEXT given in LESS than 200 words. If the CONTEXT doesn't contain the answer, say "I think that" and provide your best guess.
+    const promptTemplate = `Answer the following QUESTION based on the CONTEXT given in LESS than 200 words. If the CONTEXT doesn't contain the answer, say "I think that" and provide your best guess. Be as concise and accurate as possible without repeating the question or context.
 
     CONTEXT:
     {context}
