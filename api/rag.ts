@@ -69,7 +69,7 @@ function constructContext(contexts, maxSectionLen = 5000) {
 
 // --- Create Payload Function ---
 function createPayload(question, contextStr) {
-    const promptTemplate = `If the CONTEXT doesn't contain the answer, say "I think that" and provide your best guess. Be as concise and accurate as possible without repeating the question or context Answer the following QUESTION based on the CONTEXT given in LESS than 200 words.
+    const promptTemplate = `If the CONTEXT doesn't contain the answer, say "I think that" and provide your best guess. Be as concise and accurate as possible without repeating the question or context Answer the following QUESTION based on the CONTEXT given in LESS than 100 words.
 
     CONTEXT:
     {context}
@@ -84,8 +84,9 @@ function createPayload(question, contextStr) {
     return {
         inputs: textInput,
         parameters: {
-            top_p: 0.9,
-            temperature: 0.99,
+            max_new_tokens: 250,
+            top_p: 0.99,
+            temperature: 0.85,
             return_full_text: false,
         },
     };
