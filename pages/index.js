@@ -114,6 +114,7 @@ export default function Home() {
           flex-direction: column;
           align-items: center;
           padding: 20px;
+          font-family: Helvetica Neue, Arial, sans-serif;
         }
         input[type="text"] {
           padding: 10px;
