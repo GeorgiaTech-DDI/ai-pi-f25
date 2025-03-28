@@ -1,6 +1,4 @@
 import { useState, useRef, useEffect } from 'react'
-import { Analytics } from '@vercel/analytics/react'
-import { SpeedInsights } from '@vercel/speed-insights/next'
 import { saveAs } from 'file-saver'
 
 export default function Home() {
@@ -288,9 +286,6 @@ export default function Home() {
 
   return (
     <div className="container">
-      <Analytics />
-      <SpeedInsights />
-
       {/* Terms of Service Dialog */}
       {showTosDialog && (
         <div className="tos-overlay">
