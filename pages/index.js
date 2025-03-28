@@ -1,288 +1,311 @@
-import { useState, useRef, useEffect } from 'react'
-import { saveAs } from 'file-saver'
+import { useState, useRef, useEffect } from "react";
+import { saveAs } from "file-saver";
 
 export default function Home() {
-  const [inputMessage, setInputMessage] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [messages, setMessages] = useState([])
-  const [contexts, setContexts] = useState([])
+  const [inputMessage, setInputMessage] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [messages, setMessages] = useState([]);
+  const [contexts, setContexts] = useState([]);
   // New state for Terms of Service
-  const [tosAccepted, setTosAccepted] = useState(false)
-  const [showTosDialog, setShowTosDialog] = useState(true)
+  const [tosAccepted, setTosAccepted] = useState(false);
+  const [showTosDialog, setShowTosDialog] = useState(true);
   // New state for feedback
-  const [showFeedbackDialog, setShowFeedbackDialog] = useState(false)
-  const [feedbackText, setFeedbackText] = useState('')
-  const [feedbackMessageIndex, setFeedbackMessageIndex] = useState(null)
-  const [selectedRating, setSelectedRating] = useState(null) // 'thumbsUp', 'thumbsDown', or null
+  const [showFeedbackDialog, setShowFeedbackDialog] = useState(false);
+  const [feedbackText, setFeedbackText] = useState("");
+  const [feedbackMessageIndex, setFeedbackMessageIndex] = useState(null);
+  const [selectedRating, setSelectedRating] = useState(null); // 'thumbsUp', 'thumbsDown', or null
   // New state for references
-  const [showReferencesDialog, setShowReferencesDialog] = useState(false)
-  const [activeReferences, setActiveReferences] = useState([])
-  const [activeReferenceTitle, setActiveReferenceTitle] = useState('')
-  const messagesEndRef = useRef(null)
-  const chatContainerRef = useRef(null)
+  const [showReferencesDialog, setShowReferencesDialog] = useState(false);
+  const [activeReferences, setActiveReferences] = useState([]);
+  const [activeReferenceTitle, setActiveReferenceTitle] = useState("");
+  const messagesEndRef = useRef(null);
+  const chatContainerRef = useRef(null);
 
   // Scroll to bottom whenever messages change
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   const handleSubmit = async (event) => {
-    event.preventDefault()
-    if (!inputMessage.trim()) return
+    event.preventDefault();
+    if (!inputMessage.trim()) return;
 
-    setLoading(true)
-    setError('')
+    setLoading(true);
+    setError("");
 
     // Add user message to chat
-    const userMessage = { role: 'user', content: inputMessage }
-    const updatedMessages = [...messages, userMessage]
-    setMessages(updatedMessages)
+    const userMessage = { role: "user", content: inputMessage };
+    const updatedMessages = [...messages, userMessage];
+    setMessages(updatedMessages);
 
     // Clear input
-    setInputMessage('')
+    setInputMessage("");
 
     try {
       // Check if localhost for development mode
-      if (window.location.hostname === 'localhost') {
+      if (window.location.hostname === "localhost") {
         // Development mode mock response
         setTimeout(() => {
           const mockContexts = [
             {
-              id: '60',
+              id: "60",
               score: 0.549824595,
               values: [],
               metadata: {
                 chunk_idx: 60,
-                filename: 'Waterjet-Required&Optional.md',
-                text: '[CLS] mark the machine down and contact a waterjet master / apprentice...'
-              }
+                filename: "Waterjet-Required&Optional.md",
+                text: "[CLS] mark the machine down and contact a waterjet master / apprentice...",
+              },
             },
             {
-              id: '61',
+              id: "61",
               score: 0.549824595,
               values: [],
               metadata: {
                 chunk_idx: 60,
-                filename: 'something-else.md',
-                text: '[CLS] mark the machine down and contact a waterjet master / apprentice...'
-              }
+                filename: "something-else.md",
+                text: "[CLS] mark the machine down and contact a waterjet master / apprentice...",
+              },
             },
             {
-              id: '62',
+              id: "62",
               score: 0.549824595,
               values: [],
               metadata: {
                 chunk_idx: 60,
-                filename: 'Waterjet-Required&Optional.md',
-                text: '[CLS] something else...'
-              }
+                filename: "Waterjet-Required&Optional.md",
+                text: "[CLS] something else...",
+              },
             },
-          ]
+            {
+              id: "63",
+              score: 0.549824595,
+              values: [],
+              metadata: {
+                chunk_idx: 60,
+                filename: "something-else.md",
+                text: "[CLS] There are indeed so many things to consider when choosing a waterjet.",
+              },
+            },
+            {
+              id: "64",
+              score: 0.549824595,
+              values: [],
+              metadata: {
+                chunk_idx: 60,
+                filename: "Waterjet-Required&Optional.md",
+                text: "[CLS] There are indeed so many things to consider when choosing a waterjet.",
+              },
+            },
+          ];
 
           setMessages([
             ...updatedMessages,
             {
-              role: 'assistant',
-              content: 'This is a test answer',
-              contexts: mockContexts
-            }
-          ])
+              role: "assistant",
+              content: "This is a test answer",
+              contexts: mockContexts,
+            },
+          ]);
 
           // No need to set global contexts anymore
-          setContexts([])
-          setLoading(false)
-        }, 1000)
+          setContexts([]);
+          setLoading(false);
+        }, 1000);
       } else {
         // Production API call
-        const response = await fetch('/api/rag', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+        const response = await fetch("/api/rag", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             question: inputMessage,
-            history: updatedMessages.slice(0, -1) // Send previous messages as history
+            history: updatedMessages.slice(0, -1), // Send previous messages as history
           }),
-        })
+        });
 
         if (!response.ok) {
-          const errorData = await response.json()
-          throw new Error(errorData.message || `HTTP error! status: ${response.status}`)
+          const errorData = await response.json();
+          throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
         }
 
-        const data = await response.json()
+        const data = await response.json();
 
         // Add assistant response to chat with its contexts
         setMessages([
           ...updatedMessages,
           {
-            role: 'assistant',
+            role: "assistant",
             content: data.answer,
-            contexts: data.contexts || []
-          }
-        ])
+            contexts: data.contexts || [],
+          },
+        ]);
 
         // No need to set global contexts anymore
-        setContexts([])
-        setLoading(false)
+        setContexts([]);
+        setLoading(false);
       }
     } catch (e) {
-      setError('Failed to get answer. Please try again.')
-      console.error('Frontend error:', e)
-      setLoading(false)
+      setError("Failed to get answer. Please try again.");
+      console.error("Frontend error:", e);
+      setLoading(false);
     }
-  }
+  };
 
   // Function to initiate feedback for a specific message
   const initiateFeedback = (messageIndex) => {
-    setFeedbackMessageIndex(messageIndex)
-    setFeedbackText('')
-    setSelectedRating(null)
-    setShowFeedbackDialog(true)
-  }
+    setFeedbackMessageIndex(messageIndex);
+    setFeedbackText("");
+    setSelectedRating(null);
+    setShowFeedbackDialog(true);
+  };
 
   // Function to submit feedback
   const submitFeedback = async () => {
-    if (feedbackMessageIndex === null) return
+    if (feedbackMessageIndex === null) return;
 
     // Create a copy of messages
-    const updatedMessages = [...messages]
+    const updatedMessages = [...messages];
 
     // Add feedback to the relevant message
     updatedMessages[feedbackMessageIndex] = {
       ...updatedMessages[feedbackMessageIndex],
-      feedback: feedbackText
-    }
+      feedback: feedbackText,
+    };
 
     // Add a confirmation message to the chat
     updatedMessages.push({
-      role: 'system',
-      content: 'Feedback submitted. Thank you!',
-      isNotification: true
-    })
+      role: "system",
+      content: "Feedback submitted. Thank you!",
+      isNotification: true,
+    });
 
-    setMessages(updatedMessages)
-    setShowFeedbackDialog(false)
+    setMessages(updatedMessages);
+    setShowFeedbackDialog(false);
 
     // You could also send the feedback to your backend here
     // const response = await fetch('/api/feedback', { ... })
-  }
+  };
 
   // Function to save chat history
   const saveChat = () => {
-    if (messages.length === 0) return
+    if (messages.length === 0) return;
 
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
-    const filename = `chat-history-${timestamp}.json`
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const filename = `chat-history-${timestamp}.json`;
 
     const chatData = {
       messages,
-      savedAt: new Date().toISOString()
-    }
+      savedAt: new Date().toISOString(),
+    };
 
-    const blob = new Blob([JSON.stringify(chatData, null, 2)], { type: 'application/json' })
-    saveAs(blob, filename)
-  }
+    const blob = new Blob([JSON.stringify(chatData, null, 2)], { type: "application/json" });
+    saveAs(blob, filename);
+  };
 
   // Function to save as plain text (more readable)
   const saveChatAsText = () => {
-    if (messages.length === 0) return
+    if (messages.length === 0) return;
 
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
-    const filename = `chat-history-${timestamp}.txt`
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const filename = `chat-history-${timestamp}.txt`;
 
-    let textContent = '=== AI PI CHAT HISTORY ===\n\n'
+    let textContent = "=== AI PI CHAT HISTORY ===\n\n";
 
-    let qaPairCount = 0
+    let qaPairCount = 0;
 
     messages.forEach((msg, index) => {
       // Handle different message types
       if (msg.isNotification) {
-        textContent += `[System: ${msg.content}]\n\n`
+        textContent += `[System: ${msg.content}]\n\n`;
       } else {
-        const role = msg.role === 'user' ? 'You' : 'AI Assistant'
+        const role = msg.role === "user" ? "You" : "AI Assistant";
 
         // Increment count for user questions
-        if (msg.role === 'user') {
-          qaPairCount++
-          textContent += `--- Q&A Pair ${qaPairCount} ---\n`
+        if (msg.role === "user") {
+          qaPairCount++;
+          textContent += `--- Q&A Pair ${qaPairCount} ---\n`;
         }
 
-        textContent += `${role}: ${msg.content}\n`
+        textContent += `${role}: ${msg.content}\n`;
 
         // Include feedback if present
         if (msg.feedback) {
-          textContent += `[Feedback on this response: ${msg.feedback}]\n`
+          textContent += `[Feedback on this response: ${msg.feedback}]\n`;
         }
 
         // Include references if present
-        if (msg.contexts && msg.contexts.length > 0 && msg.role === 'assistant') {
-          textContent += `\n[References:\n`
+        if (msg.contexts && msg.contexts.length > 0 && msg.role === "assistant") {
+          textContent += `\n[References:\n`;
 
           // Group contexts by filename
           const groupedContexts = msg.contexts.reduce((acc, context) => {
-            const filename = context.metadata?.filename || 'Unknown Source'
-            if (!acc[filename]) acc[filename] = []
-            acc[filename].push(context)
-            return acc
-          }, {})
+            const filename = context.metadata?.filename || "Unknown Source";
+            if (!acc[filename]) acc[filename] = [];
+            acc[filename].push(context);
+            return acc;
+          }, {});
 
           Object.entries(groupedContexts).forEach(([filename, fileContexts]) => {
-            textContent += `  - Source: ${filename}\n`
+            textContent += `  - Source: ${filename}\n`;
             fileContexts.forEach((context, contextIndex) => {
-              textContent += `    - Context ${contextIndex + 1}: ${context.metadata?.text || JSON.stringify(context)}\n`
-            }
-            )
-          })
+              textContent += `    - Context ${contextIndex + 1}: ${context.metadata?.text || JSON.stringify(context)}\n`;
+            });
+          });
 
-          textContent += `]\n`
+          textContent += `]\n`;
         }
 
-        textContent += '\n'
+        textContent += "\n";
       }
-    })
+    });
 
     // Add timestamp to the end of the file
-    textContent += '=== END OF CHAT HISTORY ===\n'
-    textContent += `\n[Chat saved at: ${new Date().toLocaleString()}]`
+    textContent += "=== END OF CHAT HISTORY ===\n";
+    textContent += `\n[Chat saved at: ${new Date().toLocaleString()}]`;
 
-    const blob = new Blob([textContent], { type: 'text/plain' })
-    saveAs(blob, filename)
-  }
+    const blob = new Blob([textContent], { type: "text/plain" });
+    saveAs(blob, filename);
+  };
 
   const restartChat = () => {
-    if (messages.length === 0) return
+    if (messages.length === 0) return;
 
-    if (window.confirm('Are you sure you want to restart? Your current conversation will be automatically saved.')) {
+    if (
+      window.confirm(
+        "Are you sure you want to restart? Your current conversation will be automatically saved.",
+      )
+    ) {
       // Auto-save chat before clearing (using the existing saveChatAsText function)
-      saveChatAsText()
+      saveChatAsText();
 
       // Clear the chat
-      setMessages([])
-      setContexts([])
+      setMessages([]);
+      setContexts([]);
     }
-  }
+  };
 
   // Function to handle TOS acceptance
   const acceptTerms = () => {
-    setTosAccepted(true)
-    setShowTosDialog(false)
-  }
+    setTosAccepted(true);
+    setShowTosDialog(false);
+  };
 
   // Function to decline TOS
   const declineTerms = () => {
     // You could redirect or show a different message here
-    alert("You must accept the Terms of Service to use this application.")
-  }
+    alert("You must accept the Terms of Service to use this application.");
+  };
 
   // Function to show references for a specific message
   const showReferences = (messageIndex) => {
-    const message = messages[messageIndex]
+    const message = messages[messageIndex];
     if (message && message.contexts && message.contexts.length > 0) {
-      setActiveReferences(message.contexts)
-      setActiveReferenceTitle(`References for Q&A #${Math.floor(messageIndex / 2) + 1}`)
-      setShowReferencesDialog(true)
+      setActiveReferences(message.contexts);
+      setActiveReferenceTitle(`References for Q&A #${Math.floor(messageIndex / 2) + 1}`);
+      setShowReferencesDialog(true);
     }
-  }
+  };
 
   return (
     <div className="container">
@@ -294,7 +317,9 @@ export default function Home() {
 
             <div className="tos-content">
               <h3>Understanding AI Limitations</h3>
-              <p>This application uses Large Language Model (LLM) technology. Please be aware that:</p>
+              <p>
+                This application uses Large Language Model (LLM) technology. Please be aware that:
+              </p>
               <ul>
                 <li>AI responses may contain inaccuracies or errors</li>
                 <li>The AI has limited knowledge and may not have information on recent events</li>
@@ -312,7 +337,10 @@ export default function Home() {
               </ul>
 
               <h4>Appropriate Use</h4>
-              <p>This AI assistant is designed to provide information about the Invention Studio. You agree not to use this system to:</p>
+              <p>
+                This AI assistant is designed to provide information about the Invention Studio. You
+                agree not to use this system to:
+              </p>
               <ul>
                 <li>Generate harmful, offensive, or inappropriate content</li>
                 <li>Attempt to extract confidential information</li>
@@ -349,19 +377,19 @@ export default function Home() {
 
               <div className="feedback-rating">
                 <button
-                  className={`feedback-rating-btn thumbs-up ${selectedRating === 'thumbsUp' ? "selected" : ""}`}
+                  className={`feedback-rating-btn thumbs-up ${selectedRating === "thumbsUp" ? "selected" : ""}`}
                   onClick={() => {
-                    setSelectedRating('thumbsUp')
-                    setFeedbackText('👍 ')
+                    setSelectedRating("thumbsUp");
+                    setFeedbackText("👍 ");
                   }}
                 >
                   👍 Helpful
                 </button>
                 <button
-                  className={`feedback-rating-btn thumbs-down ${selectedRating === 'thumbsDown' ? "selected" : ""}`}
+                  className={`feedback-rating-btn thumbs-down ${selectedRating === "thumbsDown" ? "selected" : ""}`}
                   onClick={() => {
-                    setSelectedRating('thumbsDown')
-                    setFeedbackText('👎 ')
+                    setSelectedRating("thumbsDown");
+                    setFeedbackText("👎 ");
                   }}
                 >
                   👎 Not Helpful
@@ -399,20 +427,21 @@ export default function Home() {
                 <>
                   {Object.entries(
                     activeReferences.reduce((acc, context) => {
-                      const filename = context.metadata?.filename || `Reference ${Object.keys(acc).length + 1}`
+                      const filename =
+                        context.metadata?.filename || `Reference ${Object.keys(acc).length + 1}`;
                       if (!acc[filename]) {
-                        acc[filename] = []
+                        acc[filename] = [];
                       }
-                      acc[filename].push(context)
-                      return acc
-                    }, {})
+                      acc[filename].push(context);
+                      return acc;
+                    }, {}),
                   ).map(([filename, fileContexts], index) => (
                     <details key={index} className="context-accordion">
                       <summary>{filename}</summary>
                       <div className="context-content">
                         {fileContexts.map((context, contextIndex) => (
                           <p key={contextIndex}>
-                            {(context.metadata.text || JSON.stringify(context))}
+                            {context.metadata.text || JSON.stringify(context)}
                           </p>
                         ))}
                       </div>
@@ -425,10 +454,7 @@ export default function Home() {
             </div>
 
             <div className="tos-actions">
-              <button
-                onClick={() => setShowReferencesDialog(false)}
-                className="tos-accept-button"
-              >
+              <button onClick={() => setShowReferencesDialog(false)} className="tos-accept-button">
                 Close
               </button>
             </div>
@@ -443,16 +469,12 @@ export default function Home() {
             <h1>AI PI</h1>
             <div className="disclaimer-container">
               <p className="disclaimer">
-                This is an AI-powered assistant. While we strive for accuracy, responses may not always be correct.
-                Please verify important information from reliable sources.
+                This is an AI-powered assistant. While we strive for accuracy, responses may not
+                always be correct. Please verify important information from reliable sources.
               </p>
             </div>
             <div className="action-buttons">
-              <button
-                onClick={saveChat}
-                className="action-button"
-                disabled={messages.length === 0}
-              >
+              <button onClick={saveChat} className="action-button" disabled={messages.length === 0}>
                 Save Chat (JSON)
               </button>
               <button
@@ -484,15 +506,15 @@ export default function Home() {
                     key={index}
                     className={
                       message.isNotification
-                        ? 'system-notification'
-                        : message.role === 'user'
-                          ? 'user-message'
-                          : 'assistant-message'
+                        ? "system-notification"
+                        : message.role === "user"
+                          ? "user-message"
+                          : "assistant-message"
                     }
                   >
                     {message.isNotification ? (
                       <div className="notification-content">{message.content}</div>
-                    ) : message.role === 'user' ? (
+                    ) : message.role === "user" ? (
                       <div className="user-bubble">{message.content}</div>
                     ) : (
                       <div className="assistant-wrapper">
@@ -551,12 +573,15 @@ export default function Home() {
                 required
               />
               <button type="submit" disabled={loading} className="send-button">
-                {loading ?
+                {loading ? (
                   <div className="typing-indicator-send">
                     <span></span>
                     <span></span>
                     <span></span>
-                  </div> : 'Send'}
+                  </div>
+                ) : (
+                  "Send"
+                )}
               </button>
             </form>
           </div>
@@ -567,21 +592,20 @@ export default function Home() {
               <div className="contexts-container">
                 {Object.entries(
                   contexts.reduce((acc, context) => {
-                    const filename = context.metadata?.filename || `Reference ${Object.keys(acc).length + 1}`
+                    const filename =
+                      context.metadata?.filename || `Reference ${Object.keys(acc).length + 1}`;
                     if (!acc[filename]) {
-                      acc[filename] = []
+                      acc[filename] = [];
                     }
-                    acc[filename].push(context)
-                    return acc
-                  }, {})
+                    acc[filename].push(context);
+                    return acc;
+                  }, {}),
                 ).map(([filename, fileContexts], index) => (
                   <details key={index} className="context-accordion">
                     <summary>{filename}</summary>
                     <div className="context-content">
                       {fileContexts.map((context, contextIndex) => (
-                        <p key={contextIndex}>
-                          {(context.metadata.text || JSON.stringify(context))}
-                        </p>
+                        <p key={contextIndex}>{context.metadata.text || JSON.stringify(context)}</p>
                       ))}
                     </div>
                   </details>
@@ -603,7 +627,10 @@ export default function Home() {
           flex-direction: column;
           align-items: center;
           padding: 0px;
-          font-family: Helvetica Neue, Arial, sans-serif;
+          font-family:
+            Helvetica Neue,
+            Arial,
+            sans-serif;
           width: 100%;
           margin: 0;
           height: 100vh;
@@ -638,7 +665,7 @@ export default function Home() {
           display: flex;
           flex-direction: column;
           width: 85%;
-          height: 50vh;
+          height: 75vh;
           border: 1px solid #26262f;
           border-radius: 6px;
           background-color: #16161f;
@@ -695,8 +722,14 @@ export default function Home() {
         }
 
         @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(10px); }
-          to { opacity: 1; transform: translateY(0); }
+          from {
+            opacity: 0;
+            transform: translateY(10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
         }
 
         .user-bubble {
@@ -789,18 +822,36 @@ export default function Home() {
           animation: typing 1s infinite ease-in-out;
         }
 
-        .typing-indicator span:nth-child(1) { animation-delay: 0.2s; }
-        .typing-indicator span:nth-child(2) { animation-delay: 0.4s; }
-        .typing-indicator span:nth-child(3) { animation-delay: 0.6s; }
+        .typing-indicator span:nth-child(1) {
+          animation-delay: 0.2s;
+        }
+        .typing-indicator span:nth-child(2) {
+          animation-delay: 0.4s;
+        }
+        .typing-indicator span:nth-child(3) {
+          animation-delay: 0.6s;
+        }
 
-        .typing-indicator-send span:nth-child(1) { animation-delay: 0.2s; }
-        .typing-indicator-send span:nth-child(2) { animation-delay: 0.4s; }
-        .typing-indicator-send span:nth-child(3) { animation-delay: 0.6s; }
+        .typing-indicator-send span:nth-child(1) {
+          animation-delay: 0.2s;
+        }
+        .typing-indicator-send span:nth-child(2) {
+          animation-delay: 0.4s;
+        }
+        .typing-indicator-send span:nth-child(3) {
+          animation-delay: 0.6s;
+        }
 
         @keyframes typing {
-          0% { transform: translateY(0px); }
-          50% { transform: translateY(-6px); }
-          100% { transform: translateY(0px); }
+          0% {
+            transform: translateY(0px);
+          }
+          50% {
+            transform: translateY(-6px);
+          }
+          100% {
+            transform: translateY(0px);
+          }
         }
 
         .input-form {
@@ -817,6 +868,21 @@ export default function Home() {
           border-radius: 6px;
           flex-grow: 1;
           font-size: 1rem;
+        }
+
+        @media (max-width: 450px) {
+          .input-form {
+            flex-direction: column;
+          }
+
+          input[type="text"] {
+            margin-right: 0;
+            margin-bottom: 10px;
+          }
+
+          .send-button {
+            width: 100%;
+          }
         }
 
         button {
@@ -867,7 +933,7 @@ export default function Home() {
         }
 
         .clear-button {
-          color:rgb(252, 211, 211);
+          color: rgb(252, 211, 211);
           border-color: #993333;
         }
 
@@ -879,13 +945,6 @@ export default function Home() {
           color: red;
           padding: 10px 16px;
           margin: 0;
-        }
-
-        .contexts-container {
-          margin: 20px 20px 0 20px;
-          width: calc(100% - 40px);
-          overflow-y: auto;
-          max-height: calc(100vh - 50vh - 300px); /* Adjust based on other components */
         }
 
         .context-accordion {
@@ -914,7 +973,8 @@ export default function Home() {
         }
 
         /* Terms of Service Dialog Styles */
-        .tos-overlay, .feedback-overlay {
+        .tos-overlay,
+        .feedback-overlay {
           position: fixed;
           top: 0;
           left: 0;
@@ -928,7 +988,8 @@ export default function Home() {
           padding: 20px;
         }
 
-        .tos-dialog, .feedback-dialog {
+        .tos-dialog,
+        .feedback-dialog {
           background-color: #16161f;
           border-radius: 6px;
           max-width: 600px;
@@ -940,14 +1001,16 @@ export default function Home() {
           box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
         }
 
-        .tos-dialog h2, .feedback-dialog h2 {
+        .tos-dialog h2,
+        .feedback-dialog h2 {
           padding: 16px 24px;
           margin: 0;
           background-color: #16161f;
           border-bottom: 1px solid #26262f;
         }
 
-        .tos-content, .feedback-content {
+        .tos-content,
+        .feedback-content {
           padding: 20px 24px;
           overflow-y: auto;
           flex-grow: 1;
@@ -982,7 +1045,8 @@ export default function Home() {
           margin-bottom: 6px;
         }
 
-        .tos-actions, .feedback-actions {
+        .tos-actions,
+        .feedback-actions {
           display: flex;
           justify-content: flex-end;
           padding: 16px 24px;
@@ -990,19 +1054,22 @@ export default function Home() {
           gap: 12px;
         }
 
-        .tos-accept-button, .feedback-submit-button {
+        .tos-accept-button,
+        .feedback-submit-button {
           background-color: rgb(118, 120, 255);
           border-radius: 6px;
         }
 
-        .tos-decline-button, .feedback-cancel-button {
+        .tos-decline-button,
+        .feedback-cancel-button {
           background-color: transparent;
           color: #f0f0f9;
           border-radius: 6px;
           border: 1px solid #ccc;
         }
 
-        .tos-decline-button:hover, .feedback-cancel-button:hover {
+        .tos-decline-button:hover,
+        .feedback-cancel-button:hover {
           background-color: #26262f;
         }
 
@@ -1045,20 +1112,20 @@ export default function Home() {
 
         .thumbs-up.selected {
           border-color: #059669;
-          background-color:rgb(9, 52, 9);
+          background-color: rgb(9, 52, 9);
         }
 
         .thumbs-down.selected {
           border-color: #dc2626;
-          background-color:rgb(52, 9, 9);
+          background-color: rgb(52, 9, 9);
         }
 
         .thumbs-up:hover:not(.selected) {
-          background-color:rgb(12, 72, 12);
+          background-color: rgb(12, 72, 12);
         }
 
         .thumbs-down:hover:not(.selected) {
-          background-color:rgb(72, 12, 12);
+          background-color: rgb(72, 12, 12);
         }
 
         .message-actions {
@@ -1119,5 +1186,5 @@ export default function Home() {
         }
       `}</style>
     </div>
-  )
+  );
 }
