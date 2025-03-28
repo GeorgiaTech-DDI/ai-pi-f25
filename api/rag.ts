@@ -1,5 +1,6 @@
 import { SageMakerRuntimeClient, InvokeEndpointCommand } from "@aws-sdk/client-sagemaker-runtime";
 import { Pinecone } from '@pinecone-database/pinecone';
+import type { NextApiRequest, NextApiResponse } from 'next'
 
 // Initialize AWS SageMaker Runtime Client
 const sagemakerRuntime = new SageMakerRuntimeClient({
@@ -94,7 +95,6 @@ function createPayload(question, contextStr) {
     };
 }
 
-
 // --- RAG Query Function ---
 async function ragQuery(question): Promise<[string, any[]]> {
     try {
@@ -110,7 +110,7 @@ async function ragQuery(question): Promise<[string, any[]]> {
 
         const queryResult = await index.query({
             vector: queryVec,
-            topK: 15,
+            topK: 10,
             includeMetadata: true,
         });
 
@@ -139,26 +139,37 @@ async function ragQuery(question): Promise<[string, any[]]> {
     }
 }
 
-
 // --- API Endpoint Handler ---
-export default async function handler(req, res) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
     if (req.method !== 'POST') {
         return res.status(405).json({ message: 'Method Not Allowed' });
     }
 
-    const { question } = req.body;
+    const { question, history = [] } = req.body;
 
     if (!question) {
         return res.status(400).json({ message: 'Question is required' });
     }
 
+    // Format the history and current question for the model
+    // This is a simple example - you may need to adjust based on your model's requirements
+    let formattedHistory = ''
+    if (history.length > 0) {
+        formattedHistory = history.map(msg =>
+            `${msg.role === 'user' ? 'Human' : 'Assistant'}: ${msg.content}`
+        ).join('\n\n')
+
+        formattedHistory += '\n\n'
+    }
+    const fullPrompt = `${formattedHistory}Human: ${question}`
+
     try {
-        const response = await ragQuery(question);
+        const response = await ragQuery(fullPrompt);
         const answer = response[0];
         const contexts = response[1];
         return res.status(200).json({ answer, contexts });
     } catch (error) {
-        console.error("API Error:", error); // Log detailed error on server side
-        return res.status(500).json({ message: 'Error processing your request', error: error.message }); // Send generic error to client, avoid leaking server details
+        console.error("Error in RAG API:", error);
+        return res.status(500).json({ message: 'Internal server error', error: error.message }); // Send generic error to client, avoid leaking server details
     }
 }
