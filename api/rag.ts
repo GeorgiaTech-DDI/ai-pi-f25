@@ -133,6 +133,14 @@ async function ragQuery(question): Promise<[string, any[]]> {
         // Cut off generated_text when the model starts repeating itself with ANSWER: or similar
         var llamaOutputText = llamaOutput.generated_text.split("ANSWER")[0].trim();
         llamaOutputText = llamaOutputText.split("Human")[0].trim();
+        llamaOutputText = llamaOutputText.split("[CLS]")[0].trim();
+        llamaOutputText = llamaOutputText.split("[SEP]")[0].trim();
+        llamaOutputText = llamaOutputText.split("(LESS")[0].trim();
+        // trim any trailing partial sentence after the last period
+        const lastPeriodIndex = llamaOutputText.lastIndexOf('.');
+        if (lastPeriodIndex !== -1 && lastPeriodIndex < llamaOutputText.length - 1) {
+            llamaOutputText = llamaOutputText.substring(0, lastPeriodIndex + 1);
+        }
 
         return [llamaOutputText, contexts]; // Adjust based on your LLM endpoint output
 
