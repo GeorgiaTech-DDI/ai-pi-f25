@@ -556,7 +556,12 @@ export default function Home() {
                 required
               />
               <button type="submit" disabled={loading} className="send-button">
-                {loading ? 'Thinking...' : 'Send'}
+                {loading ?
+                  <div className="typing-indicator-send">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                  </div> : 'Send'}
               </button>
             </form>
           </div>
@@ -637,12 +642,12 @@ export default function Home() {
         .chat-container {
           display: flex;
           flex-direction: column;
-          width: 100%;
+          width: 85%;
           height: 50vh;
-          border: 1px solid #02020e;
+          border: 1px solid #26262f;
           border-radius: 6px;
           background-color: #16161f;
-          margin-bottom: 20px;
+          margin: 0 auto 20px auto;
           overflow: hidden;
         }
 
@@ -765,11 +770,24 @@ export default function Home() {
           display: flex;
           padding: 6px 12px;
         }
+        .typing-indicator-send {
+          display: flex;
+        }
 
         .typing-indicator span {
           height: 8px;
           width: 8px;
-          background: #505059;
+          background: #666666;
+          display: block;
+          border-radius: 50%;
+          margin: 0 2px;
+          animation: typing 1s infinite ease-in-out;
+        }
+
+        .typing-indicator-send span {
+          height: 8px;
+          width: 8px;
+          background: #f0f0f9;
           display: block;
           border-radius: 50%;
           margin: 0 2px;
@@ -779,6 +797,10 @@ export default function Home() {
         .typing-indicator span:nth-child(1) { animation-delay: 0.2s; }
         .typing-indicator span:nth-child(2) { animation-delay: 0.4s; }
         .typing-indicator span:nth-child(3) { animation-delay: 0.6s; }
+
+        .typing-indicator-send span:nth-child(1) { animation-delay: 0.2s; }
+        .typing-indicator-send span:nth-child(2) { animation-delay: 0.4s; }
+        .typing-indicator-send span:nth-child(3) { animation-delay: 0.6s; }
 
         @keyframes typing {
           0% { transform: translateY(0px); }
@@ -796,7 +818,7 @@ export default function Home() {
         input[type="text"] {
           padding: 12px 16px;
           margin-right: 10px;
-          border: 1px solid #444444;
+          border: 1px solid #26262f;
           border-radius: 6px;
           flex-grow: 1;
           font-size: 1rem;
