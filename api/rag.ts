@@ -131,7 +131,7 @@ async function ragQuery(question): Promise<[string, any[]]> {
         const llamaOutput = JSON.parse(llamaPayload);
 
         // Cut off generated_text when the model starts repeating itself with ANSWER: or similar
-        const llamaOutputText = llamaOutput.generated_text.split("ANSWER:")[0].trim();
+        const llamaOutputText = llamaOutput.generated_text.split("ANSWER")[0].trim();
 
         return [llamaOutputText, contexts]; // Adjust based on your LLM endpoint output
 
