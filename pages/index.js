@@ -20,12 +20,40 @@ export default function Home() {
   const [activeReferences, setActiveReferences] = useState([]);
   const [activeReferenceTitle, setActiveReferenceTitle] = useState("");
   const messagesEndRef = useRef(null);
+  // New ref and state for Terms of Service scroll check
+  const tosContentRef = useRef(null);
+  const [canAcceptTos, setCanAcceptTos] = useState(false);
   const chatContainerRef = useRef(null);
 
   // Scroll to bottom whenever messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Effect to check ToS scroll state when dialog opens
+  useEffect(() => {
+    if (showTosDialog && tosContentRef.current) {
+      const element = tosContentRef.current;
+      // Check if scrollable initially
+      const isScrollable = element.scrollHeight > element.clientHeight;
+      if (!isScrollable) {
+        setCanAcceptTos(true); // Not scrollable, allow accept immediately
+      } // If scrollable, it remains false until scrolled
+    } else {
+      // Reset when dialog is closed
+      setCanAcceptTos(false);
+    }
+  }, [showTosDialog]); // Re-run when the dialog visibility changes
+
+  // Function to handle scrolling within the ToS content
+  const handleTosScroll = () => {
+    // If already scrolled to bottom once, no need to check again
+    if (canAcceptTos) return;
+    if (!tosContentRef.current) return;
+    const element = tosContentRef.current;
+    const isAtBottom = element.scrollHeight - element.scrollTop <= element.clientHeight + 5; // Add small tolerance
+    setCanAcceptTos(isAtBottom);
+  };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -318,7 +346,7 @@ export default function Home() {
           <div className="tos-dialog">
             <h2>Terms of Service</h2>
 
-            <div className="tos-content">
+            <div className="tos-content" ref={tosContentRef} onScroll={handleTosScroll}>
               <h3>Understanding AI Limitations</h3>
               <p>Please be aware that:</p>
               <ul>
@@ -357,7 +385,7 @@ export default function Home() {
               <button onClick={declineTerms} className="tos-decline-button">
                 Decline
               </button>
-              <button onClick={acceptTerms} className="tos-accept-button">
+              <button onClick={acceptTerms} className="tos-accept-button" disabled={!canAcceptTos}>
                 Accept Terms
               </button>
             </div>
@@ -1063,6 +1091,12 @@ export default function Home() {
         .feedback-submit-button {
           background-color: rgb(118, 120, 255);
           border-radius: 6px;
+        }
+
+        .tos-accept-button:disabled {
+          background-color: #555560; /* Darker grey for disabled state */
+          color: #9999a0;
+          cursor: not-allowed;
         }
 
         .tos-decline-button,
