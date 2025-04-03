@@ -282,6 +282,9 @@ export default function Home() {
       // Clear the chat
       setMessages([]);
       setContexts([]);
+      // Reset ToS acceptance and show dialog
+      setTosAccepted(false);
+      setShowTosDialog(true);
     }
   };
 
@@ -317,13 +320,10 @@ export default function Home() {
 
             <div className="tos-content">
               <h3>Understanding AI Limitations</h3>
-              <p>
-                This application uses Large Language Model (LLM) technology. Please be aware that:
-              </p>
+              <p>Please be aware that:</p>
               <ul>
                 <li>AI responses may contain inaccuracies or errors</li>
                 <li>The AI has limited knowledge and may not have information on recent events</li>
-                <li>Responses are generated based on patterns in data, not human understanding</li>
                 <li>Always verify critical information from official sources</li>
               </ul>
 
@@ -346,6 +346,11 @@ export default function Home() {
                 <li>Attempt to extract confidential information</li>
                 <li>Engage in any activity that violates applicable laws or regulations</li>
               </ul>
+              <h4>Age Requirement</h4>
+              <p>
+                You must be at least 18 years of age or older to use this application. By accepting
+                these terms, you confirm that you meet this age requirement.
+              </p>
             </div>
 
             <div className="tos-actions">
