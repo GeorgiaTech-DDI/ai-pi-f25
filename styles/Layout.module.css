@@ -11,7 +11,7 @@
     margin: 0;
     height: 100vh;
     overflow: hidden;
-    background: #16161f;
+    background: #000000;
 }
 
 .customFont {
@@ -52,7 +52,7 @@
 .disclaimer {
     font-size: 0.9rem;
     color: #666666;
-    background-color: #16161f;
+    background-color: #000000;
     padding: 10px;
     border-radius: 4px;
     margin: 0;
@@ -71,7 +71,7 @@
 .actionButton {
     padding: 8px 16px;
     font-size: 0.85rem;
-    background-color: #16161f;
+    background-color: #000000;
     color: #e0e0e9;
     border: 1px solid #999999;
     border-radius: 18px;
