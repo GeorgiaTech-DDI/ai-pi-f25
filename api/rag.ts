@@ -151,12 +151,12 @@ async function ragQuery(question: string): Promise<[string, any[]]> {
         const sentences = llamaOutputText.split('. ');
         const uniqueSentences = new Set();
         const filteredSentences = sentences.filter((sentence: string) => {
-            const trimmedSentence = sentence.trim();
-            if (uniqueSentences.has(trimmedSentence)) {
-                return false; // Skip if the sentence is a duplicate
+            const normalized = sentence.trim().toLowerCase().replace(/[.?!]$/, "");
+            if (uniqueSentences.has(normalized)) {
+                return false;
             }
-            uniqueSentences.add(trimmedSentence);
-            return true; // Keep the unique sentence
+            uniqueSentences.add(normalized);
+            return true;
         });
         llamaOutputText = filteredSentences.join('. ');
 
