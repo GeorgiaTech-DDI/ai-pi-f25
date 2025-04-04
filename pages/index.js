@@ -674,7 +674,7 @@ export default function Home() {
         .header {
           width: 100%;
           text-align: center;
-          margin-bottom: 20px;
+          margin: 40px 0 20px 0;
         }
 
         .disclaimer-container {
@@ -700,7 +700,7 @@ export default function Home() {
           width: 85%;
           height: 75vh;
           border: 1px solid #26262f;
-          border-radius: 6px;
+          border-radius: 16px;
           background-color: #16161f;
           margin: 0 auto 20px auto;
           overflow: hidden;
@@ -940,8 +940,14 @@ export default function Home() {
 
         button:disabled {
           background-color: transparent;
+          pointer-events: none;
+        }
+
+        button:disabled:hover {
+          background-color: transparent;
           color: transparent;
           border: 1px solid transparent;
+          pointer-events: none;
         }
 
         .action-buttons {
