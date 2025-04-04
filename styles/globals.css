@@ -1,5 +1,16 @@
 body {
     margin: 0;
+    font-family:
+        var(--font-inter),
+        -apple-system,
+        BlinkMacSystemFont,
+        Roboto,
+        "Helvetica Neue",
+        sans-serif;
+}
+
+h1 {
+    margin-block-end: 10px;
 }
 
 h3 {

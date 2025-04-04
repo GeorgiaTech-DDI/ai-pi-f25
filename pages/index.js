@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { saveAs } from "file-saver";
+import Head from "next/head";
 
 export default function Home() {
   const [inputMessage, setInputMessage] = useState("");
@@ -369,6 +370,10 @@ export default function Home() {
 
   return (
     <div className="container">
+      <Head>
+        <title>AI PI</title>
+        <link rel="icon" href="/favicon.ico" />
+      </Head>
       {/* Terms of Service Dialog */}
       {(showTosDialog || tosFadeState !== "hidden") && (
         <div className={`tos-overlay dialog-overlay dialog-${tosFadeState}`}>
@@ -550,12 +555,9 @@ export default function Home() {
       {(!showTosDialog || tosAccepted) && (
         <>
           <header className="header">
-            <h1>AI PI</h1>
-            <div className="disclaimer-container">
-              <p className="disclaimer">
-                This is an AI-powered assistant. While we strive for accuracy, responses may not
-                always be correct. Please verify important information from reliable sources.
-              </p>
+            <div className="logo-container">
+              <img src="/images/logo.png" alt="AI PI Logo" className="logo" />
+              <h1 className="custom-font">AI PI</h1>
             </div>
             <div className="action-buttons">
               <button onClick={saveChat} className="action-button" disabled={messages.length === 0}>
@@ -669,6 +671,13 @@ export default function Home() {
               </button>
             </form>
           </div>
+
+          <div className="disclaimer-container">
+            <p className="disclaimer">
+              This is an AI-powered assistant. While we strive for accuracy, responses may not
+              always be correct. Please verify important information from reliable sources.
+            </p>
+          </div>
         </>
       )}
 
@@ -694,6 +703,29 @@ export default function Home() {
           background: #16161f;
         }
 
+        .custom-font {
+          font-family: "Inter", monospace;
+          font-size: 40px;
+          font-weight: bold;
+        }
+
+        .logo-container {
+          display: flex;
+          justify-content: center;
+          gap: 12px;
+        }
+
+        .logo {
+          height: 100px;
+          width: auto;
+        }
+
+        @media (max-width: 450px) {
+          .logo {
+            height: 30px;
+          }
+        }
+
         .header {
           width: 100%;
           text-align: center;
@@ -712,7 +744,7 @@ export default function Home() {
           background-color: #16161f;
           padding: 10px;
           border-radius: 4px;
-          margin: 10px 0;
+          margin: 0;
           text-align: center;
           max-width: 600px;
         }
@@ -722,7 +754,7 @@ export default function Home() {
           flex-direction: column;
           width: 85%;
           height: 75vh;
-          border: 1px solid #26262f;
+          border: 3px solid #26262f;
           border-radius: 16px;
           background-color: #16161f;
           margin: 0 auto 20px auto;
@@ -742,9 +774,11 @@ export default function Home() {
           align-items: center;
           justify-content: center;
           height: 200px;
-          color: #f0f0f9;
-          font-style: italic;
           margin: auto;
+        }
+
+        .empty-chat p {
+          color: #8b8b94;
         }
 
         .user-message {
@@ -834,10 +868,12 @@ export default function Home() {
         .feedback-icon {
           margin-right: 4px;
           font-size: 1rem;
+          background-color: transparent;
         }
 
         .feedback-text {
           font-weight: 500;
+          background-color: transparent;
         }
 
         .feedback-indicator {
