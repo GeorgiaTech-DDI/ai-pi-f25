@@ -415,6 +415,28 @@ export default function Home() {
               </p>
             </div>
 
+            <div className={`scroll-indicator ${canAcceptTos ? "visible-false" : "visible-true"}`}>
+              <div className="scroll-icon">
+                <svg
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path d="M12 5L12 19" stroke="#999" strokeWidth="2" strokeLinecap="round" />
+                  <path
+                    d="M18 13L12 19L6 13"
+                    stroke="#999"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </div>
+              <p>Scroll to continue</p>
+            </div>
+
             <div className="tos-actions">
               <button onClick={declineTerms} className="tos-decline-button">
                 Decline
@@ -1267,6 +1289,90 @@ export default function Home() {
         .tos-decline-button:hover,
         .feedback-cancel-button:hover {
           background-color: #26262f;
+        }
+
+        .tos-content-wrapper {
+          position: relative;
+          flex-grow: 1;
+          display: flex;
+          flex-direction: column;
+        }
+
+        .scroll-indicator {
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          background: linear-gradient(
+            to bottom,
+            rgba(22, 22, 31, 0) 00%,
+            rgba(22, 22, 31, 0.4) 25%,
+            rgba(22, 22, 31, 0.8) 50%,
+            rgba(22, 22, 31, 1) 100%
+          );
+          padding: 30px 0 10px 0;
+          margin-bottom: 70px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          animation: pulse 2s infinite;
+          opacity: 1;
+          transition: opacity 0.5s ease;
+          pointer-events: none;
+        }
+
+        .scroll-indicator.visible-false {
+          background: transparent;
+          opacity: 0;
+
+          * {
+            opacity: 0;
+          }
+        }
+
+        .scroll-icon {
+          margin-bottom: 4px;
+          background: transparent;
+          animation: bounce 2s infinite;
+
+          svg {
+            background: transparent;
+          }
+        }
+
+        .scroll-indicator p {
+          margin: 0;
+          font-size: 0.8rem;
+          color: #999;
+        }
+
+        @keyframes pulse {
+          0% {
+            opacity: 0.95;
+          }
+          50% {
+            opacity: 1;
+          }
+          100% {
+            opacity: 0.95;
+          }
+        }
+
+        @keyframes bounce {
+          0%,
+          20%,
+          50%,
+          80%,
+          100% {
+            transform: translateY(0);
+          }
+          40% {
+            transform: translateY(-10px);
+          }
+          60% {
+            transform: translateY(-5px);
+          }
         }
 
         /* New feedback form styles */
