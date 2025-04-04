@@ -1,0 +1,247 @@
+.chatContainer {
+    display: flex;
+    flex-direction: column;
+    width: 85%;
+    height: 75vh;
+    border: 3px solid #26262f;
+    border-radius: 16px;
+    background-color: #16161f;
+    margin: 0 auto 20px auto;
+    overflow: hidden;
+}
+
+.messagesArea {
+    flex-grow: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+}
+
+.emptyChat {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 200px;
+    margin: auto;
+}
+
+.emptyChat p {
+    color: #8b8b94;
+}
+
+.userMessage {
+    margin-bottom: 16px;
+    width: 100%;
+    animation: fadeIn 0.3s ease-in-out;
+    text-align: right;
+}
+
+.assistantMessage {
+    margin-bottom: 16px;
+    width: 100%;
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+.systemNotification {
+    margin: 0;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+.notificationContent {
+    background-color: #16161f;
+    color: #f0f0f9;
+    border-radius: 16px;
+    padding: 6px 12px;
+    font-size: 0.85rem;
+    opacity: 0.8;
+}
+
+.userBubble {
+    background-color: rgb(118, 120, 255);
+    color: #f0f0f9;
+    padding: 12px 16px;
+    border-radius: 12px;
+    max-width: 85%;
+    margin-left: auto;
+    word-wrap: break-word;
+    display: inline-block;
+}
+
+.assistantWrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.assistantContent {
+    color: #f0f0f9;
+    padding: 12px 0;
+    width: 100%;
+    line-height: 1.5;
+}
+
+.feedbackButton {
+    background: none;
+    border: none;
+    padding: 6px 10px;
+    font-size: 0.8rem;
+    color: #e0e0e9;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    margin-top: 4px;
+    border-radius: 12px;
+    transition: background-color 0.2s;
+}
+
+.feedbackButton:hover {
+    background-color: #26262f;
+    color: #f0f0f9;
+}
+
+.feedbackIcon {
+    margin-right: 4px;
+    font-size: 1rem;
+    background-color: transparent;
+}
+
+.feedbackText {
+    font-weight: 500;
+    background-color: transparent;
+}
+
+.messageActions {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+}
+
+.referencesButton:hover {
+    background-color: #28285f;
+}
+
+.typingIndicator {
+    display: flex;
+    padding: 6px 12px;
+}
+
+.typingIndicatorSend {
+    display: flex;
+}
+
+.typingIndicator span {
+    height: 8px;
+    width: 8px;
+    background: #666666;
+    display: block;
+    border-radius: 50%;
+    margin: 0 2px;
+    animation: typing 1s infinite ease-in-out;
+}
+
+.typingIndicatorSend span {
+    height: 8px;
+    width: 8px;
+    background: #f0f0f9;
+    display: block;
+    border-radius: 50%;
+    margin: 0 2px;
+    animation: typing 1s infinite ease-in-out;
+}
+
+.typingIndicator span:nth-child(1),
+.typingIndicatorSend span:nth-child(1) {
+    animation-delay: 0.2s;
+}
+.typingIndicator span:nth-child(2),
+.typingIndicatorSend span:nth-child(2) {
+    animation-delay: 0.4s;
+}
+.typingIndicator span:nth-child(3),
+.typingIndicatorSend span:nth-child(3) {
+    animation-delay: 0.6s;
+}
+
+.error {
+    color: red;
+    padding: 10px 16px;
+    margin: 0;
+}
+
+.inputForm {
+    display: flex;
+    padding: 12px;
+    border-top: 1px solid #26262f;
+    background-color: #16161f;
+}
+
+.inputForm input[type="text"] {
+    padding: 12px 16px;
+    margin-right: 10px;
+    border: 1px solid #26262f;
+    border-radius: 6px;
+    flex-grow: 1;
+    font-size: 1rem;
+}
+
+.sendButton {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 6px;
+    background-color: rgb(118, 120, 255);
+    color: white;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    font-size: 1rem;
+    font-weight: 500;
+}
+
+.sendButton:hover {
+    background-color: rgb(95, 98, 240);
+}
+
+.sendButton:disabled {
+    background-color: transparent;
+    color: transparent;
+    border: 1px solid transparent;
+    pointer-events: none;
+}
+
+@media (max-width: 450px) {
+    .inputForm {
+        flex-direction: column;
+    }
+
+    .inputForm input[type="text"] {
+        margin-right: 0;
+        margin-bottom: 10px;
+    }
+
+    .sendButton {
+        width: 100%;
+    }
+}
+
+/* Custom scrollbar styling */
+.messagesArea::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.messagesArea::-webkit-scrollbar-track {
+    background: #16161f;
+    border-radius: 4px;
+}
+
+.messagesArea::-webkit-scrollbar-thumb {
+    background: #333340;
+    border-radius: 4px;
+}
+
+.messagesArea::-webkit-scrollbar-thumb:hover {
+    background: #444452;
+}
