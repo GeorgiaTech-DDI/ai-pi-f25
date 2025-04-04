@@ -10,15 +10,18 @@ export default function Home() {
   // New state for Terms of Service
   const [tosAccepted, setTosAccepted] = useState(false);
   const [showTosDialog, setShowTosDialog] = useState(true);
+  const [tosFadeState, setTosFadeState] = useState("visible"); // "hidden", "entering", "visible", "exiting"
   // New state for feedback
   const [showFeedbackDialog, setShowFeedbackDialog] = useState(false);
   const [feedbackText, setFeedbackText] = useState("");
   const [feedbackMessageIndex, setFeedbackMessageIndex] = useState(null);
   const [selectedRating, setSelectedRating] = useState(null); // 'thumbsUp', 'thumbsDown', or null
+  const [feedbackFadeState, setFeedbackFadeState] = useState("hidden"); // "hidden", "entering", "visible", "exiting"
   // New state for references
   const [showReferencesDialog, setShowReferencesDialog] = useState(false);
   const [activeReferences, setActiveReferences] = useState([]);
   const [activeReferenceTitle, setActiveReferenceTitle] = useState("");
+  const [referencesFadeState, setReferencesFadeState] = useState("hidden"); // "hidden", "entering", "visible", "exiting"
   const messagesEndRef = useRef(null);
   // New ref and state for Terms of Service scroll check
   const tosContentRef = useRef(null);
@@ -30,20 +33,29 @@ export default function Home() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Effect to check ToS scroll state when dialog opens
+  // Combined effect to handle ToS dialog animation and scroll check
   useEffect(() => {
-    if (showTosDialog && tosContentRef.current) {
-      const element = tosContentRef.current;
-      // Check if scrollable initially
-      const isScrollable = element.scrollHeight > element.clientHeight;
-      if (!isScrollable) {
-        setCanAcceptTos(true); // Not scrollable, allow accept immediately
-      } // If scrollable, it remains false until scrolled
-    } else {
+    // Handle the fade state animations
+    if (showTosDialog) {
+      setTosFadeState("entering");
+      setTimeout(() => setTosFadeState("visible"), 10);
+
+      // Check if content is scrollable when dialog is visible and ref is available
+      if (tosContentRef.current) {
+        const element = tosContentRef.current;
+        // Check if scrollable initially
+        const isScrollable = element.scrollHeight > element.clientHeight;
+        if (!isScrollable) {
+          setCanAcceptTos(true); // Not scrollable, allow accept immediately
+        } // If scrollable, it remains false until scrolled
+      }
+    } else if (tosFadeState !== "hidden") {
+      setTosFadeState("exiting");
+      setTimeout(() => setTosFadeState("hidden"), 500); // Match transition duration
       // Reset when dialog is closed
       setCanAcceptTos(false);
     }
-  }, [showTosDialog]); // Re-run when the dialog visibility changes
+  }, [showTosDialog, tosFadeState]); // Re-run when dialog visibility or fade state changes
 
   // Function to handle scrolling within the ToS content
   const handleTosScroll = () => {
@@ -186,6 +198,13 @@ export default function Home() {
     setFeedbackText("");
     setSelectedRating(null);
     setShowFeedbackDialog(true);
+    setFeedbackFadeState("entering");
+    setTimeout(() => setFeedbackFadeState("visible"), 10);
+  };
+
+  const closeFeedbackDialog = () => {
+    setFeedbackFadeState("exiting");
+    setTimeout(() => setShowFeedbackDialog(false), 500);
   };
 
   // Function to submit feedback
@@ -208,11 +227,11 @@ export default function Home() {
       isNotification: true,
     });
 
-    setMessages(updatedMessages);
-    setShowFeedbackDialog(false);
-
-    // You could also send the feedback to your backend here
-    // const response = await fetch('/api/feedback', { ... })
+    setFeedbackFadeState("exiting");
+    setTimeout(() => {
+      setShowFeedbackDialog(false);
+      setMessages(updatedMessages);
+    }, 500);
   };
 
   // Function to save chat history
@@ -318,8 +337,11 @@ export default function Home() {
 
   // Function to handle TOS acceptance
   const acceptTerms = () => {
-    setTosAccepted(true);
-    setShowTosDialog(false);
+    setTosFadeState("exiting");
+    setTimeout(() => {
+      setShowTosDialog(false);
+      setTosAccepted(true);
+    }, 500);
   };
 
   // Function to decline TOS
@@ -335,15 +357,22 @@ export default function Home() {
       setActiveReferences(message.contexts);
       setActiveReferenceTitle(`References for Q&A #${Math.floor(messageIndex / 2) + 1}`);
       setShowReferencesDialog(true);
+      setReferencesFadeState("entering");
+      setTimeout(() => setReferencesFadeState("visible"), 10);
     }
+  };
+
+  const closeReferencesDialog = () => {
+    setReferencesFadeState("exiting");
+    setTimeout(() => setShowReferencesDialog(false), 500);
   };
 
   return (
     <div className="container">
       {/* Terms of Service Dialog */}
-      {showTosDialog && (
-        <div className="tos-overlay">
-          <div className="tos-dialog">
+      {(showTosDialog || tosFadeState !== "hidden") && (
+        <div className={`tos-overlay dialog-overlay dialog-${tosFadeState}`}>
+          <div className={`tos-dialog dialog-content dialog-${tosFadeState}`}>
             <h2>Terms of Service</h2>
 
             <div className="tos-content" ref={tosContentRef} onScroll={handleTosScroll}>
@@ -394,9 +423,9 @@ export default function Home() {
       )}
 
       {/* Feedback Dialog */}
-      {showFeedbackDialog && (
-        <div className="feedback-overlay">
-          <div className="feedback-dialog">
+      {(showFeedbackDialog || feedbackFadeState !== "hidden") && (
+        <div className={`feedback-overlay dialog-overlay dialog-${feedbackFadeState}`}>
+          <div className={`feedback-dialog dialog-content dialog-${feedbackFadeState}`}>
             <h2>Share Your Feedback</h2>
             <p>How was the AI's response? Your feedback helps us improve.</p>
 
@@ -431,10 +460,7 @@ export default function Home() {
             </div>
 
             <div className="feedback-actions">
-              <button
-                onClick={() => setShowFeedbackDialog(false)}
-                className="feedback-cancel-button"
-              >
+              <button onClick={closeFeedbackDialog} className="feedback-cancel-button">
                 Cancel
               </button>
               <button
@@ -450,9 +476,11 @@ export default function Home() {
       )}
 
       {/* References Dialog */}
-      {showReferencesDialog && (
-        <div className="feedback-overlay">
-          <div className="feedback-dialog references-dialog">
+      {(showReferencesDialog || referencesFadeState !== "hidden") && (
+        <div className={`feedback-overlay dialog-overlay dialog-${referencesFadeState}`}>
+          <div
+            className={`feedback-dialog references-dialog dialog-content dialog-${referencesFadeState}`}
+          >
             <h2>{activeReferenceTitle}</h2>
 
             <div className="tos-content">
@@ -470,7 +498,30 @@ export default function Home() {
                     }, {}),
                   ).map(([filename, fileContexts], index) => (
                     <details key={index} className="context-accordion">
-                      <summary>{filename}</summary>
+                      <summary
+                        onClick={(e) => {
+                          e.preventDefault();
+                          const details = e.currentTarget.parentNode;
+
+                          if (details.hasAttribute("open")) {
+                            // If it's open, start closing animation
+                            const content = details.querySelector(".context-content");
+                            content.style.animation = "accordionExit 0.3s ease-out forwards";
+
+                            // After animation completes, actually close it
+                            setTimeout(() => {
+                              details.removeAttribute("open");
+                              // Reset animation for next time
+                              content.style.animation = "";
+                            }, 280); // Slightly less than animation duration to prevent flicker
+                          } else {
+                            // If it's closed, just open it (animation is in CSS)
+                            details.setAttribute("open", "");
+                          }
+                        }}
+                      >
+                        {filename}
+                      </summary>
                       <div className="context-content">
                         {fileContexts.map((context, contextIndex) => (
                           <p key={contextIndex}>
@@ -487,7 +538,7 @@ export default function Home() {
             </div>
 
             <div className="tos-actions">
-              <button onClick={() => setShowReferencesDialog(false)} className="tos-accept-button">
+              <button onClick={closeReferencesDialog} className="tos-accept-button">
                 Close
               </button>
             </div>
@@ -618,34 +669,6 @@ export default function Home() {
               </button>
             </form>
           </div>
-
-          {contexts.length > 0 && (
-            <>
-              <h3>Reference Sources:</h3>
-              <div className="contexts-container">
-                {Object.entries(
-                  contexts.reduce((acc, context) => {
-                    const filename =
-                      context.metadata?.filename || `Reference ${Object.keys(acc).length + 1}`;
-                    if (!acc[filename]) {
-                      acc[filename] = [];
-                    }
-                    acc[filename].push(context);
-                    return acc;
-                  }, {}),
-                ).map(([filename, fileContexts], index) => (
-                  <details key={index} className="context-accordion">
-                    <summary>{filename}</summary>
-                    <div className="context-content">
-                      {fileContexts.map((context, contextIndex) => (
-                        <p key={contextIndex}>{context.metadata.text || JSON.stringify(context)}</p>
-                      ))}
-                    </div>
-                  </details>
-                ))}
-              </div>
-            </>
-          )}
         </>
       )}
 
@@ -940,6 +963,8 @@ export default function Home() {
 
         button:disabled {
           background-color: transparent;
+          color: transparent;
+          border: 1px solid transparent;
           pointer-events: none;
         }
 
@@ -998,6 +1023,28 @@ export default function Home() {
           background-color: #26262f;
           cursor: pointer;
           font-weight: bold;
+          position: relative;
+          transition: background-color 0.2s ease;
+          list-style: none;
+        }
+
+        .context-accordion summary:hover {
+          background-color: #303045;
+        }
+
+        .context-accordion summary::-webkit-details-marker {
+          display: none;
+        }
+
+        .context-accordion summary::after {
+          content: "+";
+          position: absolute;
+          right: 15px;
+          transition: transform 0.3s ease;
+        }
+
+        .context-accordion[open] summary::after {
+          transform: rotate(45deg);
         }
 
         .context-content p {
@@ -1009,6 +1056,74 @@ export default function Home() {
           background-color: #26262f;
           max-height: 300px;
           overflow-y: auto;
+          will-change: max-height, opacity;
+        }
+
+        /* Animation for opening */
+        .context-accordion[open] .context-content {
+          animation: accordionEnter 0.3s ease-out forwards;
+        }
+
+        @keyframes accordionEnter {
+          from {
+            opacity: 0;
+            max-height: 0;
+          }
+          to {
+            opacity: 1;
+            max-height: 300px;
+          }
+        }
+
+        @keyframes accordionExit {
+          from {
+            opacity: 1;
+            max-height: 300px;
+          }
+          to {
+            opacity: 0;
+            max-height: 0;
+          }
+        }
+
+        .dialog-overlay {
+          transition: opacity 0.5s ease;
+        }
+
+        .dialog-content {
+          transition:
+            transform 0.5s ease,
+            opacity 0.5s ease;
+        }
+
+        .dialog-hidden {
+          opacity: 0;
+          pointer-events: none;
+        }
+
+        .dialog-entering {
+          opacity: 0;
+        }
+
+        .dialog-entering.dialog-content {
+          transform: translateY(20px);
+        }
+
+        .dialog-visible {
+          opacity: 1;
+        }
+
+        .dialog-visible.dialog-content {
+          transform: translateY(0);
+        }
+
+        .dialog-exiting {
+          opacity: 0;
+          pointer-events: none;
+        }
+
+        .dialog-exiting.dialog-content {
+          transform: translateY(20px);
         }
 
         /* Terms of Service Dialog Styles */
