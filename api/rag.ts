@@ -147,6 +147,19 @@ async function ragQuery(question: string): Promise<[string, any[]]> {
             llamaOutputText = llamaOutputText.substring(0, lastPeriodIndex + 1);
         }
 
+        // check for repeating sentences and show only the first one
+        const sentences = llamaOutputText.split('. ');
+        const uniqueSentences = new Set();
+        const filteredSentences = sentences.filter((sentence: string) => {
+            const trimmedSentence = sentence.trim();
+            if (uniqueSentences.has(trimmedSentence)) {
+                return false; // Skip if the sentence is a duplicate
+            }
+            uniqueSentences.add(trimmedSentence);
+            return true; // Keep the unique sentence
+        });
+        llamaOutputText = filteredSentences.join('. ');
+
         return [llamaOutputText, contexts]; // Adjust based on your LLM endpoint output
 
     } catch (error) {
