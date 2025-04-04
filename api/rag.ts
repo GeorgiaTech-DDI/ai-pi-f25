@@ -18,7 +18,7 @@ const pinecone = new Pinecone({
 const index = pinecone.index(process.env.PINECONE_INDEX_NAME || "rag-embeddings");
 
 // --- Embedding Function (using Sagemaker Embedding Endpoint) ---
-async function embedDocs(docs) {
+async function embedDocs(docs: string[]): Promise<number[][]> {
     const params = {
         EndpointName: process.env.SAGEMAKER_EMBEDDING_ENDPOINT_NAME || "minilm-embedding",
         ContentType: 'application/json',
@@ -51,7 +51,7 @@ async function embedDocs(docs) {
 }
 
 // --- Construct Context Function ---
-function constructContext(contexts, maxSectionLen = 5000) {
+function constructContext(contexts: string[], maxSectionLen = 5000) {
     let chosenSections: string[] = [];
     let chosenSectionsLen = 0;
 
@@ -69,7 +69,7 @@ function constructContext(contexts, maxSectionLen = 5000) {
 }
 
 // --- Create Payload Function ---
-function createPayload(question, contextStr) {
+function createPayload(question: string, contextStr: string) {
     const promptTemplate = `If the CONTEXT doesn't contain the answer, say "I think that" and provide your best guess. Be as concise and accurate as possible without repeating the question or context Answer the following short-answer QUESTION based on the CONTEXT given in LESS than 100 words.
 
     CONTEXT:
@@ -96,7 +96,7 @@ function createPayload(question, contextStr) {
 }
 
 // --- RAG Query Function ---
-async function ragQuery(question): Promise<[string, any[]]> {
+async function ragQuery(question: string): Promise<[string, any[]]> {
     try {
         const queryVecEmbeddings = await embedDocs([question]); // Embed the question
         if (!queryVecEmbeddings || !Array.isArray(queryVecEmbeddings) || queryVecEmbeddings.length === 0 || !Array.isArray(queryVecEmbeddings[0])) {
@@ -114,8 +114,13 @@ async function ragQuery(question): Promise<[string, any[]]> {
             includeMetadata: true,
         });
 
-        const contexts = queryResult.matches
-        const contextStr = constructContext(contexts.map(match => match.metadata?.text));
+        const contexts = queryResult.matches;
+        // Fix type error by filtering out undefined values and converting to string[]
+        const contextTexts: string[] = contexts
+            .map(match => match.metadata?.text)
+            .filter((text): text is string => text !== undefined);
+
+        const contextStr = constructContext(contextTexts);
         const payload = createPayload(question, contextStr);
 
         const llamaParams = {
@@ -144,7 +149,6 @@ async function ragQuery(question): Promise<[string, any[]]> {
 
         return [llamaOutputText, contexts]; // Adjust based on your LLM endpoint output
 
-
     } catch (error) {
         console.error("Error in ragQuery:", error);
         throw error; // Re-throw to be caught by the API handler
@@ -167,7 +171,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // This is a simple example - you may need to adjust based on your model's requirements
     let formattedHistory = ''
     if (history.length > 0) {
-        formattedHistory = history.map(msg =>
+        formattedHistory = history.map((msg: { role: string; content: string }) =>
             `${msg.role === 'user' ? 'Human' : 'Assistant'}: ${msg.content}`
         ).join('\n\n')
 
@@ -180,8 +184,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const answer = response[0];
         const contexts = response[1];
         return res.status(200).json({ answer, contexts });
-    } catch (error) {
+    } catch (error: unknown) {
         console.error("Error in RAG API:", error);
-        return res.status(500).json({ message: 'Internal server error', error: error.message }); // Send generic error to client, avoid leaking server details
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+        return res.status(500).json({ message: 'Internal server error', error: errorMessage }); // Send generic error to client, avoid leaking server details
     }
 }
