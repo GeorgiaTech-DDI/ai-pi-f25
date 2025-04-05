@@ -1,15 +1,5 @@
-import { SageMakerRuntimeClient, InvokeEndpointCommand } from "@aws-sdk/client-sagemaker-runtime";
 import { Pinecone } from "@pinecone-database/pinecone";
 import type { NextApiRequest, NextApiResponse } from "next";
-
-// Initialize AWS SageMaker Runtime Client (for embeddings only)
-const sagemakerRuntime = new SageMakerRuntimeClient({
-  region: process.env.AWS_REGION || "us-east-1",
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID || "",
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || "",
-  },
-});
 
 // Initialize Pinecone Client
 const pinecone = new Pinecone({
@@ -26,21 +16,36 @@ async function embedDocs(docs: string[]): Promise<number[][]> {
   };
 
   try {
-    const command = new InvokeEndpointCommand(params);
-    const response = await sagemakerRuntime.send(command);
-    const payload = new TextDecoder().decode(response.Body);
-    const embeddings_raw = JSON.parse(payload);
+    const headers = {
+      Accept: "application/json",
+      Authorization: `Bearer ${process.env.HF_API_KEY}`,
+      "Content-Type": "application/json",
+    };
+    const embeddings: number[][] = [];
 
-    // Assuming the endpoint returns embeddings in a structure like [[...embeddings...]]
-    // Adjust based on your actual endpoint response format
-    const embeddings = embeddings_raw.vectors ? embeddings_raw.vectors : embeddings_raw;
+    for (const doc of docs) {
+      const response = await fetch(`${process.env.HF_API_URL}`, {
+        method: "POST",
+        headers: headers,
+        body: JSON.stringify({ inputs: doc }),
+      });
 
-    if (!Array.isArray(embeddings) || embeddings.length === 0 || !Array.isArray(embeddings[0])) {
-      console.error("Unexpected embedding format from SageMaker:", embeddings_raw);
-      throw new Error("Unexpected embedding format from SageMaker.");
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Hugging Face API error: ${response.status} - ${errorText}`);
+      }
+
+      const result = await response.json();
+
+      // The expected format from the provided Python code should be a vector
+      if (!Array.isArray(result)) {
+        console.error("Unexpected embedding format from Hugging Face:", result);
+        throw new Error("Unexpected embedding format from Hugging Face.");
+      }
+
+      embeddings.push(result);
     }
 
-    // If the endpoint already returns sentence embeddings, just use them directly
     return embeddings;
   } catch (error) {
     console.error("Error embedding documents:", error);
