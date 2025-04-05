@@ -251,6 +251,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       res.setHeader("Cache-Control", "no-cache");
       res.setHeader("Connection", "keep-alive");
 
+      console.log("Starting stream response");
+
       // Send contexts data as the first event
       res.write(`data: ${JSON.stringify({ type: "contexts", contexts })}\n\n`);
 
@@ -259,9 +261,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const textDecoder = new TextDecoder();
 
       let responseEnded = false;
+      let buffer = ""; // Buffer to collect partial chunks
 
       // Setup response end handler
       req.on("close", () => {
+        console.log("Request closed by client");
         responseEnded = true;
         reader.cancel();
         if (!res.writableEnded) {
@@ -272,10 +276,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // Define process stream function before using it
       const processStream = async () => {
         try {
+          let tokensReceived = 0;
+
           while (!responseEnded) {
             const { done, value } = await reader.read();
 
             if (done) {
+              console.log("Stream reading complete");
               if (!responseEnded && !res.writableEnded) {
                 res.write(`data: ${JSON.stringify({ type: "done" })}\n\n`);
                 res.end();
@@ -283,29 +290,71 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
               break;
             }
 
-            const text = textDecoder.decode(value, { stream: true });
-            if (text.trim()) {
-              // Parse the SSE data
-              const lines = text.split("\n");
-              for (const line of lines) {
-                if (line.startsWith("data: ")) {
-                  const data = line.slice(6);
-                  if (data === "[DONE]") {
-                    if (!responseEnded && !res.writableEnded) {
-                      res.write(`data: ${JSON.stringify({ type: "done" })}\n\n`);
-                    }
-                  } else {
-                    try {
-                      const parsed = JSON.parse(data);
-                      const content = parsed.choices?.[0]?.content || "";
-                      if (content && !responseEnded && !res.writableEnded) {
-                        res.write(`data: ${JSON.stringify({ type: "token", content })}\n\n`);
-                      }
-                    } catch (e) {
-                      console.error("Error parsing stream data:", e);
-                      // Continue processing even if one chunk has an error
+            if (!value || value.length === 0) {
+              continue;
+            }
+
+            // Decode the chunk and add it to our buffer
+            const chunk = textDecoder.decode(value, { stream: true });
+            buffer += chunk;
+
+            // Log raw chunk for debugging
+            console.log(`Received chunk: ${chunk.length} bytes`);
+
+            // Process any complete SSE messages in the buffer
+            const lines = buffer.split("\n");
+            // Keep the last line in the buffer if it's not complete
+            buffer = lines.pop() || "";
+
+            for (const line of lines) {
+              // Process each line
+              if (line.startsWith("data: ")) {
+                const data = line.substring(6).trim();
+
+                if (data === "[DONE]") {
+                  console.log("Received [DONE] signal");
+                  if (!responseEnded && !res.writableEnded) {
+                    res.write(`data: ${JSON.stringify({ type: "done" })}\n\n`);
+                  }
+                  continue;
+                }
+
+                try {
+                  const parsed = JSON.parse(data);
+                  console.log("Parsed data:", JSON.stringify(parsed).substring(0, 100) + "...");
+
+                  // Handle different streaming formats
+                  let content = "";
+
+                  // OpenRouter format
+                  if (parsed.choices && parsed.choices.length > 0) {
+                    // Different models might use different response formats
+                    if (parsed.choices[0].delta && parsed.choices[0].delta.content) {
+                      content = parsed.choices[0].delta.content;
+                    } else if (parsed.choices[0].content) {
+                      content = parsed.choices[0].content;
+                    } else if (parsed.choices[0].text) {
+                      content = parsed.choices[0].text;
+                    } else if (parsed.choices[0].message && parsed.choices[0].message.content) {
+                      content = parsed.choices[0].message.content;
                     }
                   }
+
+                  // Also check for anthropic/claude format
+                  if (parsed.completion) {
+                    content = parsed.completion;
+                  }
+
+                  if (content) {
+                    tokensReceived++;
+                    if (!responseEnded && !res.writableEnded) {
+                      console.log(`Sending token ${tokensReceived}: ${content}`);
+                      res.write(`data: ${JSON.stringify({ type: "token", content })}\n\n`);
+                    }
+                  }
+                } catch (e) {
+                  console.error("Error parsing stream data:", e, "Raw data:", data);
+                  // Just log the error but continue processing
                 }
               }
             }
@@ -320,9 +369,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       };
 
       // Start processing the stream
-      processStream();
+      processStream().catch((err) => {
+        console.error("Unhandled error in stream processing:", err);
+        if (!responseEnded && !res.writableEnded) {
+          res.write(`data: ${JSON.stringify({ type: "error", error: String(err) })}\n\n`);
+          res.end();
+        }
+      });
 
-      // Don't return anything here as we're handling the response asynchronously
       return;
     } else {
       // If not streaming (fallback), send the complete response
@@ -331,6 +385,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   } catch (error: unknown) {
     console.error("Error in API:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
-    return res.status(500).json({ message: "Internal server error", error: errorMessage });
+
+    // Only send an error response if headers haven't been sent already
+    if (!res.headersSent) {
+      return res.status(500).json({ message: "Internal server error", error: errorMessage });
+    }
   }
 }
