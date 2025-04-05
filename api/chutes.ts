@@ -9,12 +9,6 @@ const index = pinecone.index(process.env.PINECONE_INDEX_NAME || "rag-embeddings"
 
 // --- Embedding Function (using Sagemaker Embedding Endpoint) ---
 async function embedDocs(docs: string[]): Promise<number[][]> {
-  const params = {
-    EndpointName: process.env.SAGEMAKER_EMBEDDING_ENDPOINT_NAME || "minilm-embedding",
-    ContentType: "application/json",
-    Body: JSON.stringify({ inputs: docs }),
-  };
-
   try {
     const headers = {
       Accept: "application/json",
