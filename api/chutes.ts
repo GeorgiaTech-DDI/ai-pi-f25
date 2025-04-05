@@ -99,7 +99,6 @@ ${question}`;
         content: userPrompt,
       },
     ],
-    stream: false,
     max_tokens: 250,
     temperature: 0.85,
   };
@@ -109,7 +108,7 @@ ${question}`;
 async function ragQuery(
   question: string,
   conversationHistory: string = "",
-): Promise<[string, any[]]> {
+): Promise<[string | ReadableStream<Uint8Array>, any[]]> {
   try {
     const queryVecEmbeddings = await embedDocs([question]); // Embed the question
     if (
@@ -163,6 +162,7 @@ async function ragQuery(
       body: JSON.stringify({
         ...payload,
         model: "google/gemma-3-27b-it:free",
+        stream: true, // Enable streaming
       }),
     });
 
@@ -170,53 +170,48 @@ async function ragQuery(
       const errorText = await openRouterResponse.text();
       throw new Error(`OpenRouter API error: ${openRouterResponse.status} - ${errorText}`);
     }
-
-    const openRouterData = await openRouterResponse.json();
     console.log(`OpenRouter response received!`);
+    const openRouterData = await openRouterResponse.json();
 
-    // Extract the assistant's response
-    let answerText = "";
-    if (
-      openRouterData.choices &&
-      openRouterData.choices.length > 0 &&
-      openRouterData.choices[0].content // Access content directly from choices[0]
-    ) {
-      answerText = openRouterData.choices[0].content; // Extract the content
-    } else {
-      // Update error message to refer to OpenRouter
-      throw new Error("Unexpected response format from OpenRouter API");
-    }
+    // // Extract the assistant's response
+    // let answerText = "";
+    // if (
+    //   openRouterData.choices &&
+    //   openRouterData.choices.length > 0 &&
+    //   openRouterData.choices[0].content // Access content directly from choices[0]
+    // ) {
+    //   answerText = openRouterData.choices[0].content; // Extract the content
+    // } else {
+    //   // Update error message to refer to OpenRouter
+    //   throw new Error("Unexpected response format from OpenRouter API");
+    // }
 
-    // Clean up the response (mostly for Llama)
-    answerText = answerText.split("ANSWER")[0].trim();
-    answerText = answerText.split("Human")[0].trim();
-    answerText = answerText.split("[CLS]")[0].trim();
-    answerText = answerText.split("[SEP]")[0].trim();
-    answerText = answerText.split("(LESS")[0].trim();
+    // // Trim any trailing partial sentence
+    // const lastPeriodIndex = answerText.lastIndexOf(".");
+    // if (lastPeriodIndex !== -1 && lastPeriodIndex < answerText.length - 1) {
+    //   answerText = answerText.substring(0, lastPeriodIndex + 1);
+    // }
 
-    // Trim any trailing partial sentence
-    const lastPeriodIndex = answerText.lastIndexOf(".");
-    if (lastPeriodIndex !== -1 && lastPeriodIndex < answerText.length - 1) {
-      answerText = answerText.substring(0, lastPeriodIndex + 1);
-    }
+    // // Check for repeating sentences
+    // const sentences = answerText.split(". ");
+    // const uniqueSentences = new Set();
+    // const filteredSentences = sentences.filter((sentence: string) => {
+    //   const normalized = sentence
+    //     .trim()
+    //     .toLowerCase()
+    //     .replace(/[.?!]$/, "");
+    //   if (uniqueSentences.has(normalized)) {
+    //     return false;
+    //   }
+    //   uniqueSentences.add(normalized);
+    //   return true;
+    // });
+    // answerText = filteredSentences.join(". ");
+    // console.log(`Answer generated: ${answerText}`);
+    // return [answerText, contexts];
 
-    // Check for repeating sentences
-    const sentences = answerText.split(". ");
-    const uniqueSentences = new Set();
-    const filteredSentences = sentences.filter((sentence: string) => {
-      const normalized = sentence
-        .trim()
-        .toLowerCase()
-        .replace(/[.?!]$/, "");
-      if (uniqueSentences.has(normalized)) {
-        return false;
-      }
-      uniqueSentences.add(normalized);
-      return true;
-    });
-    answerText = filteredSentences.join(". ");
-    console.log(`Answer generated: ${answerText}`);
-    return [answerText, contexts];
+    // For streaming responses, return the stream directly
+    return [openRouterResponse.body as ReadableStream<Uint8Array>, contexts];
   } catch (error) {
     console.error("Error in ragQuery:", error);
     throw error;
@@ -248,8 +243,69 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // Pass both the current question and conversation history to ragQuery
-    const [answer, contexts] = await ragQuery(question, conversationHistory);
-    return res.status(200).json({ answer, contexts });
+    const [streamOrString, contexts] = await ragQuery(question, conversationHistory);
+    // If we got a stream back, pipe it to the client
+    if (streamOrString instanceof ReadableStream) {
+      // Set appropriate headers for streaming
+      res.setHeader("Content-Type", "text/event-stream");
+      res.setHeader("Cache-Control", "no-cache");
+      res.setHeader("Connection", "keep-alive");
+
+      // Send contexts data as the first event
+      res.write(`data: ${JSON.stringify({ type: "contexts", contexts })}\n\n`);
+
+      // Create a Node.js readable stream from the fetch Response body
+      const { Readable } = require("stream");
+      const readableStream = Readable.fromWeb(streamOrString);
+
+      // Process the stream and forward events to client
+      readableStream.on("data", (chunk: Buffer) => {
+        const text = chunk.toString();
+        if (text.trim()) {
+          // Parse the SSE data
+          const lines = text.split("\n");
+          for (const line of lines) {
+            if (line.startsWith("data: ")) {
+              const data = line.slice(6);
+              if (data === "[DONE]") {
+                res.write(`data: ${JSON.stringify({ type: "done" })}\n\n`);
+              } else {
+                try {
+                  const parsed = JSON.parse(data);
+                  const content = parsed.choices?.[0]?.content || "";
+                  if (content) {
+                    res.write(`data: ${JSON.stringify({ type: "token", content })}\n\n`);
+                  }
+                } catch (e) {
+                  console.error("Error parsing stream data:", e);
+                }
+              }
+            }
+          }
+        }
+      });
+
+      readableStream.on("end", () => {
+        res.write(`data: ${JSON.stringify({ type: "done" })}\n\n`);
+        res.end();
+      });
+
+      readableStream.on("error", (err: Error) => {
+        console.error("Stream error:", err);
+        res.write(`data: ${JSON.stringify({ type: "error", error: err.message })}\n\n`);
+        res.end();
+      });
+
+      // Handle client disconnect
+      req.on("close", () => {
+        if (!res.writableEnded) {
+          res.end();
+        }
+      });
+    } else {
+      // If not streaming (fallback), send the complete response
+      return res.status(200).json({ answer: streamOrString, contexts });
+    }
   } catch (error: unknown) {
     console.error("Error in Chutes RAG API:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";

@@ -15,6 +15,9 @@ const MessageItem: React.FC<MessageItemProps> = ({
   onFeedbackClick,
   onReferencesClick,
 }) => {
+  const hasContexts = message.contexts && message.contexts.length > 0;
+  const isStreaming = message.isStreaming;
+
   if (message.isNotification) {
     return (
       <div className={styles.systemNotification}>
@@ -33,34 +36,45 @@ const MessageItem: React.FC<MessageItemProps> = ({
 
   // Assistant message
   return (
-    <div className={styles.assistantMessage}>
-      <div className={styles.assistantWrapper}>
-        <div className={styles.assistantContent}>{message.content}</div>
-        <div className={styles.messageActions}>
-          {/* Only show feedback button for assistant messages that don't already have feedback */}
-          {!message.feedback && (
-            <button
-              className={styles.feedbackButton}
-              onClick={() => onFeedbackClick(index)}
-              aria-label="Provide feedback on this response"
-            >
-              <span className={styles.feedbackIcon}>⭐</span>
-              <span className={styles.feedbackText}>Rate</span>
-            </button>
-          )}
+    <div className={`${styles.messageContainer} ${styles.assistantMessageContainer}`}>
+      <div className={`${styles.message} ${styles.assistantMessage}`}>
+        <div className={styles.messageContent}>
+          {message.content}
 
-          {/* References button */}
-          {message.contexts && message.contexts.length > 0 && (
+          {/* Show typing indicator if message is streaming */}
+          {isStreaming && (
+            <div className={styles.inlineTypingIndicator}>
+              <span className={styles.dot}></span>
+              <span className={styles.dot}></span>
+              <span className={styles.dot}></span>
+            </div>
+          )}
+        </div>
+
+        {!isStreaming && (
+          <div className={styles.messageActions}>
             <button
               className={`${styles.feedbackButton} ${styles.referencesButton}`}
               onClick={() => onReferencesClick(index)}
-              aria-label="Show reference sources for this response"
+              aria-label="Provide feedback"
+              title="Provide feedback on this answer"
             >
               <span className={styles.feedbackIcon}>📚</span>
               <span className={styles.feedbackText}>References</span>
             </button>
-          )}
-        </div>
+
+            {hasContexts && (
+              <button
+                className={styles.feedbackButton}
+                onClick={() => onFeedbackClick(index)}
+                aria-label="Provide feedback on this response"
+              >
+                <span className={styles.feedbackIcon}>⭐</span>
+                <span className={styles.feedbackText}>Rate</span>
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -50,76 +50,125 @@ export default function Home() {
     const updatedMessages = [...messages, userMessage];
     setMessages(updatedMessages);
 
+    // Add an empty assistant message that will be updated with streaming content
+    setMessages([
+      ...updatedMessages,
+      {
+        role: "assistant",
+        content: "",
+        isStreaming: true,
+      },
+    ]);
+
     try {
       // Check if localhost for development mode
       if (window.location.hostname === "localhost") {
-        // Development mode mock response
-        setTimeout(() => {
-          const mockContexts: Context[] = [
-            {
-              id: "60",
-              score: 0.549824595,
-              values: [],
-              metadata: {
-                chunk_idx: 60,
-                filename: "Waterjet-Required&Optional.md",
-                text: "[CLS] mark the machine down and contact a waterjet master / apprentice...",
-              },
-            },
-            {
-              id: "61",
-              score: 0.549824595,
-              values: [],
-              metadata: {
-                chunk_idx: 60,
-                filename: "something-else.md",
-                text: "[CLS] mark the machine down and contact a waterjet master / apprentice...",
-              },
-            },
-            {
-              id: "62",
-              score: 0.549824595,
-              values: [],
-              metadata: {
-                chunk_idx: 60,
-                filename: "Waterjet-Required&Optional.md",
-                text: "[CLS] something else...",
-              },
-            },
-            {
-              id: "63",
-              score: 0.549824595,
-              values: [],
-              metadata: {
-                chunk_idx: 60,
-                filename: "something-else.md",
-                text: "[CLS] There are indeed so many things to consider when choosing a waterjet.",
-              },
-            },
-            {
-              id: "64",
-              score: 0.549824595,
-              values: [],
-              metadata: {
-                chunk_idx: 60,
-                filename: "Waterjet-Required&Optional.md",
-                text: "[CLS] There are indeed so many things to consider when choosing a waterjet.",
-              },
-            },
-          ];
+        // Development mode mock response with simulated streaming
+        let mockAnswer = "";
+        const mockChunks = [
+          "This ",
+          "is ",
+          "a ",
+          "test ",
+          "answer ",
+          "with ",
+          "simulated ",
+          "streaming ",
+          "for ",
+          "development ",
+          "purposes.",
+        ];
 
-          setMessages([
-            ...updatedMessages,
-            {
-              role: "assistant",
-              content: "This is a test answer",
-              contexts: mockContexts,
+        const mockContexts: Context[] = [
+          {
+            id: "60",
+            score: 0.549824595,
+            values: [],
+            metadata: {
+              chunk_idx: 60,
+              filename: "Waterjet-Required&Optional.md",
+              text: "[CLS] mark the machine down and contact a waterjet master / apprentice...",
             },
-          ]);
+          },
+          {
+            id: "61",
+            score: 0.549824595,
+            values: [],
+            metadata: {
+              chunk_idx: 60,
+              filename: "something-else.md",
+              text: "[CLS] mark the machine down and contact a waterjet master / apprentice...",
+            },
+          },
+          {
+            id: "62",
+            score: 0.549824595,
+            values: [],
+            metadata: {
+              chunk_idx: 60,
+              filename: "Waterjet-Required&Optional.md",
+              text: "[CLS] something else...",
+            },
+          },
+          {
+            id: "63",
+            score: 0.549824595,
+            values: [],
+            metadata: {
+              chunk_idx: 60,
+              filename: "something-else.md",
+              text: "[CLS] There are indeed so many things to consider when choosing a waterjet.",
+            },
+          },
+          {
+            id: "64",
+            score: 0.549824595,
+            values: [],
+            metadata: {
+              chunk_idx: 60,
+              filename: "Waterjet-Required&Optional.md",
+              text: "[CLS] There are indeed so many things to consider when choosing a waterjet.",
+            },
+          },
+        ];
 
-          setContexts([]);
-          setLoading(false);
-        }, 1000);
+        // First update with contexts
+        setMessages((currentMessages) => {
+          const newMessages = [...currentMessages];
+          newMessages[newMessages.length - 1] = {
+            ...newMessages[newMessages.length - 1],
+            contexts: mockContexts,
+          };
+          return newMessages;
+        });
+
+        // Simulate streaming updates
+        for (let i = 0; i < mockChunks.length; i++) {
+          await new Promise((resolve) => setTimeout(resolve, 200));
+          mockAnswer += mockChunks[i];
+
+          setMessages((currentMessages) => {
+            const newMessages = [...currentMessages];
+            newMessages[newMessages.length - 1] = {
+              ...newMessages[newMessages.length - 1],
+              content: mockAnswer,
+            };
+            return newMessages;
+          });
+        }
+
+        // Mark streaming as complete
+        setMessages((currentMessages) => {
+          const newMessages = [...currentMessages];
+          newMessages[newMessages.length - 1] = {
+            ...newMessages[newMessages.length - 1],
+            isStreaming: false,
+          };
+          return newMessages;
+        });
+
+        setContexts([]);
+        setLoading(false);
       } else {
         // Production API call - Switch to use Chutes API instead of RAG API
         const response = await fetch("/api/chutes", {
@@ -136,22 +185,90 @@ export default function Home() {
           throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
         }
 
-        const data = await response.json();
+        // Process the stream
+        const reader = response.body?.getReader();
+        const decoder = new TextDecoder();
+        let accumulatedContent = "";
 
-        // Add assistant response to chat with its contexts
-        setMessages([
-          ...updatedMessages,
-          {
-            role: "assistant",
-            content: data.answer,
-            contexts: data.contexts || [],
-          },
-        ]);
+        if (reader) {
+          try {
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
 
-        setContexts([]);
-        setLoading(false);
+              // Process the stream data
+              const text = decoder.decode(value, { stream: true });
+              const lines = text.split("\n\n");
+
+              for (const line of lines) {
+                if (line.startsWith("data: ")) {
+                  try {
+                    const eventData = JSON.parse(line.slice(5));
+
+                    // Handle different event types
+                    if (eventData.type === "contexts") {
+                      // Update the message with contexts
+                      setMessages((currentMessages) => {
+                        const newMessages = [...currentMessages];
+                        newMessages[newMessages.length - 1] = {
+                          ...newMessages[newMessages.length - 1],
+                          contexts: eventData.contexts,
+                        };
+                        return newMessages;
+                      });
+                    } else if (eventData.type === "token") {
+                      // Append new token to accumulated content
+                      accumulatedContent += eventData.content;
+
+                      // Update the message with new content
+                      setMessages((currentMessages) => {
+                        const newMessages = [...currentMessages];
+                        newMessages[newMessages.length - 1] = {
+                          ...newMessages[newMessages.length - 1],
+                          content: accumulatedContent,
+                        };
+                        return newMessages;
+                      });
+                    } else if (eventData.type === "error") {
+                      throw new Error(eventData.error);
+                    } else if (eventData.type === "done") {
+                      // Mark streaming as complete
+                      setMessages((currentMessages) => {
+                        const newMessages = [...currentMessages];
+                        newMessages[newMessages.length - 1] = {
+                          ...newMessages[newMessages.length - 1],
+                          isStreaming: false,
+                        };
+                        return newMessages;
+                      });
+                    }
+                  } catch (e) {
+                    console.error("Error parsing stream event:", e, line);
+                  }
+                }
+              }
+            }
+          } catch (e) {
+            console.error("Stream reading error:", e);
+            throw e;
+          } finally {
+            setLoading(false);
+          }
+        } else {
+          throw new Error("Failed to get stream from response");
+        }
       }
     } catch (e) {
+      // Update the last message to show error
+      setMessages((currentMessages) => {
+        const newMessages = [...currentMessages];
+        if (newMessages[newMessages.length - 1]?.role === "assistant") {
+          // Remove the empty streaming message
+          newMessages.pop();
+        }
+        return newMessages;
+      });
+
       setError("Failed to get answer. Please try again.");
       console.error("Frontend error:", e);
       setLoading(false);

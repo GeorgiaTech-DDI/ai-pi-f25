@@ -1,9 +1,10 @@
 export interface Message {
   role: "user" | "assistant" | "system";
   content: string;
-  isNotification?: boolean;
-  feedback?: string;
   contexts?: Context[];
+  feedback?: string;
+  isNotification?: boolean;
+  isStreaming?: boolean;
 }
 
 export interface Context {

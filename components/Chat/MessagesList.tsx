@@ -43,12 +43,10 @@ const MessagesList: React.FC<MessagesListProps> = ({
         />
       ))}
 
-      {loading && (
+      {loading && !messages.some((msg) => msg.isStreaming) && (
         <div className={styles.assistantMessage}>
           <div className={styles.typingIndicator}>
-            <span className={styles.bounce}></span>
-            <span className={styles.bounce}></span>
-            <span className={styles.bounce}></span>
+            <span className={styles.pulse}></span>
           </div>
         </div>
       )}
