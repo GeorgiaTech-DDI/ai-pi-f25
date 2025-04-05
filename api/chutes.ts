@@ -150,7 +150,7 @@ async function ragQuery(
     // Include the conversation history in the context for the LLM
     const payload = createPayload(question, contextStr, conversationHistory);
 
-    // Call the Chutes API
+    // Call the OpenRouter API
     const openRouterResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -171,7 +171,6 @@ async function ragQuery(
       throw new Error(`OpenRouter API error: ${openRouterResponse.status} - ${errorText}`);
     }
     console.log(`OpenRouter response received!`);
-    const openRouterData = await openRouterResponse.json();
 
     // // Extract the assistant's response
     // let answerText = "";
@@ -307,7 +306,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(200).json({ answer: streamOrString, contexts });
     }
   } catch (error: unknown) {
-    console.error("Error in Chutes RAG API:", error);
+    console.error("Error in API:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
     return res.status(500).json({ message: "Internal server error", error: errorMessage });
   }
