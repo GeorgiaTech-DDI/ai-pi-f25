@@ -91,12 +91,8 @@ ${question}`;
   return {
     messages: [
       {
-        role: "system",
-        content: systemMessage,
-      },
-      {
         role: "user",
-        content: userPrompt,
+        content: `${systemMessage}\n\n${userPrompt}`,
       },
     ],
     max_tokens: 250,
