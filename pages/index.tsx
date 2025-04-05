@@ -121,8 +121,8 @@ export default function Home() {
           setLoading(false);
         }, 1000);
       } else {
-        // Production API call
-        const response = await fetch("/api/rag", {
+        // Production API call - Switch to use Chutes API instead of RAG API
+        const response = await fetch("/api/chutes", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
