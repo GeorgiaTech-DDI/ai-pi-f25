@@ -72,8 +72,7 @@ function constructContext(
 function createPayload(question: string, contextStr: string, conversationHistory: string = "") {
   const systemMessage = `You are a helpful AI assistant that answers questions based on the provided context.
 If the context doesn't contain the answer, say "I can't find the answer in the context, but I think" and provide your best guess. If you don't know the answer, say "I don't know."
-Be as concise and accurate as possible without repeating the question or context. Feel free to ignore the context if not relevant.
-Answer in LESS than 100 words.`;
+Be concise and accurate and do not repeat the question or context. Make sure you answer the question. Answer in LESS than 200 words.`;
 
   let userPrompt = `CONTEXT:
 ${contextStr}`;
@@ -94,7 +93,7 @@ ${question}`;
         content: `${systemMessage}\n\n${userPrompt}`,
       },
     ],
-    max_tokens: 250,
+    max_tokens: 300,
     temperature: 0.85,
   };
 }
@@ -122,7 +121,7 @@ async function ragQuery(
 
     const queryResult = await index.query({
       vector: queryVec,
-      topK: 5,
+      topK: 8,
       includeMetadata: true,
     });
 
@@ -169,44 +168,6 @@ async function ragQuery(
       throw new Error(`OpenRouter API error: ${openRouterResponse.status} - ${errorText}`);
     }
     console.log(`OpenRouter response received!`);
-
-    // // Extract the assistant's response
-    // const openRouterData = await openRouterResponse.json();
-    // let answerText = "";
-    // if (
-    //   openRouterData.choices &&
-    //   openRouterData.choices.length > 0 &&
-    //   openRouterData.choices[0].content // Access content directly from choices[0]
-    // ) {
-    //   answerText = openRouterData.choices[0].content; // Extract the content
-    // } else {
-    //   // Update error message to refer to OpenRouter
-    //   throw new Error("Unexpected response format from OpenRouter API");
-    // }
-
-    // // Trim any trailing partial sentence
-    // const lastPeriodIndex = answerText.lastIndexOf(".");
-    // if (lastPeriodIndex !== -1 && lastPeriodIndex < answerText.length - 1) {
-    //   answerText = answerText.substring(0, lastPeriodIndex + 1);
-    // }
-
-    // // Check for repeating sentences
-    // const sentences = answerText.split(". ");
-    // const uniqueSentences = new Set();
-    // const filteredSentences = sentences.filter((sentence: string) => {
-    //   const normalized = sentence
-    //     .trim()
-    //     .toLowerCase()
-    //     .replace(/[.?!]$/, "");
-    //   if (uniqueSentences.has(normalized)) {
-    //     return false;
-    //   }
-    //   uniqueSentences.add(normalized);
-    //   return true;
-    // });
-    // answerText = filteredSentences.join(". ");
-    // console.log(`Answer generated: ${answerText}`);
-    // return [answerText, contexts];
 
     // For streaming responses, return the stream directly
     return [openRouterResponse.body as ReadableStream<Uint8Array>, contexts];
