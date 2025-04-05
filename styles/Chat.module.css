@@ -129,43 +129,50 @@
     padding: 6px 12px;
 }
 
-.typingIndicatorSend {
-    display: flex;
-}
-
 .typingIndicator span {
     height: 8px;
     width: 8px;
-    background: #666666;
-    display: block;
-    border-radius: 50%;
     margin: 0 2px;
-    animation: typing 1s infinite ease-in-out;
+    background: #666666;
+    border-radius: 50%;
+    display: block;
+    animation: bounce 1.4s infinite ease-in-out both;
+}
+
+.typingIndicatorSend {
+    display: flex;
+    background: transparent;
 }
 
 .typingIndicatorSend span {
     height: 8px;
     width: 8px;
-    background: #f0f0f9;
-    display: block;
-    border-radius: 50%;
     margin: 0 2px;
-    animation: typing 1s infinite ease-in-out;
+    background: #f0f0f9;
+    border-radius: 50%;
+    display: inline-block;
+    animation: bounce 1.4s infinite ease-in-out both;
 }
 
 .typingIndicator span:nth-child(1),
 .typingIndicatorSend span:nth-child(1) {
-    animation-delay: 0.2s;
+    animation-delay: -0.4s;
 }
 
 .typingIndicator span:nth-child(2),
 .typingIndicatorSend span:nth-child(2) {
-    animation-delay: 0.4s;
+    animation-delay: -0.2s;
 }
 
-.typingIndicator span:nth-child(3),
-.typingIndicatorSend span:nth-child(3) {
-    animation-delay: 0.6s;
+@keyframes bounce {
+    0%,
+    80%,
+    100% {
+        transform: translateY(0);
+    }
+    40% {
+        transform: translateY(-8px);
+    }
 }
 
 .error {
@@ -200,6 +207,7 @@
     transition: background-color 0.3s;
     font-size: 1rem;
     font-weight: 500;
+    width: 87px; /* same width loading or not. */
 }
 
 .sendButton:hover {
@@ -207,9 +215,6 @@
 }
 
 .sendButton:disabled {
-    background-color: transparent;
-    color: transparent;
-    border: 1px solid transparent;
     pointer-events: none;
 }
 

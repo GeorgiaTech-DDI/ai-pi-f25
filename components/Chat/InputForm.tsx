@@ -24,15 +24,14 @@ const InputForm: React.FC<InputFormProps> = ({ loading, onSubmit }) => {
         placeholder="Ask your question"
         value={inputMessage}
         onChange={(e) => setInputMessage(e.target.value)}
-        disabled={loading}
         required
       />
       <button type="submit" disabled={loading} className={styles.sendButton}>
         {loading ? (
           <div className={styles.typingIndicatorSend}>
-            <span></span>
-            <span></span>
-            <span></span>
+            <span className={styles.bounce}></span>
+            <span className={styles.bounce}></span>
+            <span className={styles.bounce}></span>
           </div>
         ) : (
           "Send"

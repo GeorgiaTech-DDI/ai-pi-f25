@@ -172,7 +172,7 @@ async function ragQuery(
     }
 
     const openRouterData = await openRouterResponse.json();
-    console.log(`OpenRouter response: ${openRouterData}`);
+    console.log(`OpenRouter response received!`);
 
     // Extract the assistant's response
     let answerText = "";
@@ -215,7 +215,7 @@ async function ragQuery(
       return true;
     });
     answerText = filteredSentences.join(". ");
-
+    console.log(`Answer generated: ${answerText}`);
     return [answerText, contexts];
   } catch (error) {
     console.error("Error in ragQuery:", error);

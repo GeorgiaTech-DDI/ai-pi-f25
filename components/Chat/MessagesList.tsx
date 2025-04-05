@@ -46,9 +46,9 @@ const MessagesList: React.FC<MessagesListProps> = ({
       {loading && (
         <div className={styles.assistantMessage}>
           <div className={styles.typingIndicator}>
-            <span></span>
-            <span></span>
-            <span></span>
+            <span className={styles.bounce}></span>
+            <span className={styles.bounce}></span>
+            <span className={styles.bounce}></span>
           </div>
         </div>
       )}
