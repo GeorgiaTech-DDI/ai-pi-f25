@@ -160,7 +160,6 @@ async function ragQuery(
         stream: true, // Enable streaming
         provider: {
           order: ["Chutes"],
-          allow_fallbacks: false,
         },
       }),
     });
