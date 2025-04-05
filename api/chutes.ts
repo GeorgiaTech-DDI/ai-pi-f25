@@ -243,6 +243,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // Pass both the current question and conversation history to ragQuery
     const [streamOrString, contexts] = await ragQuery(question, conversationHistory);
+
     // If we got a stream back, pipe it to the client
     if (streamOrString instanceof ReadableStream) {
       // Set appropriate headers for streaming
@@ -253,54 +254,76 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // Send contexts data as the first event
       res.write(`data: ${JSON.stringify({ type: "contexts", contexts })}\n\n`);
 
-      // Create a Node.js readable stream from the fetch Response body
-      const { Readable } = require("stream");
-      const readableStream = Readable.fromWeb(streamOrString);
+      // Use ReadableStream Web API directly instead of Node.js streams
+      const reader = streamOrString.getReader();
+      const textDecoder = new TextDecoder();
 
-      // Process the stream and forward events to client
-      readableStream.on("data", (chunk: Buffer) => {
-        const text = chunk.toString();
-        if (text.trim()) {
-          // Parse the SSE data
-          const lines = text.split("\n");
-          for (const line of lines) {
-            if (line.startsWith("data: ")) {
-              const data = line.slice(6);
-              if (data === "[DONE]") {
-                res.write(`data: ${JSON.stringify({ type: "done" })}\n\n`);
-              } else {
-                try {
-                  const parsed = JSON.parse(data);
-                  const content = parsed.choices?.[0]?.content || "";
-                  if (content) {
-                    res.write(`data: ${JSON.stringify({ type: "token", content })}\n\n`);
-                  }
-                } catch (e) {
-                  console.error("Error parsing stream data:", e);
-                }
-              }
-            }
-          }
-        }
-      });
+      let responseEnded = false;
 
-      readableStream.on("end", () => {
-        res.write(`data: ${JSON.stringify({ type: "done" })}\n\n`);
-        res.end();
-      });
-
-      readableStream.on("error", (err: Error) => {
-        console.error("Stream error:", err);
-        res.write(`data: ${JSON.stringify({ type: "error", error: err.message })}\n\n`);
-        res.end();
-      });
-
-      // Handle client disconnect
+      // Setup response end handler
       req.on("close", () => {
+        responseEnded = true;
+        reader.cancel();
         if (!res.writableEnded) {
           res.end();
         }
       });
+
+      // Define process stream function before using it
+      const processStream = async () => {
+        try {
+          while (!responseEnded) {
+            const { done, value } = await reader.read();
+
+            if (done) {
+              if (!responseEnded && !res.writableEnded) {
+                res.write(`data: ${JSON.stringify({ type: "done" })}\n\n`);
+                res.end();
+              }
+              break;
+            }
+
+            const text = textDecoder.decode(value, { stream: true });
+            if (text.trim()) {
+              // Parse the SSE data
+              const lines = text.split("\n");
+              for (const line of lines) {
+                if (line.startsWith("data: ")) {
+                  const data = line.slice(6);
+                  if (data === "[DONE]") {
+                    if (!responseEnded && !res.writableEnded) {
+                      res.write(`data: ${JSON.stringify({ type: "done" })}\n\n`);
+                    }
+                  } else {
+                    try {
+                      const parsed = JSON.parse(data);
+                      const content = parsed.choices?.[0]?.content || "";
+                      if (content && !responseEnded && !res.writableEnded) {
+                        res.write(`data: ${JSON.stringify({ type: "token", content })}\n\n`);
+                      }
+                    } catch (e) {
+                      console.error("Error parsing stream data:", e);
+                      // Continue processing even if one chunk has an error
+                    }
+                  }
+                }
+              }
+            }
+          }
+        } catch (err) {
+          console.error("Stream processing error:", err);
+          if (!responseEnded && !res.writableEnded) {
+            res.write(`data: ${JSON.stringify({ type: "error", error: String(err) })}\n\n`);
+            res.end();
+          }
+        }
+      };
+
+      // Start processing the stream
+      processStream();
+
+      // Don't return anything here as we're handling the response asynchronously
+      return;
     } else {
       // If not streaming (fallback), send the complete response
       return res.status(200).json({ answer: streamOrString, contexts });
