@@ -172,17 +172,19 @@ async function ragQuery(
     }
 
     const openRouterData = await openRouterResponse.json();
+    console.log(`OpenRouter response: ${openRouterData}`);
 
     // Extract the assistant's response
     let answerText = "";
     if (
       openRouterData.choices &&
       openRouterData.choices.length > 0 &&
-      openRouterData.choices[0].message
+      openRouterData.choices[0].content // Access content directly from choices[0]
     ) {
-      answerText = openRouterData.choices[0].message.content;
+      answerText = openRouterData.choices[0].content; // Extract the content
     } else {
-      throw new Error("Unexpected response format from Chutes API");
+      // Update error message to refer to OpenRouter
+      throw new Error("Unexpected response format from OpenRouter API");
     }
 
     // Clean up the response (mostly for Llama)
