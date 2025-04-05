@@ -70,16 +70,22 @@ function constructContext(
 }
 
 // --- Create Payload Function for Chutes API ---
-function createPayload(question: string, contextStr: string) {
+function createPayload(question: string, contextStr: string, conversationHistory: string = "") {
   const systemMessage = `You are a helpful AI assistant that answers questions based on the provided context.
 If the context doesn't contain the answer, say "I can't find the answer in the context, but I think" and provide your best guess. If you don't know the answer, say "I don't know."
 Be as concise and accurate as possible without repeating the question or context. Feel free to ignore the context if not relevant.
 Answer in LESS than 100 words.`;
 
-  const userPrompt = `CONTEXT:
-${contextStr}
+  let userPrompt = `CONTEXT:
+${contextStr}`;
 
-QUESTION:
+  // Add conversation history if available
+  if (conversationHistory) {
+    userPrompt += `\n\nPREVIOUS CONVERSATION:
+${conversationHistory}`;
+  }
+
+  userPrompt += `\n\nCURRENT QUESTION:
 ${question}`;
 
   return {
@@ -101,7 +107,10 @@ ${question}`;
 }
 
 // --- RAG Query Function with Chutes API ---
-async function ragQuery(question: string): Promise<[string, any[]]> {
+async function ragQuery(
+  question: string,
+  conversationHistory: string = "",
+): Promise<[string, any[]]> {
   try {
     const queryVecEmbeddings = await embedDocs([question]); // Embed the question
     if (
@@ -113,9 +122,8 @@ async function ragQuery(question: string): Promise<[string, any[]]> {
       throw new Error("Failed to get valid embeddings for the question.");
     }
 
-    const queryVec = queryVecEmbeddings[0][0]; // Take the first (and hopefully only) embedding
+    const queryVec = queryVecEmbeddings[0][0]; // Take the first embedding
     if (!Array.isArray(queryVec)) {
-      // Double check embedding structure
       throw new Error("Unexpected embedding structure.");
     }
 
@@ -140,7 +148,9 @@ async function ragQuery(question: string): Promise<[string, any[]]> {
       .filter((item): item is { text: string; filename: string } => item !== null);
 
     const contextStr = constructContext(contextObjects);
-    const payload = createPayload(question, contextStr);
+
+    // Include the conversation history in the context for the LLM
+    const payload = createPayload(question, contextStr, conversationHistory);
 
     // Call the Chutes API
     const chutesResponse = await fetch("https://llm.chutes.ai/v1/chat/completions", {
@@ -215,22 +225,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ message: "Question is required" });
   }
 
-  // Format the history and current question for the model
-  let formattedHistory = "";
-  if (history.length > 0) {
-    formattedHistory = history
-      .map(
-        (msg: { role: string; content: string }) =>
-          `${msg.role === "user" ? "Human" : "Assistant"}: ${msg.content}`,
-      )
-      .join("\n\n");
-
-    formattedHistory += "\n\n";
-  }
-  const fullPrompt = `${formattedHistory}Human: ${question}`;
-
   try {
-    const [answer, contexts] = await ragQuery(fullPrompt);
+    // Format the conversation history for the model
+    let conversationHistory = "";
+    if (history.length > 0) {
+      conversationHistory = history
+        .map(
+          (msg: { role: string; content: string }) =>
+            `${msg.role === "user" ? "Human" : "Assistant"}: ${msg.content}`,
+        )
+        .join("\n\n");
+    }
+
+    // Pass both the current question and conversation history to ragQuery
+    const [answer, contexts] = await ragQuery(question, conversationHistory);
     return res.status(200).json({ answer, contexts });
   } catch (error: unknown) {
     console.error("Error in Chutes RAG API:", error);
