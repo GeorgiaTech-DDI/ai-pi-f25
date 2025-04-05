@@ -144,7 +144,7 @@ export default function Home() {
 
         // Simulate streaming updates
         for (let i = 0; i < mockChunks.length; i++) {
-          await new Promise((resolve) => setTimeout(resolve, 200));
+          await new Promise((resolve) => setTimeout(resolve, 100));
           mockAnswer += mockChunks[i];
 
           setMessages((currentMessages) => {

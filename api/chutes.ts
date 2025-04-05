@@ -173,6 +173,7 @@ async function ragQuery(
     console.log(`OpenRouter response received!`);
 
     // // Extract the assistant's response
+    // const openRouterData = await openRouterResponse.json();
     // let answerText = "";
     // if (
     //   openRouterData.choices &&
@@ -321,7 +322,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
                 try {
                   const parsed = JSON.parse(data);
-                  console.log("Parsed data:", JSON.stringify(parsed).substring(0, 100) + "...");
+                  console.log("Parsed data:", JSON.stringify(parsed).substring(0, 400) + "...");
 
                   // Handle different streaming formats
                   let content = "";
