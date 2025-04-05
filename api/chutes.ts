@@ -89,7 +89,6 @@ ${conversationHistory}`;
 ${question}`;
 
   return {
-    model: "unsloth/gemma-3-12b-it",
     messages: [
       {
         role: "system",
@@ -153,31 +152,40 @@ async function ragQuery(
     const payload = createPayload(question, contextStr, conversationHistory);
 
     // Call the Chutes API
-    const chutesResponse = await fetch("https://llm.chutes.ai/v1/chat/completions", {
+    const openRouterResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${process.env.CHUTES_API_KEY}`,
+        Authorization: `Bearer ${process.env.OPENROUTER_API_KEY || ""}`,
+        "HTTP-Referer": process.env.PUBLIC_SITE_URL || "https://matrixlab.gatech.edu",
+        "X-Title": "Matrix Lab AI",
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({
+        ...payload,
+        model: "google/gemma-3-27b-it:free",
+      }),
     });
 
-    if (!chutesResponse.ok) {
-      const errorText = await chutesResponse.text();
-      throw new Error(`Chutes API error: ${chutesResponse.status} - ${errorText}`);
+    if (!openRouterResponse.ok) {
+      const errorText = await openRouterResponse.text();
+      throw new Error(`OpenRouter API error: ${openRouterResponse.status} - ${errorText}`);
     }
 
-    const chutesData = await chutesResponse.json();
+    const openRouterData = await openRouterResponse.json();
 
     // Extract the assistant's response
     let answerText = "";
-    if (chutesData.choices && chutesData.choices.length > 0 && chutesData.choices[0].message) {
-      answerText = chutesData.choices[0].message.content;
+    if (
+      openRouterData.choices &&
+      openRouterData.choices.length > 0 &&
+      openRouterData.choices[0].message
+    ) {
+      answerText = openRouterData.choices[0].message.content;
     } else {
       throw new Error("Unexpected response format from Chutes API");
     }
 
-    // Clean up the response similar to the original code
+    // Clean up the response (mostly for Llama)
     answerText = answerText.split("ANSWER")[0].trim();
     answerText = answerText.split("Human")[0].trim();
     answerText = answerText.split("[CLS]")[0].trim();
