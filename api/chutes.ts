@@ -49,19 +49,22 @@ async function embedDocs(docs: string[]): Promise<number[][]> {
 }
 
 // --- Construct Context Function ---
-function constructContext(contexts: string[], maxSectionLen = 5000) {
+function constructContext(
+  contexts: Array<{ text: string; filename: string }>,
+  maxSectionLen = 5000,
+) {
   let chosenSections: string[] = [];
   let chosenSectionsLen = 0;
 
-  for (const text of contexts) {
-    const trimmedText = text.trim();
-    chosenSectionsLen += trimmedText.length + 2; // +2 for separator
+  for (const context of contexts) {
+    const formattedText = `[Source: ${context.filename}]\n${context.text.trim()}`;
+    chosenSectionsLen += formattedText.length + 2; // +2 for separator
     if (chosenSectionsLen > maxSectionLen) {
       break;
     }
-    chosenSections.push(trimmedText);
+    chosenSections.push(formattedText);
   }
-  const concatenatedDoc = chosenSections.join("\n");
+  const concatenatedDoc = chosenSections.join("\n\n");
   console.log(`Selected top ${chosenSections.length} document sections`);
   return concatenatedDoc;
 }
@@ -123,12 +126,20 @@ async function ragQuery(question: string): Promise<[string, any[]]> {
     });
 
     const contexts = queryResult.matches;
-    // Fix type error by filtering out undefined values and converting to string[]
-    const contextTexts: string[] = contexts
-      .map((match) => match.metadata?.text)
-      .filter((text): text is string => text !== undefined);
+    // Create array of objects with text and filename
+    const contextObjects = contexts
+      .map((match) => {
+        if (match.metadata?.text && match.metadata?.filename) {
+          return {
+            text: match.metadata.text,
+            filename: match.metadata.filename,
+          };
+        }
+        return null;
+      })
+      .filter((item): item is { text: string; filename: string } => item !== null);
 
-    const contextStr = constructContext(contextTexts);
+    const contextStr = constructContext(contextObjects);
     const payload = createPayload(question, contextStr);
 
     // Call the Chutes API
