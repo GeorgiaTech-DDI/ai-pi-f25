@@ -72,8 +72,8 @@ function constructContext(
 // --- Create Payload Function for Chutes API ---
 function createPayload(question: string, contextStr: string) {
   const systemMessage = `You are a helpful AI assistant that answers questions based on the provided context.
-If the context doesn't contain the answer, say "I think that" and provide your best guess.
-Be as concise and accurate as possible without repeating the question or context.
+If the context doesn't contain the answer, say "I can't find the answer in the context, but I think" and provide your best guess. If you don't know the answer, say "I don't know."
+Be as concise and accurate as possible without repeating the question or context. Feel free to ignore the context if not relevant.
 Answer in LESS than 100 words.`;
 
   const userPrompt = `CONTEXT:
@@ -121,7 +121,7 @@ async function ragQuery(question: string): Promise<[string, any[]]> {
 
     const queryResult = await index.query({
       vector: queryVec,
-      topK: 10,
+      topK: 8,
       includeMetadata: true,
     });
 
