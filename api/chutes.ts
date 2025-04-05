@@ -158,6 +158,10 @@ async function ragQuery(
         ...payload,
         model: "google/gemma-3-27b-it:free",
         stream: true, // Enable streaming
+        provider: {
+          order: ["Chutes"],
+          allow_fallbacks: false,
+        },
       }),
     });
 
