@@ -7,40 +7,125 @@ const pinecone = new Pinecone({
 });
 const index = pinecone.index(process.env.PINECONE_INDEX_NAME || "rag-embeddings");
 
-// --- Embedding Function (using Sagemaker Embedding Endpoint) ---
-async function embedDocs(docs: string[]): Promise<number[][]> {
+// --- Helper to check Ollama availability ---
+async function isOllamaRunning(timeout = 500): Promise<boolean> {
   try {
-    const headers = {
-      Accept: "application/json",
-      Authorization: `Bearer ${process.env.HF_API_KEY}`,
-      "Content-Type": "application/json",
-    };
-    const embeddings: number[][] = [];
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+    // Use Ollama's base endpoint for the health check
+    const response = await fetch("http://localhost:11434/", {
+      method: "GET", // Or HEAD
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    // Check for any successful response, adjust if specific status needed
+    // Ollama root returns 200 OK with "Ollama is running"
+    return response.ok;
+  } catch (error: any) {
+    if (error.name === "AbortError") {
+      console.warn("Ollama health check timed out.");
+    } else if (error.cause && error.cause.code === "ECONNREFUSED") {
+      console.warn("Ollama connection refused. Server likely not running.");
+    } else {
+      console.warn("Ollama health check failed:", error.message);
+    }
+    return false;
+  }
+}
 
-    for (const doc of docs) {
-      const response = await fetch(`${process.env.HF_API_URL}`, {
+// --- Embedding Function (using Ollama or Sagemaker Embedding Endpoint) ---
+async function embedDocs(docs: string[]): Promise<number[][]> {
+  const ollamaUrl = "http://localhost:11434/v1/embeddings";
+  const ollamaModel = "jeffh/intfloat-multilingual-e5-large:f16";
+  const hfApiUrl = process.env.HF_API_URL;
+  const hfApiKey = process.env.HF_API_KEY;
+  const prefixedDocs = docs.map((doc) => `query: ${doc}`);
+  try {
+    const ollamaAvailable = await isOllamaRunning();
+
+    if (ollamaAvailable) {
+      console.log("Ollama is available. Using local embedding model.");
+      const response = await fetch(ollamaUrl, {
         method: "POST",
-        headers: headers,
-        body: JSON.stringify({ inputs: doc }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          input: prefixedDocs,
+          model: ollamaModel,
+        }),
       });
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`Hugging Face API error: ${response.status} - ${errorText}`);
+        throw new Error(`Ollama API error: ${response.status} - ${errorText}`);
       }
 
       const result = await response.json();
 
-      // The expected format from the provided Python code should be a vector
-      if (!Array.isArray(result)) {
-        console.error("Unexpected embedding format from Hugging Face:", result);
-        throw new Error("Unexpected embedding format from Hugging Face.");
+      // Validate Ollama response structure
+      // out["data"][0]["embedding"]
+      if (!result.data || !Array.isArray(result.data)) {
+        console.error("Unexpected embedding format from Ollama:", result);
+        throw new Error("Unexpected embedding format from Ollama.");
       }
 
-      embeddings.push(result);
-    }
+      // Extract embeddings
+      const embeddings: number[][] = result.data.map((item: any) => {
+        if (!item.embedding || !Array.isArray(item.embedding)) {
+          console.error("Invalid embedding item from Ollama:", item);
+          throw new Error("Invalid embedding item received from Ollama.");
+        }
+        return item.embedding;
+      });
 
-    return embeddings;
+      if (embeddings.length !== docs.length) {
+        throw new Error("Mismatch between number of documents and embeddings from Ollama.");
+      }
+
+      console.log(`Successfully generated ${embeddings.length} embeddings using Ollama.`);
+      return embeddings;
+    } else {
+      console.log("Ollama not available. Using Hugging Face API for embeddings.");
+
+      if (!hfApiUrl || !hfApiKey) {
+        throw new Error("Ollama is unavailable and Hugging Face API URL or Key is not configured.");
+      }
+
+      const headers = {
+        Accept: "application/json",
+        Authorization: `Bearer ${hfApiKey}`,
+        "Content-Type": "application/json",
+      };
+      const embeddings: number[][] = [];
+
+      // Process documents one by one as the original code did for HF
+      // Note: Some HF endpoints might support batching, but this follows the previous pattern.
+      for (const prefixedDoc of prefixedDocs) {
+        const response = await fetch(hfApiUrl, {
+          method: "POST",
+          headers: headers,
+          body: JSON.stringify({ inputs: prefixedDoc }), // Send one prefixed doc at a time
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Hugging Face API error: ${response.status} - ${errorText}`);
+        }
+
+        const result = await response.json();
+
+        // The expected format from the provided Python code should be a vector
+        if (!Array.isArray(result)) {
+          console.error("Unexpected embedding format from Hugging Face:", result);
+          throw new Error("Unexpected embedding format from Hugging Face.");
+        }
+
+        embeddings.push(result);
+      }
+
+      return embeddings;
+    }
   } catch (error) {
     console.error("Error embedding documents:", error);
     throw error;
