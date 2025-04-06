@@ -5,7 +5,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 const pinecone = new Pinecone({
   apiKey: process.env.PINECONE_API_KEY || "",
 });
-const index = pinecone.index(process.env.PINECONE_INDEX_NAME || "rag-embeddings");
+const index = pinecone.index(process.env.PINECONE_INDEX_NAME || "rag-embeddings-v2");
 
 // --- Helper to check Ollama availability ---
 async function isOllamaRunning(timeout = 500): Promise<boolean> {
@@ -199,14 +199,15 @@ async function ragQuery(
       throw new Error("Failed to get valid embeddings for the question.");
     }
 
-    const queryVec = queryVecEmbeddings[0][0]; // Take the first embedding
-    if (!Array.isArray(queryVec)) {
+    const queryVec = queryVecEmbeddings[0]; // Take the first embedding
+    if (!Array.isArray(queryVec) || queryVec.length !== 1024) {
+      // ensure embedding length of 1024
       throw new Error("Unexpected embedding structure.");
     }
 
     const queryResult = await index.query({
       vector: queryVec,
-      topK: 8,
+      topK: 10,
       includeMetadata: true,
     });
 
