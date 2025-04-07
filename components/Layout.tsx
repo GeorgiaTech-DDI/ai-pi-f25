@@ -4,16 +4,16 @@ import styles from "../styles/Layout.module.css";
 
 interface LayoutProps {
   children: React.ReactNode;
-  onSaveChat: () => void;
-  onSaveChatAsText: () => void;
+  onSaveChat: () => void; // Keep props even if buttons are commented out
+  onSaveChatAsText: () => void; // Keep props even if buttons are commented out
   onRestartChat: () => void;
   hasMessages: boolean;
 }
 
 const Layout: React.FC<LayoutProps> = ({
   children,
-  onSaveChat,
-  onSaveChatAsText,
+  onSaveChat, // Keep props
+  onSaveChatAsText, // Keep props
   onRestartChat,
   hasMessages,
 }) => {
@@ -29,25 +29,13 @@ const Layout: React.FC<LayoutProps> = ({
           <img src="/images/logo.png" alt="AI PI Logo" className={styles.logo} />
           <h1 className={styles.customFont}>AI PI</h1>
         </div>
-        <div className={styles.actionButtons}>
-          {/* <button onClick={onSaveChat} className={styles.actionButton} disabled={!hasMessages}>
-            Save Chat (JSON)
-          </button>
-          <button
-            onClick={onSaveChatAsText}
-            className={styles.actionButton}
-            disabled={!hasMessages}
-          >
-            Save Chat (Text)
-          </button> */}
-          <button
-            onClick={onRestartChat}
-            className={`${styles.actionButton} ${styles.clearButton}`}
-            disabled={!hasMessages}
-          >
-            Restart
-          </button>
-        </div>
+        <button
+          onClick={onRestartChat}
+          className={`${styles.actionButton} ${styles.clearButton} ${styles.restartButtonHeader}`}
+          disabled={!hasMessages}
+        >
+          Restart
+        </button>
       </header>
 
       {children}

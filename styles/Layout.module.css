@@ -32,9 +32,14 @@
 }
 
 .header {
-    width: 100%;
     text-align: center;
-    margin: 40px 0 20px 0;
+    margin: 40px calc(100px + 10%) 20px calc(100px + 10%);
+}
+
+@media (max-width: 550px) {
+    .header {
+        margin: 40px calc(5%) 20px calc(5%);
+    }
 }
 
 .disclaimerContainer {
@@ -54,22 +59,6 @@
     max-width: 600px;
 }
 
-.actionButtons {
-    display: flex;
-    justify-content: center;
-    margin-bottom: 0px;
-    gap: 10px;
-    flex-wrap: wrap;
-}
-
-@media (max-width: 450px) {
-    .actionButtons {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-    }
-}
-
 .actionButton {
     padding: 8px 16px;
     font-size: 0.85rem;
@@ -86,8 +75,6 @@
 .actionButton:disabled {
     opacity: 0.5;
     cursor: not-allowed;
-    color: transparent;
-    border-color: transparent;
 }
 
 .clearButton {
@@ -99,7 +86,18 @@
     background-color: rgb(84, 7, 7);
 }
 
-.clearButton:disabled {
-    color: transparent;
-    border-color: transparent;
+.restartButtonHeader {
+    position: absolute;
+    top: 90px;
+    right: 10%;
+    transform: translateY(-50%);
+}
+
+@media (max-width: 550px) {
+    .restartButtonHeader {
+        top: 140px;
+    }
+    .header {
+        margin-bottom: 30px;
+    }
 }
