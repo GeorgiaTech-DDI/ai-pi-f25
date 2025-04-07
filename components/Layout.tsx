@@ -30,7 +30,7 @@ const Layout: React.FC<LayoutProps> = ({
           <h1 className={styles.customFont}>AI PI</h1>
         </div>
         <div className={styles.actionButtons}>
-          <button onClick={onSaveChat} className={styles.actionButton} disabled={!hasMessages}>
+          {/* <button onClick={onSaveChat} className={styles.actionButton} disabled={!hasMessages}>
             Save Chat (JSON)
           </button>
           <button
@@ -39,7 +39,7 @@ const Layout: React.FC<LayoutProps> = ({
             disabled={!hasMessages}
           >
             Save Chat (Text)
-          </button>
+          </button> */}
           <button
             onClick={onRestartChat}
             className={`${styles.actionButton} ${styles.clearButton}`}
