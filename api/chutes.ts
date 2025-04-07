@@ -13,7 +13,7 @@ async function isOllamaRunning(timeout = 500): Promise<boolean> {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeout);
     // Use Ollama's base endpoint for the health check
-    const response = await fetch("http://localhost:11434/api/tags", {
+    const response = await fetch(`${process.env.OLLAMA_URL}/api`, {
       method: "GET", // Or HEAD
       signal: controller.signal,
     });
