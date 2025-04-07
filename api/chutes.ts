@@ -156,8 +156,8 @@ function constructContext(
 // --- Create Payload Function for Chutes API ---
 function createPayload(question: string, contextStr: string, conversationHistory: string = "") {
   const systemMessage = `You are a helpful AI assistant that answers questions based on the provided context.
-If the context doesn't contain the answer, say "I can't find the answer in the context, but I think" and provide your best guess. If you don't know the answer, say "I don't know."
-Be concise and accurate and do not repeat the question or context. Make sure you answer the question. Answer in LESS than 200 words.`;
+If the context doesn't contain the answer, say "I think that" and provide your best guess. If you don't know the answer, say "I don't know."
+Be concise and accurate and do not repeat the question or context. You can ignore the context if it is irrelevant (i.e. filename shows instructions for irrelevant too or text doesn't make sense). Answer in LESS than 200 words.`;
 
   let userPrompt = `CONTEXT:
 ${contextStr}`;
