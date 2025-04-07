@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+    "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>Label</key>
+    <string>com.user.cloudflared.tunnel</string>
+    <key>ProgramArguments</key>
+    <array>
+      <string>/bin/sh</string>
+      <string>/Users/oupadhyay/bin/run_cloudflared_and_update_vercel.sh</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true />
+    <key>KeepAlive</key>
+    <true />
+    <key>StandardOutPath</key>
+    <string>/Users/oupadhyay/Library/Logs/cloudflared_wrapper.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/oupadhyay/Library/Logs/cloudflared_wrapper.err</string>
+  </dict>
+</plist>
