@@ -1,4 +1,4 @@
-# [AI PI](https://matrix-labs-rag.vercel.app/)
+# AI PI
 
 By: Ojasw Upadhyay
 
