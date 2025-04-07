@@ -8,12 +8,12 @@ const pinecone = new Pinecone({
 const index = pinecone.index(process.env.PINECONE_INDEX_NAME || "rag-embeddings-v2");
 
 // --- Helper to check Ollama availability ---
-async function isOllamaRunning(timeout = 500): Promise<boolean> {
+async function isOllamaRunning(timeout = 5000): Promise<boolean> {
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeout);
     // Use Ollama's base endpoint for the health check
-    const response = await fetch(`${process.env.OLLAMA_URL}/api`, {
+    const response = await fetch(`${process.env.OLLAMA_URL}/api/tags`, {
       method: "GET", // Or HEAD
       signal: controller.signal,
     });
