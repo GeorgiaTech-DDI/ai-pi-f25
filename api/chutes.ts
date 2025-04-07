@@ -13,7 +13,7 @@ async function isOllamaRunning(timeout = 500): Promise<boolean> {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeout);
     // Use Ollama's base endpoint for the health check
-    const response = await fetch("http://localhost:11434/", {
+    const response = await fetch("http://localhost:11434/api/tags", {
       method: "GET", // Or HEAD
       signal: controller.signal,
     });
@@ -35,7 +35,7 @@ async function isOllamaRunning(timeout = 500): Promise<boolean> {
 
 // --- Embedding Function (using Ollama or Sagemaker Embedding Endpoint) ---
 async function embedDocs(docs: string[]): Promise<number[][]> {
-  const ollamaUrl = "http://localhost:11434/v1/embeddings";
+  const ollamaUrl = `${process.env.OLLAMA_URL}/v1/embeddings`;
   const ollamaModel = "jeffh/intfloat-multilingual-e5-large:f16";
   const hfApiUrl = process.env.HF_API_URL;
   const hfApiKey = process.env.HF_API_KEY;
