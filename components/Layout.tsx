@@ -26,7 +26,7 @@ const Layout: React.FC<LayoutProps> = ({
 
       <header className={styles.header}>
         <div className={styles.logoContainer}>
-          <img src="/images/logo.png" alt="AI PI Logo" className={styles.logo} />
+          <img src="/images/logo.svg" alt="AI PI Logo" className={styles.logo} />
           <h1 className={styles.customFont}>AI PI</h1>
         </div>
         <button

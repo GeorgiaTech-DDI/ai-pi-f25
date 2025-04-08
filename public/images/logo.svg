@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 3312 3312">
+    <defs>
+        <style>
+        .cls-1, .cls-2 {
+            fill: #fff;
+        }
+
+        .cls-2 {
+            font-family: 'MaaxMonoTrial-Bold', CoFoSansMonoVF-Bold, 'CoFo Sans Mono VF', monospace;
+            font-size: 557.76px;
+            font-variation-settings: 'wght' 700;
+            font-weight: 700;
+        }
+
+        .cls-3 {
+            letter-spacing: .45em;
+        }
+
+        .cls-4 {
+            fill: transparent;
+        }
+
+        .cls-5 {
+            fill: none;
+            stroke: #ac9b65;
+            stroke-width: 110px;
+        }
+
+        .cls-6 {
+            letter-spacing: 0em;
+        }
+        </style>
+    </defs>
+    <rect class="cls-4" width="3312" height="3312" />
+    <line class="cls-5" x1="658.15" y1="591.42" x2="658.15" y2="2720.56" />
+    <line class="cls-5" x1="2681.14" y1="591.42" x2="2681.14" y2="2720.56" />
+    <line class="cls-5" x1="1147.98" y1="644.5" x2="605.08" y2="644.5" />
+    <line class="cls-5" x1="1147.98" y1="2667.49" x2="605.08" y2="2667.49" />
+    <line class="cls-5" x1="2734.22" y1="644.5" x2="2191.32" y2="644.5" />
+    <line class="cls-5" x1="2734.22" y1="2667.49" x2="2191.32" y2="2667.49" />
+    <text class="cls-2" transform="translate(892 1309.06)">
+        <tspan class="cls-3" x="0" y="0">M</tspan>
+        <tspan class="cls-6" x="1185" y="0">T</tspan>
+    </text>
+    <text class="cls-2" transform="translate(892 1855.66)">
+        <tspan class="cls-3" x="0" y="0">R</tspan>
+        <tspan class="cls-3" x="617" y="0">I</tspan>
+        <tspan class="cls-6" x="1171" y="0">X</tspan>
+    </text>
+    <text class="cls-2" transform="translate(892 2402.26)">
+        <tspan class="cls-3" x="0" y="0">L</tspan>
+        <tspan class="cls-3" x="617" y="0">A</tspan>
+        <tspan class="cls-6" x="1171" y="0">B</tspan>
+    </text>
+    <rect class="cls-4" x="1443.03" y="896.47" width="445.32" height="445.32" />
+    <polygon class="cls-1" points="1665.68 929.3 1507.13 1308.95 1824.23 1308.95 1665.68 929.3" />
+</svg>

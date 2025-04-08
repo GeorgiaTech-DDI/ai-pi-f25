@@ -47,7 +47,7 @@ The application follows a modern web architecture:
 │   └── index.tsx         # Main chat page component
 ├── public/               # Static assets (images, favicons)
 │   └── images/
-│       └── logo.png
+│       └── logo.svg
 ├── styles/               # CSS Modules for styling
 │   ├── Chat.module.css
 │   ├── Dialogs.module.css
