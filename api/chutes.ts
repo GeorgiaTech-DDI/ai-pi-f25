@@ -5,7 +5,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 const pinecone = new Pinecone({
   apiKey: process.env.PINECONE_API_KEY || "",
 });
-const index = pinecone.index(process.env.PINECONE_INDEX_NAME || "rag-embeddings-v2");
+const index = pinecone.index(process.env.PINECONE_INDEX_NAME || "rag-embeddings");
 
 // --- Helper to check Ollama availability ---
 async function isOllamaRunning(timeout = 5000): Promise<boolean> {
