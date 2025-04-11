@@ -208,7 +208,7 @@ async function ragQuery(
 
     const queryResult = await index.query({
       vector: queryVec,
-      topK: 10,
+      topK: 5,
       includeMetadata: true,
     });
 
