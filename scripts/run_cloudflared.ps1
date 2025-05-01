@@ -34,7 +34,7 @@ while ($true) {
   $attempt++
   Write-Log "Launching cloudflared (attempt #$attempt)..."
 
-  & $CloudflaredPath tunnel --url $LocalUrl --no-autoupdate 2>&1 |
+  & $CloudflaredPath tunnel --url $LocalUrl --http-host-header=$LocalUrl --no-autoupdate 2>&1 |
     ForEach-Object {
       # write each line to console & log file, closing the file handle each time
       Write-Host $_
