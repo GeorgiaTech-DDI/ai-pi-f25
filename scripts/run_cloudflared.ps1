@@ -3,10 +3,6 @@
 <#
 .SYNOPSIS
   Supervises cloudflared: logs output, restarts on failure.
-.DESCRIPTION
-  Runs a “quick” tunnel to $LocalUrl.
-  Appends all output to cloudflared_output.log.
-  If cloudflared exits non‑zero, waits $RestartDelay and retries (up to $MaxRestarts).
 #>
 
 param(
@@ -25,10 +21,10 @@ $LogFile = Join-Path $LogDirectory "cloudflared_output.log"
 
 function Write-Log {
   param($Msg)
-  $ts = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+  $ts   = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
   $line = "$ts - $Msg"
-  Write-Host $line
-  Add-Content -Path $LogFile -Value $line
+  Write-Host  $line
+  $line | Out-File -FilePath $LogFile -Append -Encoding UTF8
 }
 
 Write-Log "=== Starting cloudflared supervisor ==="
@@ -39,7 +35,11 @@ while ($true) {
   Write-Log "Launching cloudflared (attempt #$attempt)..."
 
   & $CloudflaredPath tunnel --url $LocalUrl --no-autoupdate 2>&1 |
-    Tee-Object -FilePath $LogFile -Append
+    ForEach-Object {
+      # write each line to console & log file, closing the file handle each time
+      Write-Host $_
+      $_ | Out-File -FilePath $LogFile -Append -Encoding UTF8
+    }
 
   $code = $LASTEXITCODE
   Write-Log "cloudflared exited with code $code"
@@ -48,12 +48,10 @@ while ($true) {
     Write-Log "Normal exit → stopping supervisor."
     break
   }
-
   if ($attempt -ge $MaxRestarts) {
     Write-Log "Max restarts ($MaxRestarts) reached → aborting."
     exit 1
   }
-
   Write-Log "Restarting in $RestartDelay seconds..."
   Start-Sleep -Seconds $RestartDelay
 }
