@@ -41,13 +41,13 @@ Optional HTTP Host header for Cloudflared. Defaults to "localhost:11434".
 #>
 param(
     [Parameter(Mandatory=$true)]
-    [string]$CloudflaredPath = "C:\Program Files\Cloudflared\cloudflared.exe",
+    [string]$CloudflaredPath = "C:\Program Files (x86)\cloudflared\cloudflared.exe",
 
     [Parameter(Mandatory=$true)]
-    [string]$VercelCliPath = "$env:APPDATA\npm\vercel.cmd", # Common location, adjust if needed
+    [string]$VercelCliPath = "C:\Users\ajariwala3\AppData\Local\pnpm\global\5\node_modules\vercel\node_modules\.bin\vercel.cmd", # Common location, adjust if needed
 
     [Parameter(Mandatory=$true)]
-    [string]$LogDirectory = "$env:USERPROFILE\Logs",
+    [string]$LogDirectory = "C:\Users\ajariwala3\Documents\AIPI\log",
 
     [string]$VercelEnvVarName = "OLLAMA_URL",
     [ValidateSet("production", "preview", "development")]
