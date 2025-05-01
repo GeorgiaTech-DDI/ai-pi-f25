@@ -2,10 +2,10 @@
 setlocal enabledelayedexpansion
 
 REM --- Configuration (IMPORTANT: UPDATE THESE PATHS!) ---
-set "PROJECT_DIR=C:\path\to\your\aws-rag\frontend"REM Set the full path to the frontend directory
-set "CLOUDFLARED_BIN=C:\Program Files\Cloudflared\cloudflared.exe"REM Set the full path to cloudflared.exe
-set "VERCEL_BIN=C:\Users\YourUser\AppData\Roaming\npm\vercel.cmd"REM Set the full path to vercel.cmd (check with 'where vercel')
-set "LOG_DIR=C:\Users\YourUser\Logs"REM Set the desired directory for logs
+set "PROJECT_DIR=C:\Users\ajariwala3\Documents\AIPI\matrix-labs-rag"REM Set the full path to the frontend directory
+set "CLOUDFLARED_BIN=C:\Program Files (x86)\cloudflared\cloudflared.exe"REM Set the full path to cloudflared.exe
+set "VERCEL_BIN=C:\Users\ajariwala3\AppData\Local\pnpm\global\5\node_modules\vercel\node_modules\.bin\vercel.cmd"REM Set the full path to vercel.cmd (check with 'where vercel')
+set "LOG_DIR=C:\Users\ajariwala3\Documents\AIPI\log"REM Set the desired directory for logs
 set "CLOUDFLARED_OUTPUT_LOG=%LOG_DIR%\cloudflared_output.log"REM Log for raw cloudflared stdout/stderr
 
 REM Vercel Configuration
