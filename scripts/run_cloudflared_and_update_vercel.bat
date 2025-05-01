@@ -15,12 +15,16 @@ set "VERCEL_ENV_SCOPE=production"
 REM --- State ---
 set VERCEL_UPDATED_THIS_RUN=0
 
+goto Main
+
 REM --- Logging function ---
 :log_message
 echo %DATE% %TIME% - %~1
 goto :eof
 
 REM --- Main Execution ---
+:Main
+call :log_message "Starting cloudflared wrapper script."
 
 REM Create Logs directory if it doesn't exist
 if not exist "%LOG_DIR%" (
