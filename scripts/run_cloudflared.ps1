@@ -1,52 +1,56 @@
-#Requires -Version 5.1
+# aws-rag/frontend/scripts/run_cloudflared.ps1
+# Requires -Version 5.1
 <#
 .SYNOPSIS
-  Runs cloudflared in a loop, restarts on failure, and logs output.
+  Supervises cloudflared: logs output, restarts on failure.
+.DESCRIPTION
+  Runs a “quick” tunnel to $LocalUrl.
+  Appends all output to cloudflared_output.log.
+  If cloudflared exits non‑zero, waits $RestartDelay and retries (up to $MaxRestarts).
 #>
 
 param(
-  [string]$CloudflaredPath   = "C:\Program Files (x86)\cloudflared\cloudflared.exe",
-  [string]$LocalUrl          = "http://localhost:11434",
-  [string]$LogDirectory      = "C:\Users\ajariwala3\Documents\AIPI\log",
-  [int]   $RestartDelay      = 5,    # seconds between restarts
-  [int]   $MaxRestarts       = 10    # give up after this many failures
+  [string]$CloudflaredPath = "C:\Program Files (x86)\cloudflared\cloudflared.exe",
+  [string]$LocalUrl        = "http://localhost:11434",
+  [string]$LogDirectory    = "C:\Users\ajariwala3\Documents\AIPI\log",
+  [int]   $RestartDelay    = 5,    # seconds
+  [int]   $MaxRestarts     = 10
 )
 
-# Logging helper
-function Write-Log {
-  param([string]$Message)
-  $ts = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-  $line = "$ts - $Message"
-  Write-Host $line
-  Add-Content -Path (Join-Path $LogDirectory "cloudflared_output.log") -Value $line
-}
-
-# Ensure log directory exists
+# Ensure log dir exists
 if (-not (Test-Path $LogDirectory)) {
-  New-Item -Path $LogDirectory -ItemType Directory -Force | Out-Null
+  New-Item $LogDirectory -ItemType Directory -Force | Out-Null
 }
 $LogFile = Join-Path $LogDirectory "cloudflared_output.log"
 
-Write-Log "Starting cloudflared supervisor. Log: $LogFile"
+function Write-Log {
+  param($Msg)
+  $ts = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+  $line = "$ts - $Msg"
+  Write-Host $line
+  Add-Content -Path $LogFile -Value $line
+}
 
-$restartCount = 0
+Write-Log "=== Starting cloudflared supervisor ==="
+$attempt = 0
+
 while ($true) {
-  $attempt = $restartCount + 1
+  $attempt++
   Write-Log "Launching cloudflared (attempt #$attempt)..."
+
   & $CloudflaredPath tunnel --url $LocalUrl --no-autoupdate 2>&1 |
     Tee-Object -FilePath $LogFile -Append
 
-  $exitCode = $LASTEXITCODE
-  Write-Log "cloudflared exited with code $exitCode"
+  $code = $LASTEXITCODE
+  Write-Log "cloudflared exited with code $code"
 
-  if ($exitCode -eq 0) {
-    Write-Log "Normal exit detected; stopping supervisor."
+  if ($code -eq 0) {
+    Write-Log "Normal exit → stopping supervisor."
     break
   }
 
-  $restartCount++
-  if ($restartCount -ge $MaxRestarts) {
-    Write-Log "Reached max restart attempts ($MaxRestarts). Exiting supervisor."
+  if ($attempt -ge $MaxRestarts) {
+    Write-Log "Max restarts ($MaxRestarts) reached → aborting."
     exit 1
   }
 
