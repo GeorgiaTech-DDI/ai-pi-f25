@@ -56,7 +56,7 @@ Get-Content -Path $LogFile -Tail 0 -Wait |
 
       # Add new env var
       Write-Log "Adding new Vercel env var $VercelEnvVarName=$url"
-      & $VercelCliPath env add $VercelEnvVarName $url $VercelEnvScope --yes |
+      & echo $url | & $VercelCliPath env add $VercelEnvVarName $VercelEnvScope |
         ForEach-Object { Write-Log "$_" }
 
       # Trigger deploy
