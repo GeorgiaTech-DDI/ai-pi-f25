@@ -46,7 +46,7 @@ param(
     [Parameter(Mandatory=$true)]
     [string]$VercelCliPath = "C:\Users\ajariwala3\AppData\Local\pnpm\global\5\node_modules\vercel\node_modules\.bin\vercel.cmd", # Common location, adjust if needed
 
-    [Parameter(Mandatory=$true)]
+    # [Parameter(Mandatory=$true)]
     [string]$LogDirectory = "C:\Users\ajariwala3\Documents\AIPI\log",
 
     [string]$VercelEnvVarName = "OLLAMA_URL",
@@ -191,27 +191,40 @@ $errorAction = {
     }
 }
 
-Register-ObjectEvent -InputObject $process -EventName OutputDataReceived -Action $outputAction -SourceIdentifier CloudflaredOutput
-Register-ObjectEvent -InputObject $process -EventName ErrorDataReceived -Action $errorAction -SourceIdentifier CloudflaredError
-
-Write-Log "Event handlers registered." # DEBUG: Confirm registration happened
-
 # 4. Start Cloudflared Process and Monitoring
 Write-Log "Launching Cloudflared tunnel process..."
 try {
     if ($process.Start()) { # Check return value of Start()
-        Write-Log "Process.Start() succeeded." # DEBUG
-        $process.BeginOutputReadLine()
-        $process.BeginErrorReadLine()
-        Write-Log "Started reading output/error streams asynchronously." # DEBUG
-        Write-Log "Cloudflared process started (PID: $($process.Id)). Monitoring output..."
+        Write-Log "Process.Start() succeeded. PID: $($process.Id)" # DEBUG
+
+        # Try starting async reads BEFORE registering events
+        try {
+            $process.BeginOutputReadLine()
+            $process.BeginErrorReadLine()
+            Write-Log "Initiated asynchronous reading of output/error streams." # DEBUG
+        } catch {
+            Write-Error "Failed to start asynchronous stream reading. Error: $($_.Exception.Message)" # DEBUG
+            # If this fails, the events won't work anyway
+            throw $_
+        }
+
+        # Now register events
+        try {
+            Register-ObjectEvent -InputObject $process -EventName OutputDataReceived -Action $outputAction -SourceIdentifier CloudflaredOutput
+            Register-ObjectEvent -InputObject $process -EventName ErrorDataReceived -Action $errorAction -SourceIdentifier CloudflaredError
+            Write-Log "Event handlers registered." # DEBUG: Confirm registration happened
+        } catch {
+            Write-Error "Failed to register event handlers. Error: $($_.Exception.Message)" # DEBUG
+            throw $_
+        }
+
+        Write-Log "Monitoring process output..." # DEBUG: Replaces previous "Monitoring output..." message
 
         # Keep the script running while the process is active
         $monitorCounter = 0
         while (-not $process.HasExited) {
             $monitorCounter++
             # Use WaitForExit with a short timeout; this can sometimes help process events
-            # If this still hangs, we might revert to Start-Sleep
             $exited = $process.WaitForExit(1000) # Wait 1 second
             if ($exited) {
                  Write-Log "Process exited during WaitForExit." # DEBUG
@@ -225,14 +238,13 @@ try {
 
         # Process exited
         # Ensure output is flushed before getting ExitCode
-        # Adding a safety WaitForExit call after the loop
         if (-not $process.HasExited) {
              Write-Log "Waiting for process exit after loop..." # DEBUG
              $process.WaitForExit()
         } else {
-             # If already exited, call WaitForExit(0) or just proceed,
-             # but ensure streams are potentially flushed. A small sleep might help.
-             Start-Sleep -Milliseconds 100
+             Write-Log "Process already exited before final WaitForExit." # DEBUG
+             # Streams should be flushed by now if exited cleanly
+             Start-Sleep -Milliseconds 200 # Small safety sleep
         }
         $exitCode = $process.ExitCode
         Write-Log "Cloudflared process has exited with code $exitCode."
@@ -243,7 +255,7 @@ try {
     }
 
 } catch {
-    Write-Error "Failed to start or monitor Cloudflared process. Path: '$CloudflaredPath'. Arguments: '$arguments'. Error: $($_.Exception.Message)"
+    Write-Error "An error occurred during process start or monitoring. Path: '$CloudflaredPath'. Arguments: '$arguments'. Error: $($_.Exception.Message)"
     $exitCode = -1 # Indicate failure
 } finally {
     # Clean up event registrations
@@ -262,4 +274,3 @@ try {
     Write-Log "Wrapper script finished."
     exit $exitCode
 }
-
