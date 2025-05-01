@@ -1,276 +1,97 @@
 #Requires -Version 5.1
-
 <#
 .SYNOPSIS
-Starts a Cloudflared tunnel, detects the public URL, updates a Vercel environment variable,
-and triggers a Vercel deployment. Logs output to a file and the console.
-
-.DESCRIPTION
-This script automates the process of exposing a local service (like Ollama on port 11434)
-via a Cloudflared tunnel and updating a Vercel application to use this tunnel URL.
-It monitors the Cloudflared output in real-time.
-
-.PARAMETER CloudflaredPath
-The full path to the cloudflared.exe executable.
-
-.PARAMETER VercelCliPath
-The full path to the vercel.cmd or vercel.exe CLI. Often found via `Get-Command vercel`.
-
-.PARAMETER LogDirectory
-The directory where the cloudflared_output.log file will be stored.
-
-.PARAMETER VercelEnvVarName
-The name of the environment variable to update in Vercel (e.g., "OLLAMA_URL").
-
-.PARAMETER VercelEnvScope
-The Vercel environment scope (e.g., "production", "preview", "development"). Defaults to "production".
-
-.PARAMETER LocalUrlToTunnel
-The local URL that Cloudflared should tunnel to. Defaults to "http://localhost:11434".
-
-.PARAMETER CloudflaredHostHeader
-Optional HTTP Host header for Cloudflared. Defaults to "localhost:11434".
-
-.EXAMPLE
-.\run_cloudflared_and_update_vercel.ps1 -CloudflaredPath "C:\path\to\cloudflared.exe" -VercelCliPath "C:\path\to\vercel.cmd" -LogDirectory "C:\Logs"
-
-.NOTES
-- Ensure Cloudflared and Vercel CLI are installed and authenticated.
-- The script runs indefinitely until Cloudflared exits or the script is manually stopped.
-- PowerShell 5.1 or later is required.
+  Monitors Cloudflared output, extracts the public URL once,
+  updates a Vercel env var, and triggers a production deployment.
 #>
 param(
-    [Parameter(Mandatory=$true)]
-    [string]$CloudflaredPath = "C:\Program Files (x86)\cloudflared\cloudflared.exe",
-
-    [Parameter(Mandatory=$true)]
-    [string]$VercelCliPath = "C:\Users\ajariwala3\AppData\Local\pnpm\global\5\node_modules\vercel\node_modules\.bin\vercel.cmd", # Common location, adjust if needed
-
-    # [Parameter(Mandatory=$true)]
-    [string]$LogDirectory = "C:\Users\ajariwala3\Documents\AIPI\log",
-
-    [string]$VercelEnvVarName = "OLLAMA_URL",
-    [ValidateSet("production", "preview", "development")]
-    [string]$VercelEnvScope = "production",
-
-    [string]$LocalUrlToTunnel = "http://localhost:11434",
-    [string]$CloudflaredHostHeader = "localhost:11434"
+  [Parameter(Mandatory=$true)]
+  [string]$CloudflaredPath     = "C:\Program Files (x86)\cloudflared\cloudflared.exe",
+  [Parameter(Mandatory=$true)]
+  [string]$VercelCliPath       = "C:\Users\ajariwala3\AppData\Local\pnpm\global\5\node_modules\vercel\node_modules\.bin\vercel.cmd",
+  [Parameter(Mandatory=$true)]
+  [string]$LogDirectory        = "C:\Users\ajariwala3\Documents\AIPI\log",
+  [string]$VercelEnvVarName    = "OLLAMA_URL",
+  [ValidateSet("production","preview","development")]
+  [string]$VercelEnvScope      = "production",
+  [string]$LocalUrl            = "http://localhost:11434",
+  [string]$HostHeader          = "localhost:11434"
 )
 
-# --- Script Setup ---
-$ErrorActionPreference = 'Stop' # Exit script on terminating errors
-$script:VercelUpdatedThisRun = $false # Use script scope to modify within event handlers
-$CloudflaredLogFile = Join-Path -Path $LogDirectory -ChildPath "cloudflared_output.log"
-$CloudflaredUrlRegex = 'https://[-a-z0-9]+\.trycloudflare\.com'
+# Exit on unhandled errors
+$ErrorActionPreference = "Stop"
+$script:Updated = $false
+$LogFile = Join-Path $LogDirectory "cloudflared_output.log"
+$UrlRegex = 'https://[-a-z0-9]+\.trycloudflare\.com'
 
-# --- Logging Function ---
+# Logging helper
 function Write-Log {
-    param([string]$Message)
-    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-    $logLine = "$timestamp - $Message"
-    Write-Host $logLine
-    try {
-        Add-Content -Path $CloudflaredLogFile -Value $logLine -ErrorAction Stop
-    } catch {
-        Write-Warning "Failed to write to log file '$CloudflaredLogFile': $($_.Exception.Message)"
-    }
+  param([string]$Msg)
+  $t = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+  $line = "$t - $Msg"
+  Write-Host $line
+  Add-Content -Path $LogFile -Value $line
 }
 
-# --- Main Execution ---
-
-# 1. Ensure Log Directory Exists
-if (-not (Test-Path -Path $LogDirectory -PathType Container)) {
-    Write-Log "Creating log directory: $LogDirectory"
-    try {
-        New-Item -Path $LogDirectory -ItemType Directory -Force | Out-Null
-    } catch {
-        Write-Error "Failed to create log directory '$LogDirectory'. Exiting. Error: $($_.Exception.Message)"
-        exit 1
-    }
-} else {
-     Write-Log "Log directory exists: $LogDirectory"
-}
-# Clear old log file if it exists (optional)
-# if (Test-Path $CloudflaredLogFile) { Remove-Item $CloudflaredLogFile }
-
-Write-Log "Starting Cloudflared wrapper script."
-Write-Log "Cloudflared Path: $CloudflaredPath"
-Write-Log "Vercel CLI Path: $VercelCliPath"
-Write-Log "Cloudflared output will be logged to: $CloudflaredLogFile"
-Write-Log "Vercel Env Var: $VercelEnvVarName ($VercelEnvScope)"
-Write-Log "Local URL: $LocalUrlToTunnel"
-
-# 2. Configure Cloudflared Process
-$startInfo = New-Object System.Diagnostics.ProcessStartInfo
-$startInfo.FileName = $CloudflaredPath
-# Important: Escape quotes if paths have spaces, though PowerShell handles it often.
-# Construct args carefully.
-$arguments = "tunnel --url $LocalUrlToTunnel --no-autoupdate"
-if ($CloudflaredHostHeader) {
-    $arguments += " --http-host-header=""$CloudflaredHostHeader"""
-}
-$startInfo.Arguments = $arguments
-$startInfo.RedirectStandardOutput = $true
-$startInfo.RedirectStandardError = $true
-$startInfo.UseShellExecute = $false
-$startInfo.CreateNoWindow = $true # Run hidden
-
-$process = New-Object System.Diagnostics.Process
-$process.StartInfo = $startInfo
-
-# 3. Register Event Handlers for Real-time Output Processing
-$outputAction = {
-    param($sender, $e)
-    if (-not [string]::IsNullOrEmpty($e.Data)) {
-        Write-Log "[CF_OUT] $($e.Data)" # Log raw cloudflared output
-
-        # Check for the Tunnel URL
-        if (($e.Data -match $CloudflaredUrlRegex) -and (-not $script:VercelUpdatedThisRun)) {
-            $tunnelUrl = $Matches[0]
-            Write-Log "Detected Cloudflare tunnel URL: $tunnelUrl"
-            $script:VercelUpdatedThisRun = $true # Set flag immediately
-
-            # Update Vercel Environment Variable
-            Write-Log "Attempting to remove old Vercel env var: $VercelEnvVarName ($VercelEnvScope)"
-            try {
-                # Use Invoke-Expression or Start-Process to handle .cmd properly
-                # Using '&' might be sufficient if vercel.cmd is in PATH or full path is correct
-                 & $VercelCliPath env rm $VercelEnvVarName $VercelEnvScope --yes 2>&1 | Write-Log # Log output/errors
-                 Write-Log "Successfully removed old env var (or it didn't exist)."
-            } catch {
-                 # Vercel CLI might return non-zero exit code if var doesn't exist, which PS interprets as error
-                 Write-Log "WARN: Command to remove env var finished (might have failed if var didn't exist). Output above. Continuing..."
-            }
-
-            Write-Log "Adding new Vercel env var: ${VercelEnvVarName}=${tunnelUrl} ($VercelEnvScope)"
-            $addSuccess = $false
-            try {
-                 & $VercelCliPath env add $VercelEnvVarName $tunnelUrl $VercelEnvScope 2>&1 | Write-Log
-                 # Check $LASTEXITCODE specifically for Vercel CLI success
-                 if ($LASTEXITCODE -eq 0) {
-                    Write-Log "Successfully added new env var."
-                    $addSuccess = $true
-                 } else {
-                    Write-Log "ERROR: Vercel 'env add' command failed with exit code $LASTEXITCODE. Check output above."
-                 }
-            } catch {
-                Write-Log "ERROR: Failed to execute Vercel 'env add' command. Error: $($_.Exception.Message)"
-            }
-
-            # Trigger Vercel Deployment only if adding env var succeeded
-            if ($addSuccess) {
-                 Write-Log "Triggering new Vercel production deployment..."
-                 try {
-                    & $VercelCliPath deploy --prod --yes 2>&1 | Write-Log
-                    if ($LASTEXITCODE -eq 0) {
-                        Write-Log "Vercel deployment triggered successfully."
-                    } else {
-                        Write-Log "ERROR: Vercel 'deploy --prod' command failed with exit code $LASTEXITCODE. Check output above."
-                        # Optional: Reset flag if deployment fails?
-                        # $script:VercelUpdatedThisRun = $false
-                    }
-                 } catch {
-                     Write-Log "ERROR: Failed to execute Vercel 'deploy --prod' command. Error: $($_.Exception.Message)"
-                     # Optional: Reset flag if deployment fails?
-                     # $script:VercelUpdatedThisRun = $false
-                 }
-            } else {
-                 Write-Log "Skipping Vercel deployment because adding env var failed."
-                 # Optional: Reset flag if adding var failed?
-                 # $script:VercelUpdatedThisRun = $false
-            }
-        }
-    }
+# Ensure log directory exists
+if (-not (Test-Path $LogDirectory)) {
+  New-Item -Path $LogDirectory -ItemType Directory -Force | Out-Null
 }
 
-$errorAction = {
-    param($sender, $e)
-    if (-not [string]::IsNullOrEmpty($e.Data)) {
-        Write-Log "[CF_ERR] $($e.Data)" # Log raw cloudflared stderr
-        # Can add specific error handling here if needed
+Write-Log "Starting URL watcher."
+Write-Log "Cloudflared: $CloudflaredPath"
+Write-Log "Vercel CLI: $VercelCliPath"
+Write-Log "Monitoring log: $LogFile"
+
+# Start Cloudflared & hook events
+$si = New-Object System.Diagnostics.ProcessStartInfo
+$si.FileName        = $CloudflaredPath
+$si.Arguments       = "tunnel --url $LocalUrl --no-autoupdate --http-host-header=`"$HostHeader`""
+$si.RedirectStandardOutput = $true
+$si.RedirectStandardError  = $true
+$si.UseShellExecute        = $false
+$si.CreateNoWindow         = $true
+
+$proc = [Diagnostics.Process]::Start($si)
+$proc.BeginOutputReadLine()
+$proc.BeginErrorReadLine()
+
+# Handler for both stdout and stderr
+$handler = {
+  param($s, $e)
+  if (-not [string]::IsNullOrEmpty($e.Data)) {
+    Write-Log "[CF] $($e.Data)"
+    if (-not $script:Updated -and $e.Data -match $UrlRegex) {
+      $url = $Matches[0]
+      Write-Log "Detected tunnel URL: $url"
+      $script:Updated = $true
+
+      # Remove old var
+      Write-Log "Removing old Vercel env var $VercelEnvVarName ($VercelEnvScope)"
+      & $VercelCliPath env rm $VercelEnvVarName $VercelEnvScope --yes | ForEach-Object { Write-Log $_ }
+
+      # Add new var
+      Write-Log "Adding new Vercel env var $VercelEnvVarName=$url"
+      & $VercelCliPath env add $VercelEnvVarName $url $VercelEnvScope --yes | ForEach-Object { Write-Log $_ }
+
+      # Deploy
+      Write-Log "Triggering Vercel production deployment"
+      & $VercelCliPath deploy --prod --yes | ForEach-Object { Write-Log $_ }
+      Write-Log "Deployment command finished (exit $LASTEXITCODE)"
     }
+  }
 }
 
-# 4. Start Cloudflared Process and Monitoring
-Write-Log "Launching Cloudflared tunnel process..."
-try {
-    if ($process.Start()) { # Check return value of Start()
-        Write-Log "Process.Start() succeeded. PID: $($process.Id)" # DEBUG
+Register-ObjectEvent -InputObject $proc -EventName OutputDataReceived -Action $handler -SourceIdentifier CFOut
+Register-ObjectEvent -InputObject $proc -EventName ErrorDataReceived  -Action $handler -SourceIdentifier CFErr
 
-        # Try starting async reads BEFORE registering events
-        try {
-            $process.BeginOutputReadLine()
-            $process.BeginErrorReadLine()
-            Write-Log "Initiated asynchronous reading of output/error streams." # DEBUG
-        } catch {
-            Write-Error "Failed to start asynchronous stream reading. Error: $($_.Exception.Message)" # DEBUG
-            # If this fails, the events won't work anyway
-            throw $_
-        }
+# Wait for the tunnel to exit (if ever)
+$proc.WaitForExit()
+$code = $proc.ExitCode
+Write-Log "Cloudflared process exited with code $code"
 
-        # Now register events
-        try {
-            Register-ObjectEvent -InputObject $process -EventName OutputDataReceived -Action $outputAction -SourceIdentifier CloudflaredOutput
-            Register-ObjectEvent -InputObject $process -EventName ErrorDataReceived -Action $errorAction -SourceIdentifier CloudflaredError
-            Write-Log "Event handlers registered." # DEBUG: Confirm registration happened
-        } catch {
-            Write-Error "Failed to register event handlers. Error: $($_.Exception.Message)" # DEBUG
-            throw $_
-        }
-
-        Write-Log "Monitoring process output..." # DEBUG: Replaces previous "Monitoring output..." message
-
-        # Keep the script running while the process is active
-        $monitorCounter = 0
-        while (-not $process.HasExited) {
-            $monitorCounter++
-            # Use WaitForExit with a short timeout; this can sometimes help process events
-            $exited = $process.WaitForExit(1000) # Wait 1 second
-            if ($exited) {
-                 Write-Log "Process exited during WaitForExit." # DEBUG
-                 break # Exit loop if process ended
-            }
-             # Log status periodically if it hasn't exited
-             if (($monitorCounter % 5) -eq 0) { # Log every 5 iterations (5 seconds)
-                Write-Log "Monitoring loop active (Iteration: $monitorCounter). Process ID: $($process.Id)" # DEBUG
-             }
-        }
-
-        # Process exited
-        # Ensure output is flushed before getting ExitCode
-        if (-not $process.HasExited) {
-             Write-Log "Waiting for process exit after loop..." # DEBUG
-             $process.WaitForExit()
-        } else {
-             Write-Log "Process already exited before final WaitForExit." # DEBUG
-             # Streams should be flushed by now if exited cleanly
-             Start-Sleep -Milliseconds 200 # Small safety sleep
-        }
-        $exitCode = $process.ExitCode
-        Write-Log "Cloudflared process has exited with code $exitCode."
-
-    } else {
-        Write-Error "Process.Start() returned false. Failed to start Cloudflared."
-        $exitCode = -1
-    }
-
-} catch {
-    Write-Error "An error occurred during process start or monitoring. Path: '$CloudflaredPath'. Arguments: '$arguments'. Error: $($_.Exception.Message)"
-    $exitCode = -1 # Indicate failure
-} finally {
-    # Clean up event registrations
-    Write-Log "Entering finally block for cleanup." # DEBUG
-    Unregister-Event -SourceIdentifier CloudflaredOutput -ErrorAction SilentlyContinue
-    Unregister-Event -SourceIdentifier CloudflaredError -ErrorAction SilentlyContinue
-    if ($process -ne $null -and (-not $process.HasExited)) {
-         # If script exits but process is still running, try to kill it (optional)
-         # Write-Log "Attempting to terminate running Cloudflared process..."
-         # $process.Kill()
-    }
-    if ($process -ne $null) {
-        $process.Dispose()
-        Write-Log "Process object disposed." # DEBUG
-    }
-    Write-Log "Wrapper script finished."
-    exit $exitCode
-}
+# Cleanup
+Unregister-Event -SourceIdentifier CFOut -ErrorAction SilentlyContinue
+Unregister-Event -SourceIdentifier CFErr -ErrorAction SilentlyContinue
+$proc.Dispose()
+exit $code
