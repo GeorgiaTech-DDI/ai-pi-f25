@@ -194,32 +194,70 @@ $errorAction = {
 Register-ObjectEvent -InputObject $process -EventName OutputDataReceived -Action $outputAction -SourceIdentifier CloudflaredOutput
 Register-ObjectEvent -InputObject $process -EventName ErrorDataReceived -Action $errorAction -SourceIdentifier CloudflaredError
 
+Write-Log "Event handlers registered." # DEBUG: Confirm registration happened
+
 # 4. Start Cloudflared Process and Monitoring
 Write-Log "Launching Cloudflared tunnel process..."
 try {
-    $process.Start() | Out-Null
-    $process.BeginOutputReadLine()
-    $process.BeginErrorReadLine()
-    Write-Log "Cloudflared process started (PID: $($process.Id)). Monitoring output..."
+    if ($process.Start()) { # Check return value of Start()
+        Write-Log "Process.Start() succeeded." # DEBUG
+        $process.BeginOutputReadLine()
+        $process.BeginErrorReadLine()
+        Write-Log "Started reading output/error streams asynchronously." # DEBUG
+        Write-Log "Cloudflared process started (PID: $($process.Id)). Monitoring output..."
 
-    # Keep the script running while the process is active
-    while (-not $process.HasExited) {
-        Start-Sleep -Seconds 5 # Check periodically
+        # Keep the script running while the process is active
+        $monitorCounter = 0
+        while (-not $process.HasExited) {
+            $monitorCounter++
+            # Use WaitForExit with a short timeout; this can sometimes help process events
+            # If this still hangs, we might revert to Start-Sleep
+            $exited = $process.WaitForExit(1000) # Wait 1 second
+            if ($exited) {
+                 Write-Log "Process exited during WaitForExit." # DEBUG
+                 break # Exit loop if process ended
+            }
+             # Log status periodically if it hasn't exited
+             if (($monitorCounter % 5) -eq 0) { # Log every 5 iterations (5 seconds)
+                Write-Log "Monitoring loop active (Iteration: $monitorCounter). Process ID: $($process.Id)" # DEBUG
+             }
+        }
+
+        # Process exited
+        # Ensure output is flushed before getting ExitCode
+        # Adding a safety WaitForExit call after the loop
+        if (-not $process.HasExited) {
+             Write-Log "Waiting for process exit after loop..." # DEBUG
+             $process.WaitForExit()
+        } else {
+             # If already exited, call WaitForExit(0) or just proceed,
+             # but ensure streams are potentially flushed. A small sleep might help.
+             Start-Sleep -Milliseconds 100
+        }
+        $exitCode = $process.ExitCode
+        Write-Log "Cloudflared process has exited with code $exitCode."
+
+    } else {
+        Write-Error "Process.Start() returned false. Failed to start Cloudflared."
+        $exitCode = -1
     }
 
-    # Process exited
-    $exitCode = $process.ExitCode
-    Write-Log "Cloudflared process has exited with code $exitCode."
-
 } catch {
-    Write-Error "Failed to start Cloudflared process. Path: '$CloudflaredPath'. Arguments: '$arguments'. Error: $($_.Exception.Message)"
+    Write-Error "Failed to start or monitor Cloudflared process. Path: '$CloudflaredPath'. Arguments: '$arguments'. Error: $($_.Exception.Message)"
     $exitCode = -1 # Indicate failure
 } finally {
     # Clean up event registrations
+    Write-Log "Entering finally block for cleanup." # DEBUG
     Unregister-Event -SourceIdentifier CloudflaredOutput -ErrorAction SilentlyContinue
     Unregister-Event -SourceIdentifier CloudflaredError -ErrorAction SilentlyContinue
+    if ($process -ne $null -and (-not $process.HasExited)) {
+         # If script exits but process is still running, try to kill it (optional)
+         # Write-Log "Attempting to terminate running Cloudflared process..."
+         # $process.Kill()
+    }
     if ($process -ne $null) {
         $process.Dispose()
+        Write-Log "Process object disposed." # DEBUG
     }
     Write-Log "Wrapper script finished."
     exit $exitCode
