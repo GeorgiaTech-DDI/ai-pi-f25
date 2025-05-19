@@ -190,7 +190,23 @@ async function ragQuery(
   conversationHistory: string = "",
 ): Promise<[string | ReadableStream<Uint8Array>, any[]]> {
   try {
-    const queryVecEmbeddings = await embedDocs([question]); // Embed the question
+    let textForEmbedding = question;
+    if (conversationHistory && conversationHistory.trim() !== "") {
+      // Combine history and question for a richer embedding context
+      textForEmbedding = `${conversationHistory}\n\nQUESTION: ${question}`;
+    }
+
+    // Define a maximum character length for the text to be embedded.
+    // This is an approximation. The model itself truncates to 512 tokens.
+    const MAX_CHARS_FOR_EMBEDDING_CONTENT = 1500;
+    if (textForEmbedding.length > MAX_CHARS_FOR_EMBEDDING_CONTENT) {
+      console.log(`Truncating textForEmbedding from ${textForEmbedding.length} to ${MAX_CHARS_FOR_EMBEDDING_CONTENT} chars.`);
+      // Truncate from the beginning, preserving the most recent text (including the question).
+      textForEmbedding = textForEmbedding.slice(-MAX_CHARS_FOR_EMBEDDING_CONTENT);
+    }
+
+    const queryVecEmbeddings = await embedDocs([textForEmbedding]); // Embed the combined text
+
     if (
       !queryVecEmbeddings ||
       !Array.isArray(queryVecEmbeddings) ||
