@@ -200,7 +200,7 @@ async function ragQuery(
     // The model itself truncates to 512 tokens.
     // 1500 --> likes to pigeon hole into past conversationHistory.
     // 750  --> attempt to pigeon hole less.
-    const MAX_CHARS_FOR_EMBEDDING_CONTENT = 750;
+    const MAX_CHARS_FOR_EMBEDDING_CONTENT = 350;
     if (textForEmbedding.length > MAX_CHARS_FOR_EMBEDDING_CONTENT) {
       console.log(
         `Truncating textForEmbedding from ${textForEmbedding.length} to ${MAX_CHARS_FOR_EMBEDDING_CONTENT} chars.`,
@@ -210,9 +210,11 @@ async function ragQuery(
     }
 
     const queryVecEmbeddings = await embedDocs([textForEmbedding]); // Embed the combined text
+    const questionVecEmbeddings = await embedDocs([question]);
 
     if (
       !queryVecEmbeddings ||
+      !questionVecEmbeddings ||
       !Array.isArray(queryVecEmbeddings) ||
       queryVecEmbeddings.length === 0 ||
       !Array.isArray(queryVecEmbeddings[0])
@@ -220,19 +222,34 @@ async function ragQuery(
       throw new Error("Failed to get valid embeddings for the question.");
     }
 
-    const queryVec = queryVecEmbeddings[0]; // Take the first embedding
-    if (!Array.isArray(queryVec) || queryVec.length !== 1024) {
+    // Take the first embedding
+    const queryVec = queryVecEmbeddings[0];
+    const questionVec = questionVecEmbeddings[0];
+    if (
+      !Array.isArray(queryVec) ||
+      !Array.isArray(questionVec) ||
+      queryVec.length !== 1024 ||
+      questionVec.length !== 1024
+    ) {
       // ensure embedding length of 1024
       throw new Error("Unexpected embedding structure.");
     }
 
     const queryResult = await index.query({
       vector: queryVec,
-      topK: 5,
+      topK: 3,
+      includeMetadata: true,
+    });
+    const questionResult = await index.query({
+      vector: questionVec,
+      topK: 2,
       includeMetadata: true,
     });
 
-    const contexts = queryResult.matches;
+    let contexts = queryResult.matches;
+    // add questionResult.matches
+    contexts = contexts.concat(questionResult.matches);
+
     // Create array of objects with text and filename
     const contextObjects = contexts
       .map((match) => {
