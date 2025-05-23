@@ -5,14 +5,13 @@ import TermsOfServiceDialog from "../components/Dialogs/TermsOfServiceDialog";
 import FeedbackDialog from "../components/Dialogs/FeedbackDialog";
 import ReferencesDialog from "../components/Dialogs/ReferencesDialog";
 import { Message, Context, DialogFadeState } from "../components/types";
-import { saveChatAsJson, saveChatAsText } from "../utils/chatUtils";
+import { saveChatAsText } from "../utils/chatUtils";
 
 export default function Home() {
-  const [inputMessage, setInputMessage] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
   const [messages, setMessages] = useState<Message[]>([]);
-  const [contexts, setContexts] = useState<Context[]>([]);
+  const [_, setContexts] = useState<Context[]>([]);
 
   // Terms of Service state
   const [tosAccepted, setTosAccepted] = useState<boolean>(false);
@@ -405,7 +404,6 @@ export default function Home() {
       {/* Main application - only shown after ToS acceptance */}
       {(!showTosDialog || tosAccepted) && (
         <Layout
-          onSaveChat={() => saveChatAsJson(messages)}
           onSaveChatAsText={() => saveChatAsText(messages)}
           onRestartChat={restartChat}
           hasMessages={messages.length > 0}

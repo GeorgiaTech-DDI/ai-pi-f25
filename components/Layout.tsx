@@ -4,15 +4,13 @@ import styles from "../styles/Layout.module.css";
 
 interface LayoutProps {
   children: React.ReactNode;
-  onSaveChat: () => void; // Keep props even if buttons are commented out
-  onSaveChatAsText: () => void; // Keep props even if buttons are commented out
+  onSaveChatAsText: () => void;
   onRestartChat: () => void;
   hasMessages: boolean;
 }
 
 const Layout: React.FC<LayoutProps> = ({
   children,
-  onSaveChat, // Keep props
   onSaveChatAsText, // Keep props
   onRestartChat,
   hasMessages,
@@ -29,6 +27,13 @@ const Layout: React.FC<LayoutProps> = ({
           <img src="/images/logo.svg" alt="AI PI Logo" className={styles.logo} />
           <h1 className={styles.customFont}>AI PI</h1>
         </div>
+        <button
+          onClick={onSaveChatAsText}
+          className={`${styles.actionButton} ${styles.downloadButtonHeader}`}
+          disabled={!hasMessages}
+        >
+          Download
+        </button>
         <button
           onClick={onRestartChat}
           className={`${styles.actionButton} ${styles.clearButton} ${styles.restartButtonHeader}`}

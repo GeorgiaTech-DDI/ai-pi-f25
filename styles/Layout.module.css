@@ -93,7 +93,25 @@
     transform: translateY(-50%);
 }
 
+.downloadButtonHeader {
+    position: absolute;
+    top: 90px;
+    right: 20%;
+    transform: translateY(-50%);
+}
+
+@media (max-width: 800px) {
+    .downloadButtonHeader {
+        top: 140px;
+        right: 10%;
+    }
+}
+
 @media (max-width: 550px) {
+    .downloadButtonHeader {
+        top: 140px;
+        right: 30%;
+    }
     .restartButtonHeader {
         top: 140px;
     }
