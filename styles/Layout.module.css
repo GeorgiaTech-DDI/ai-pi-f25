@@ -96,24 +96,38 @@
 .downloadButtonHeader {
     position: absolute;
     top: 90px;
-    right: 20%;
+    left: 10%;
     transform: translateY(-50%);
 }
 
-@media (max-width: 800px) {
-    .downloadButtonHeader {
-        top: 140px;
-        right: 10%;
+.uploadButtonHeader {
+    position: absolute;
+    top: 90px;
+    left: 20%;
+    transform: translateY(-50%);
+}
+
+@media (max-width: 950px) {
+    .uploadButtonHeader {
+        top: 130px;
+        left: 10%;
+    }
+    .header {
+        margin-bottom: 30px;
     }
 }
 
 @media (max-width: 550px) {
     .downloadButtonHeader {
-        top: 140px;
-        right: 30%;
+        top: 145px;
+        left: 10%;
+    }
+    .uploadButtonHeader {
+        top: 145px;
+        left: 40%;
     }
     .restartButtonHeader {
-        top: 140px;
+        top: 145px;
     }
     .header {
         margin-bottom: 30px;

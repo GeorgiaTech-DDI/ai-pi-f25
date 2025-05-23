@@ -7,13 +7,15 @@ interface LayoutProps {
   onSaveChatAsText: () => void;
   onRestartChat: () => void;
   hasMessages: boolean;
+  hasSaved: boolean;
 }
 
 const Layout: React.FC<LayoutProps> = ({
   children,
-  onSaveChatAsText, // Keep props
+  onSaveChatAsText,
   onRestartChat,
   hasMessages,
+  hasSaved,
 }) => {
   return (
     <div className={styles.container}>
@@ -33,6 +35,16 @@ const Layout: React.FC<LayoutProps> = ({
           disabled={!hasMessages}
         >
           Download
+        </button>
+        <button
+          onClick={() => {
+            // redirect to /upload
+            window.location.href = "/upload";
+          }}
+          className={`${styles.actionButton} ${styles.uploadButtonHeader}`}
+          disabled={!hasSaved}
+        >
+          Upload
         </button>
         <button
           onClick={onRestartChat}

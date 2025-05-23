@@ -4,6 +4,7 @@
     "@aws-sdk/credential-providers": "^3.750.0",
     "@pinecone-database/pinecone": "^5.0.0",
     "@vercel/analytics": "^1.5.0",
+    "@vercel/blob": "^1.1.1",
     "@vercel/speed-insights": "^1.2.0",
     "file-saver": "^2.0.5",
     "next": "^15.1.7",

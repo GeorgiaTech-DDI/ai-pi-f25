@@ -12,6 +12,7 @@ export default function Home() {
   const [error, setError] = useState<string>("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [_, setContexts] = useState<Context[]>([]);
+  const [hasSaved, setHasSaved] = useState<boolean>(false);
 
   // Terms of Service state
   const [tosAccepted, setTosAccepted] = useState<boolean>(false);
@@ -366,6 +367,7 @@ export default function Home() {
     ) {
       // Auto-save chat before clearing
       saveChatAsText(messages);
+      setHasSaved(true);
 
       // Clear the chat
       setMessages([]);
@@ -404,9 +406,13 @@ export default function Home() {
       {/* Main application - only shown after ToS acceptance */}
       {(!showTosDialog || tosAccepted) && (
         <Layout
-          onSaveChatAsText={() => saveChatAsText(messages)}
+          onSaveChatAsText={() => {
+            saveChatAsText(messages);
+            setHasSaved(true);
+          }}
           onRestartChat={restartChat}
           hasMessages={messages.length > 0}
+          hasSaved={hasSaved}
         >
           <ChatContainer
             messages={messages}
