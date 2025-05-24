@@ -150,11 +150,13 @@
     bottom: 0;
     left: 0;
     right: 0;
-    background: linear-gradient(to bottom,
-            rgba(10, 10, 10, 0) 00%,
-            rgba(10, 10, 10, 0.4) 25%,
-            rgba(10, 10, 10, 0.8) 50%,
-            rgba(10, 10, 10, 1) 100%);
+    background: linear-gradient(
+        to bottom,
+        rgba(10, 10, 10, 0) 00%,
+        rgba(10, 10, 10, 0.4) 25%,
+        rgba(10, 10, 10, 0.8) 50%,
+        rgba(10, 10, 10, 1) 100%
+    );
     padding: 30px 0 10px 0;
     margin-bottom: 70px;
     display: flex;
@@ -290,7 +292,7 @@
 }
 
 .feedbackContent textarea {
-    width: calc(100% - 28px);
+    width: calc(100% - 28px); /* Adjust width if padding/border changes */
     border: 1px solid #333333;
     border-radius: 6px;
     padding: 12px;
@@ -298,47 +300,87 @@
     font-size: 1rem;
     font-family: inherit;
     resize: vertical;
+    background-color: #1a1a1a; /* Darker background for textarea */
+    color: #f0f0f9; /* Light text color */
+}
+
+.feedbackContent textarea::placeholder {
+    color: #888; /* Placeholder text color */
 }
 
 .feedbackRating {
     display: flex;
-    gap: 12px;
-    margin-top: 8px;
+    gap: 8px; /* Reduced gap for more compact stars */
+    margin-bottom: 8px;
+    flex-wrap: wrap; /* Allow buttons to wrap on smaller screens */
 }
 
 .ratingButton {
-    flex: 1;
-    padding: 10px;
+    flex-grow: 1; /* Allow buttons to grow and fill space */
+    min-width: 80px; /* Minimum width for each button */
+    padding: 8px 12px; /* Adjusted padding */
     border-radius: 6px;
     border: 1px solid #333333;
     background-color: #000000;
+    color: #f0f0f9; /* Light text color for buttons */
     cursor: pointer;
     transition: all 0.2s;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: 6px; /* Gap between emoji and text */
+    font-size: 0.9rem; /* Slightly smaller font size */
 }
 
-.ratingButton.selected {
-    border-color: rgb(118, 120, 255);
-    background-color: #e6f0ff;
+.ratingButton:hover:not(.selectedGreen):not(.selectedYellow):not(.selectedRed) {
+    background-color: #2a2a3a; /* Hover background color */
+    border-color: #555565; /* Hover border color */
 }
 
-.thumbsUp.selected {
-    border-color: #059669;
-    background-color: rgb(9, 52, 9);
+.selectedGreenBlue {
+    border-color: #059688 !important; /* Green border */
+    background-color: rgba(5, 150, 136, 0.15) !important; /* Light green background */
+    color: #059688 !important; /* Green text/emoji */
 }
 
-.thumbsDown.selected {
-    border-color: #dc2626;
-    background-color: rgb(52, 9, 9);
+.selectedGreen {
+    border-color: #059640 !important; /* Green border */
+    background-color: rgba(5, 150, 64, 0.15) !important; /* Light green background */
+    color: #059640 !important; /* Green text/emoji */
 }
 
-.thumbsUp:hover:not(.selected) {
-    background-color: rgb(12, 72, 12);
+.selectedYellowGreen {
+    border-color: #759a3a !important; /* Green border */
+    background-color: rgba(75, 154, 58, 0.15) !important; /* Light green background */
+    color: #759a3a !important; /* Green text/emoji */
 }
 
-.thumbsDown:hover:not(.selected) {
-    background-color: rgb(72, 12, 12);
+.selectedYellow {
+    border-color: #f59e0b !important; /* Yellow border */
+    background-color: rgba(245, 158, 11, 0.15) !important; /* Light yellow background */
+    color: #f59e0b !important; /* Yellow text/emoji */
+}
+
+.selectedRedYellow {
+    border-color: #e85a1a !important; /* Red border */
+    background-color: rgba(232, 90, 26, 0.15) !important; /* Light red background */
+    color: #e85a1a !important; /* Red text/emoji */
+}
+
+.selectedRed {
+    border-color: #dc2626 !important; /* Red border */
+    background-color: rgba(220, 38, 38, 0.15) !important; /* Light red background */
+    color: #dc2626 !important; /* Red text/emoji */
+}
+
+/* Optional: if you want to hide the text label on smaller screens for a more compact look */
+@media (max-width: 480px) {
+    .ratingButton {
+        min-width: 40px; /* Adjust for emoji only */
+        padding: 8px;
+    }
+    .ratingButton span:not([role="img"]) {
+        /* Hide text label, keep emoji */
+        display: none;
+    }
 }
