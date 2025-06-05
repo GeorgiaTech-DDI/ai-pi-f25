@@ -108,6 +108,10 @@
     word-wrap: break-word;
 }
 
+.message p {
+    background-color: transparent;
+}
+
 .error {
     background-color: rgba(220, 38, 38, 0.1); /* Light red background */
     color: #f87171; /* Red text */
