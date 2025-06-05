@@ -8,7 +8,8 @@ export default async function handler(request: Request): Promise<Response> {
     });
   }
 
-  const { searchParams } = new URL(request.url);
+  const url = new URL(request.url, `https://${request.headers.get('host') || 'localhost'}`);
+  const { searchParams } = url;
   const filename = searchParams.get("filename");
 
   if (!filename) {
