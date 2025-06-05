@@ -1,44 +1,29 @@
 import { put } from "@vercel/blob";
+import type { NextApiRequest, NextApiResponse } from "next";
 
-export default async function handler(request: Request): Promise<Response> {
-  if (request.method !== "POST") {
-    return new Response(JSON.stringify({ error: "Method not allowed" }), {
-      status: 405,
-      headers: { "Content-Type": "application/json" },
-    });
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const url = new URL(request.url, `https://${request.headers.get('host') || 'localhost'}`);
-  const { searchParams } = url;
-  const filename = searchParams.get("filename");
+  const { filename } = req.query;
 
-  if (!filename) {
-    return new Response(JSON.stringify({ error: "Filename is required" }), {
-      status: 400,
-      headers: { "Content-Type": "application/json" },
-    });
+  if (!filename || typeof filename !== "string") {
+    return res.status(400).json({ error: "Filename is required" });
   }
 
-  if (!request.body) {
-    return new Response(JSON.stringify({ error: "Request body is empty" }), {
-      status: 400,
-      headers: { "Content-Type": "application/json" },
-    });
+  if (!req.body) {
+    return res.status(400).json({ error: "Request body is empty" });
   }
 
   try {
-    const blob = await put(filename, request.body, {
+    const blob = await put(filename, req.body, {
       access: "public",
     });
 
-    return new Response(JSON.stringify(blob), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
+    return res.status(200).json(blob);
   } catch (error) {
-    return new Response(JSON.stringify({ error: "Upload failed" }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+    console.error("Upload error:", error);
+    return res.status(500).json({ error: "Upload failed" });
   }
 }
