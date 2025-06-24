@@ -10,8 +10,7 @@ param(
   [string]$LocalUrl        = "http://localhost:11434",
   [string]$LogDirectory    = "C:\Users\ajariwala3\Documents\AIPI\log",
   [int]   $RestartDelay    = 5,    # seconds
-  [int]   $MaxRestarts     = 5,
-  [int]   $MaxTimeouts     = 5     # consecutive timeouts before restart
+  [int]   $MaxRestarts     = 10
 )
 
 # Ensure log dir exists
@@ -33,7 +32,6 @@ $attempt = 0
 
 while ($true) {
   $attempt++
-  $timeoutCount = 0
   Write-Log "Launching cloudflared (attempt #$attempt)..."
 
   & $CloudflaredPath tunnel --url $LocalUrl --http-host-header=$LocalUrl --no-autoupdate 2>&1 |
@@ -41,24 +39,6 @@ while ($true) {
       # write each line to console & log file, closing the file handle each time
       Write-Host $_
       $_ | Out-File -FilePath $LogFile -Append -Encoding UTF8
-
-      # Restart if we see too many consecutive connection errors
-      if ($_ -match "Failed to serve tunnel connection|Connection terminated|timeout: no recent network activity") {
-        $timeoutCount++
-        Write-Log "Connection error detected (count: $timeoutCount of $MaxTimeouts)."
-        if ($timeoutCount -ge $MaxTimeouts) {
-          Write-Log "Max timeouts reached. Breaking pipe to restart cloudflared."
-          break
-        }
-      }
-
-      # Reset counter on success
-      if ($_ -match "Registered tunnel connection") {
-        if ($timeoutCount -gt 0) {
-          Write-Log "Connection re-established. Resetting timeout counter."
-          $timeoutCount = 0
-        }
-      }
     }
 
   $code = $LASTEXITCODE
