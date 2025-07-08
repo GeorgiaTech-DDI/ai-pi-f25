@@ -6,6 +6,7 @@
     "@vercel/analytics": "^1.5.0",
     "@vercel/blob": "^1.1.1",
     "@vercel/speed-insights": "^1.2.0",
+    "deepinfra": "^2.0.2",
     "file-saver": "^2.0.5",
     "next": "^15.1.7",
     "react": "^19.0.0",

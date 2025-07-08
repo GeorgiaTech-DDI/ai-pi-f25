@@ -10,7 +10,7 @@ param(
   [string]$LocalUrl        = "http://localhost:11434",
   [string]$LogDirectory    = "C:\Users\ajariwala3\Documents\AIPI\log",
   [int]   $RestartDelay    = 5,    # seconds
-  [int]   $MaxRestarts     = 10
+  [int]   $MaxRestarts     = 5
 )
 
 # Ensure log dir exists

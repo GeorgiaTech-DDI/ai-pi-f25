@@ -1,5 +1,6 @@
 import { Pinecone } from "@pinecone-database/pinecone";
 import type { NextApiRequest, NextApiResponse } from "next";
+import { Embeddings } from "deepinfra";
 
 // Initialize Pinecone Client
 const pinecone = new Pinecone({
@@ -85,8 +86,22 @@ async function embedDocs(docs: string[]): Promise<number[][]> {
 
       console.log(`Successfully generated ${embeddings.length} embeddings using Ollama.`);
       return embeddings;
+    } else if (process.env.DEEPINFRA_API_KEY) {
+      console.log("Ollama not available. Using DeepInfra API for embeddings.");
+
+      const client = new Embeddings(
+        "intfloat/multilingual-e5-large",
+        process.env.DEEPINFRA_API_KEY,
+      );
+      const body = { inputs: docs };
+      const output = await client.generate(body);
+      const embeddings = output.embeddings;
+      if (embeddings.length !== docs.length) {
+        throw new Error("Mismatch between number of documents and embeddings from Ollama.");
+      }
+      return embeddings;
     } else {
-      console.log("Ollama not available. Using Hugging Face API for embeddings.");
+      console.log("Ollama/Together not available. Using Hugging Face API for embeddings.");
 
       if (!hfApiUrl || !hfApiKey) {
         throw new Error("Ollama is unavailable and Hugging Face API URL or Key is not configured.");
