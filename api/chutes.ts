@@ -534,11 +534,18 @@ function createPayload(question: string, contextStr: string, conversationHistory
   const messages: Array<{ role: string; content: string }> = [];
 
   // System message without embedding context directly
-  const systemMessage = `You are a helpful AI PI (artificial intelligent prototyping instructor) that answers questions about the Invention Studio at Georgia Tech. Your name is "AI PI" and you were created by the MATRIX Lab team. Hello! I can assist with all things Invention Studio.
+  const systemMessage = `You are AI PI, a helpful assistant for the Invention Studio at Georgia Tech, created by the MATRIX Lab team.
 
-If the user doesn't ask a question, provide a general response. If the provided context doesn't contain the answer, say "I think that" and provide your best guess. If you don't know the answer, say "I don't know". Be accurate and do not repeat the question or context. You can ignore the context if it is irrelevant.
+Guidelines:
+- Answer questions naturally and conversationally
+- Use the provided context when relevant to the user's question
+- If context doesn't contain the answer, say "I don't know" or give your best guess with "I think that..."
+- Don't repeat yourself or use template responses
+- Don't announce your name or creator unless specifically asked
+- Focus on being helpful and direct
+- If the user's question is unclear or off-topic, ask for clarification
 
-Use the context provided in the separate context message to answer the current question accurately.`;
+Respond naturally to the conversation flow and the user's current question.`;
 
   messages.push({
     role: "system",
@@ -556,10 +563,17 @@ ${contextStr}`,
 
   // Add conversation history if it exists (filtered to exclude previous context roles)
   if (conversationHistory && conversationHistory.trim() !== "") {
-    // Filter out any context roles from previous interactions
+    // Filter out any context roles from previous interactions and clean up
     const cleanHistory = conversationHistory
       .split("\n\n")
-      .filter((section) => !section.includes("CONTEXT FOR CURRENT QUESTION:"))
+      .filter((section) => {
+        const lowerSection = section.toLowerCase();
+        return (
+          !lowerSection.includes("context for current question:") &&
+          !lowerSection.includes("invention studio context:") &&
+          section.trim().length > 0
+        );
+      })
       .join("\n\n")
       .trim();
 
@@ -606,8 +620,10 @@ async function ragQuery(
       textForEmbedding = textForEmbedding.slice(-MAX_CHARS_FOR_EMBEDDING_CONTENT);
     }
 
-    const queryVecEmbeddings = await embedDocs([textForEmbedding]); // Embed the combined text
+    // Focus primarily on the current question for better relevance
     const questionVecEmbeddings = await embedDocs([question]);
+    const queryVecEmbeddings =
+      textForEmbedding !== question ? await embedDocs([textForEmbedding]) : questionVecEmbeddings; // Use same embeddings if no conversation context
 
     if (
       !queryVecEmbeddings ||
@@ -632,23 +648,60 @@ async function ragQuery(
       throw new Error("Unexpected embedding structure.");
     }
 
-    const queryResult = await index.query({
-      vector: queryVec,
-      topK: 3,
-      includeMetadata: true,
-    });
+    // Prioritize question-based search over conversation context
     const questionResult = await index.query({
       vector: questionVec,
-      topK: 2,
+      topK: 4,
       includeMetadata: true,
     });
 
-    let contexts = queryResult.matches;
-    // add questionResult.matches
-    contexts = contexts.concat(questionResult.matches);
+    let contexts = questionResult.matches;
+
+    // Only add query results if they're different and potentially relevant
+    if (queryVec !== questionVec) {
+      const queryResult = await index.query({
+        vector: queryVec,
+        topK: 2,
+        includeMetadata: true,
+      });
+
+      // Filter out duplicate contexts and low-relevance ones
+      const uniqueQueryMatches = queryResult.matches.filter(
+        (match) =>
+          !contexts.some((existing) => existing.id === match.id) &&
+          match.score &&
+          match.score > 0.3,
+      );
+
+      contexts = contexts.concat(uniqueQueryMatches);
+    }
+
+    // Filter out low-relevance contexts before processing
+    const relevantContexts = contexts.filter((match) => {
+      if (!match.score || match.score < 0.25) return false;
+      if (!match.metadata?.text) return false;
+
+      // Basic relevance check - avoid completely unrelated content
+      const contextText =
+        typeof match.metadata.text === "string" ? match.metadata.text.toLowerCase() : "";
+      const questionLower = question.toLowerCase();
+
+      // If question is about capacity/people/space, avoid button/manufacturing contexts
+      if (
+        questionLower.includes("people") ||
+        questionLower.includes("fit") ||
+        questionLower.includes("capacity")
+      ) {
+        if (contextText.includes("button") && contextText.includes("limit of 20")) {
+          return false;
+        }
+      }
+
+      return true;
+    });
 
     // Create array of objects with text and filename
-    const contextObjects = contexts
+    const contextObjects = relevantContexts
       .map((match) => {
         if (match.metadata?.text && match.metadata?.filename) {
           return {
