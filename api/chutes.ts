@@ -680,23 +680,6 @@ async function ragQuery(
     const relevantContexts = contexts.filter((match) => {
       if (!match.score || match.score < 0.25) return false;
       if (!match.metadata?.text) return false;
-
-      // Basic relevance check - avoid completely unrelated content
-      const contextText =
-        typeof match.metadata.text === "string" ? match.metadata.text.toLowerCase() : "";
-      const questionLower = question.toLowerCase();
-
-      // If question is about capacity/people/space, avoid button/manufacturing contexts
-      if (
-        questionLower.includes("people") ||
-        questionLower.includes("fit") ||
-        questionLower.includes("capacity")
-      ) {
-        if (contextText.includes("button") && contextText.includes("limit of 20")) {
-          return false;
-        }
-      }
-
       return true;
     });
 
