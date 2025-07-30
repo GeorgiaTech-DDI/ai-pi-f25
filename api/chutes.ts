@@ -166,10 +166,9 @@ function formatHistoryForModel(prunedHistory: PrunedHistory): string {
   }
 
   if (prunedHistory.recentMessages.length > 0) {
-    formatted += "CONVERSATION HISTORY:\n";
-    formatted += prunedHistory.recentMessages
-      .map((msg) => `${msg.role}: ${msg.content}`)
-      .join("\n");
+    formatted += "Previous conversation:\n";
+    formatted += prunedHistory.recentMessages.map((msg) => msg.content).join("\n\n");
+    formatted += "\n\nCurrent question:\n";
   }
 
   return formatted;
