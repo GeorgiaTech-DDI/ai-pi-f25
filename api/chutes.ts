@@ -2,11 +2,336 @@ import { Pinecone } from "@pinecone-database/pinecone";
 import type { NextApiRequest, NextApiResponse } from "next";
 import { Embeddings } from "deepinfra";
 
+// Types for conversation history management
+interface ConversationMessage {
+  role: "user" | "assistant";
+  content: string;
+  timestamp: number;
+}
+
+interface PrunedHistory {
+  recentMessages: ConversationMessage[];
+  summaryContext?: string;
+  totalChars: number;
+}
+
+// Configuration for history management
+const HISTORY_CONFIG = {
+  MAX_RECENT_MESSAGES: 8, // Keep last 8 messages
+  MAX_TOTAL_CHARS: 5000, // Maximum character limit for history
+  MIN_RELEVANCE_SCORE: 0.3, // Minimum relevance score for keeping messages
+  SUMMARY_THRESHOLD: 10, // Number of messages before summarization kicks in
+};
+
+// Conversation metrics tracking
+interface ConversationMetrics {
+  originalMessageCount: number;
+  prunedMessageCount: number;
+  totalCharsOriginal: number;
+  totalCharsPruned: number;
+  compressionRatio: number;
+  hasSummary: boolean;
+  shouldSuggestRestart: boolean;
+}
+
 // Initialize Pinecone Client
 const pinecone = new Pinecone({
   apiKey: process.env.PINECONE_API_KEY || "",
 });
 const index = pinecone.index(process.env.PINECONE_INDEX_NAME || "rag-embeddings");
+
+// --- Conversation History Management Functions ---
+
+/**
+ * Calculate relevance score between a message and the current question
+ */
+function calculateRelevance(message: ConversationMessage, question: string): number {
+  const messageWords = message.content.toLowerCase().split(/\s+/);
+  const questionWords = question.toLowerCase().split(/\s+/);
+
+  const overlap = messageWords.filter((word) =>
+    questionWords.some((qWord) => qWord.includes(word) || word.includes(qWord)),
+  ).length;
+
+  return overlap / Math.max(messageWords.length, questionWords.length);
+}
+
+/**
+ * Summarize old conversation context into a compact form
+ */
+function summarizeOldContext(messages: ConversationMessage[]): string {
+  if (messages.length === 0) return "";
+
+  const topics = new Set<string>();
+  const keyPhrases: string[] = [];
+
+  messages.forEach((msg) => {
+    // Extract key phrases (simple heuristic: words longer than 5 chars)
+    const words = msg.content.split(/\s+/);
+    words.forEach((word) => {
+      const cleaned = word.replace(/[^\w]/g, "").toLowerCase();
+      if (cleaned.length > 5 && !topics.has(cleaned)) {
+        topics.add(cleaned);
+        keyPhrases.push(cleaned);
+      }
+    });
+  });
+
+  if (keyPhrases.length === 0) return "";
+
+  return `PREVIOUS TOPICS: ${keyPhrases.slice(0, 8).join(", ")}`;
+}
+
+/**
+ * Calculate conversation metrics for monitoring
+ */
+function calculateConversationMetrics(
+  originalMessages: ConversationMessage[],
+  prunedHistory: PrunedHistory,
+): ConversationMetrics {
+  const originalChars = originalMessages.reduce((sum, msg) => sum + msg.content.length, 0);
+  const compressionRatio = originalChars > 0 ? prunedHistory.totalChars / originalChars : 1;
+
+  // Suggest restart if conversation is getting too long or heavily compressed
+  const shouldSuggestRestart =
+    originalMessages.length > 30 || compressionRatio < 0.3 || originalChars > 8000;
+
+  return {
+    originalMessageCount: originalMessages.length,
+    prunedMessageCount: prunedHistory.recentMessages.length,
+    totalCharsOriginal: originalChars,
+    totalCharsPruned: prunedHistory.totalChars,
+    compressionRatio,
+    hasSummary: !!prunedHistory.summaryContext,
+    shouldSuggestRestart,
+  };
+}
+
+/**
+ * Prune conversation history intelligently
+ */
+function pruneConversationHistory(
+  messages: ConversationMessage[],
+  currentQuestion: string,
+): PrunedHistory {
+  if (messages.length === 0) {
+    return { recentMessages: [], totalChars: 0 };
+  }
+
+  // Always keep the most recent messages
+  const recentMessages = messages.slice(-HISTORY_CONFIG.MAX_RECENT_MESSAGES);
+
+  // If we're under the character limit, return as is
+  let totalChars = recentMessages.reduce((sum, msg) => sum + msg.content.length, 0);
+
+  if (
+    totalChars <= HISTORY_CONFIG.MAX_TOTAL_CHARS &&
+    messages.length <= HISTORY_CONFIG.SUMMARY_THRESHOLD
+  ) {
+    return { recentMessages, totalChars };
+  }
+
+  // If we have too many messages, create a summary of older ones
+  let finalMessages = recentMessages;
+  let summaryContext: string | undefined;
+
+  if (messages.length > HISTORY_CONFIG.SUMMARY_THRESHOLD) {
+    const oldMessages = messages.slice(0, -HISTORY_CONFIG.MAX_RECENT_MESSAGES);
+    summaryContext = summarizeOldContext(oldMessages);
+  }
+
+  // If still over character limit, trim from the beginning of recent messages
+  while (totalChars > HISTORY_CONFIG.MAX_TOTAL_CHARS && finalMessages.length > 2) {
+    const removed = finalMessages.shift();
+    if (removed) {
+      totalChars -= removed.content.length;
+    }
+  }
+
+  return {
+    recentMessages: finalMessages,
+    summaryContext,
+    totalChars: totalChars + (summaryContext?.length || 0),
+  };
+}
+
+/**
+ * Format pruned history for the model
+ */
+function formatHistoryForModel(prunedHistory: PrunedHistory): string {
+  let formatted = "";
+
+  if (prunedHistory.summaryContext) {
+    formatted += `${prunedHistory.summaryContext}\n\n`;
+  }
+
+  if (prunedHistory.recentMessages.length > 0) {
+    formatted += "CONVERSATION HISTORY:\n";
+    formatted += prunedHistory.recentMessages
+      .map((msg) => `${msg.role}: ${msg.content}`)
+      .join("\n");
+  }
+
+  return formatted;
+}
+
+/**
+ * Extract key terms and context from conversation for better embeddings
+ */
+function extractEmbeddingContext(conversationHistory: string, currentQuestion: string): string {
+  if (!conversationHistory) return currentQuestion;
+
+  // Extract technical terms and important concepts
+  const lines = conversationHistory.split("\n");
+  const userMessages = lines
+    .filter((line) => line.startsWith("user:"))
+    .map((line) => line.replace("user:", "").trim());
+
+  // Get the last 2 user questions for context
+  const recentQuestions = userMessages.slice(-2);
+
+  // Extract key terms (words longer than 4 chars, technical terms)
+  const keyTerms = new Set<string>();
+  const technicalPattern = /\b[A-Z][a-z]*(?:[A-Z][a-z]*)*\b|\b\w*(?:ing|tion|ment|ness|ity)\b/g;
+
+  recentQuestions.forEach((question) => {
+    // Add technical terms
+    const matches = question.match(technicalPattern) || [];
+    matches.forEach((term) => {
+      if (term.length > 4) keyTerms.add(term.toLowerCase());
+    });
+
+    // Add important nouns and verbs
+    const words = question.split(/\s+/);
+    words.forEach((word) => {
+      const cleaned = word.replace(/[^\w]/g, "").toLowerCase();
+      if (
+        cleaned.length > 4 &&
+        !["that", "this", "with", "from", "they", "them", "were", "have", "been"].includes(cleaned)
+      ) {
+        keyTerms.add(cleaned);
+      }
+    });
+  });
+
+  // Combine key terms with current question
+  const contextTerms = Array.from(keyTerms).slice(0, 5).join(" ");
+  return contextTerms ? `${contextTerms} ${currentQuestion}` : currentQuestion;
+}
+
+/**
+ * Optimize conversation history after response generation
+ * This can be called in the background to prepare for the next request
+ */
+function optimizeHistoryForNextRequest(
+  originalHistory: ConversationMessage[],
+  currentQuestion: string,
+  assistantResponse: string,
+): ConversationMessage[] {
+  // Add the new exchange to history
+  const updatedHistory = [
+    ...originalHistory,
+    {
+      role: "user" as const,
+      content: currentQuestion,
+      timestamp: Date.now(),
+    },
+    {
+      role: "assistant" as const,
+      content: assistantResponse,
+      timestamp: Date.now(),
+    },
+  ];
+
+  // Apply intelligent pruning for next request
+  const pruned = pruneConversationHistory(updatedHistory, "");
+
+  return pruned.recentMessages;
+}
+
+/**
+ * Perform background optimization of conversation history
+ * Called asynchronously after response is sent
+ */
+async function performBackgroundOptimization(
+  originalMessages: ConversationMessage[],
+  question: string,
+  response: string,
+): Promise<void> {
+  try {
+    // Optimize history for future requests
+    const optimizedHistory = optimizeHistoryForNextRequest(originalMessages, question, response);
+
+    // Log optimization results
+    const originalChars = originalMessages.reduce((sum, msg) => sum + msg.content.length, 0);
+    const optimizedChars = optimizedHistory.reduce((sum, msg) => sum + msg.content.length, 0);
+
+    console.log(
+      `Background optimization completed: ${originalMessages.length} -> ${optimizedHistory.length} messages, ` +
+        `${originalChars} -> ${optimizedChars} chars saved for next request`,
+    );
+
+    // Here you could save the optimized history to a cache/database if needed
+    // await saveOptimizedHistory(userId, optimizedHistory);
+  } catch (error) {
+    console.error("Background optimization failed:", error);
+  }
+}
+
+/**
+ * Utility function to assess conversation health for monitoring/debugging
+ */
+function assessConversationHealth(messages: ConversationMessage[]): {
+  status: "healthy" | "warning" | "critical";
+  recommendations: string[];
+  stats: ConversationMetrics;
+} {
+  if (messages.length === 0) {
+    return {
+      status: "healthy",
+      recommendations: [],
+      stats: {
+        originalMessageCount: 0,
+        prunedMessageCount: 0,
+        totalCharsOriginal: 0,
+        totalCharsPruned: 0,
+        compressionRatio: 1,
+        hasSummary: false,
+        shouldSuggestRestart: false,
+      },
+    };
+  }
+
+  const prunedHistory = pruneConversationHistory(messages, "");
+  const stats = calculateConversationMetrics(messages, prunedHistory);
+
+  const recommendations: string[] = [];
+  let status: "healthy" | "warning" | "critical" = "healthy";
+
+  // Assess conversation health
+  if (stats.originalMessageCount > 50) {
+    status = "critical";
+    recommendations.push("Consider starting a fresh conversation");
+  } else if (stats.originalMessageCount > 30) {
+    status = "warning";
+    recommendations.push("Conversation is getting long, consider summarizing");
+  }
+
+  if (stats.compressionRatio < 0.2) {
+    status = "critical";
+    recommendations.push("Heavy compression detected, context may be lost");
+  } else if (stats.compressionRatio < 0.5) {
+    if (status === "healthy") status = "warning";
+    recommendations.push("Moderate compression applied to conversation");
+  }
+
+  if (stats.totalCharsOriginal > 10000) {
+    if (status === "healthy") status = "warning";
+    recommendations.push("Large conversation size may impact performance");
+  }
+
+  return { status, recommendations, stats };
+}
 
 // --- Helper to check Ollama availability ---
 async function isOllamaRunning(timeout = 5000): Promise<boolean> {
@@ -165,6 +490,8 @@ function constructContext(
   }
   const concatenatedDoc = chosenSections.join("\n\n");
   console.log(`Selected top ${chosenSections.length} document sections`);
+  console.log(`Doc Length: ${concatenatedDoc.length}`);
+  console.log(`Concatenated Doc: ${concatenatedDoc}`);
   return concatenatedDoc;
 }
 
@@ -172,25 +499,29 @@ function constructContext(
 function createPayload(question: string, contextStr: string, conversationHistory: string = "") {
   const systemMessage = `You are a helpful AI PI (artificial intelligent prototyping instructor) that answers questions about the Invention Studio at Georgia Tech based on the provided context. Your name is "AI PI" and you were created by the MATRIX Lab team. If the user doesn't ask a question, ignore the context and provide a general response. If the context doesn't contain the answer, say "I think that" and provide your best guess. If you don't know the answer, say "I don't know". Be accurate and do not repeat the question or context. You can ignore the context if it is irrelevant.`;
 
-  let userPrompt = `CONTEXT:
-${contextStr}`;
+  const messages: Array<{ role: string; content: string }> = [
+    {
+      role: "user",
+      content: systemMessage,
+    },
+  ];
 
-  // Add conversation history if available
+  // Build context and history prompt
+  let userPrompt = `CONTEXT:\n${contextStr}`;
+
   if (conversationHistory) {
-    userPrompt += `\n\nPREVIOUS CONVERSATION:
-${conversationHistory}`;
+    userPrompt += `\n\n${conversationHistory}`;
   }
 
-  userPrompt += `\n\nCURRENT QUESTION:
-${question}`;
+  userPrompt += `\n\nCURRENT QUESTION:\n${question}`;
+
+  messages.push({
+    role: "user",
+    content: userPrompt,
+  });
 
   return {
-    messages: [
-      {
-        role: "user",
-        content: `${systemMessage}\n\n${userPrompt}`,
-      },
-    ],
+    messages,
     max_tokens: 500,
     temperature: 0.75,
   };
@@ -202,11 +533,8 @@ async function ragQuery(
   conversationHistory: string = "",
 ): Promise<[string | ReadableStream<Uint8Array>, any[]]> {
   try {
-    let textForEmbedding = question;
-    if (conversationHistory && conversationHistory.trim() !== "") {
-      // Combine history and question for a richer embedding context
-      textForEmbedding = `${conversationHistory}\n\nQUESTION: ${question}`;
-    }
+    // Use intelligent context extraction for better embeddings
+    let textForEmbedding = extractEmbeddingContext(conversationHistory, question);
 
     // Define a maximum character length for the text to be embedded.
     // The model itself truncates to 512 tokens.
@@ -326,15 +654,49 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    // Format the conversation history for the model
+    // Initialize metrics for conversation tracking
+    let metrics: ConversationMetrics = {
+      originalMessageCount: 0,
+      prunedMessageCount: 0,
+      totalCharsOriginal: 0,
+      totalCharsPruned: 0,
+      compressionRatio: 1,
+      hasSummary: false,
+      shouldSuggestRestart: false,
+    };
+
+    // Process and prune conversation history intelligently
     let conversationHistory = "";
     if (history.length > 0) {
-      conversationHistory = history
-        .map(
-          (msg: { role: string; content: string }) =>
-            `${msg.role === "user" ? "Human" : "Assistant"}: ${msg.content}`,
-        )
-        .join("\n\n");
+      // Convert to internal format and add timestamps
+      const messages: ConversationMessage[] = history.map(
+        (msg: { role: string; content: string }) => ({
+          role: msg.role === "user" ? "user" : "assistant",
+          content: msg.content,
+          timestamp: Date.now(),
+        }),
+      );
+
+      // Apply smart pruning
+      const prunedHistory = pruneConversationHistory(messages, question);
+      metrics = calculateConversationMetrics(messages, prunedHistory);
+      conversationHistory = formatHistoryForModel(prunedHistory);
+
+      console.log(
+        `History optimization: ${metrics.originalMessageCount} -> ${metrics.prunedMessageCount} messages, ` +
+          `${metrics.totalCharsOriginal} -> ${metrics.totalCharsPruned} chars ` +
+          `(${(metrics.compressionRatio * 100).toFixed(1)}% compression)` +
+          `${metrics.hasSummary ? " [with summary]" : ""}` +
+          `${metrics.shouldSuggestRestart ? " [RESTART RECOMMENDED]" : ""}`,
+      );
+
+      // Log restart suggestion for monitoring
+      if (metrics.shouldSuggestRestart) {
+        console.warn(
+          `Conversation getting too long - consider suggesting a fresh start to user. ` +
+            `Messages: ${metrics.originalMessageCount}, Compression: ${(metrics.compressionRatio * 100).toFixed(1)}%`,
+        );
+      }
     }
 
     // Pass both the current question and conversation history to ragQuery
@@ -349,8 +711,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       console.log("Starting stream response");
 
-      // Send contexts data as the first event
+      // Send contexts data and metrics as the first events
       res.write(`data: ${JSON.stringify({ type: "contexts", contexts })}\n\n`);
+      res.write(`data: ${JSON.stringify({ type: "metrics", metrics })}\n\n`);
 
       // Use ReadableStream Web API directly instead of Node.js streams
       const reader = streamOrString.getReader();
@@ -461,6 +824,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             res.write(`data: ${JSON.stringify({ type: "error", error: String(err) })}\n\n`);
             res.end();
           }
+        } finally {
+          // Perform background optimization after response is complete
+          if (history.length > 0) {
+            const messages: ConversationMessage[] = history.map(
+              (msg: { role: string; content: string }) => ({
+                role: msg.role === "user" ? "user" : "assistant",
+                content: msg.content,
+                timestamp: Date.now(),
+              }),
+            );
+
+            // Run optimization in background (don't await)
+            performBackgroundOptimization(messages, question, "").catch(console.error);
+          }
         }
       };
 
@@ -476,7 +853,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return;
     } else {
       // If not streaming (fallback), send the complete response
-      return res.status(200).json({ answer: streamOrString, contexts });
+      return res.status(200).json({ answer: streamOrString, contexts, metrics });
     }
   } catch (error: unknown) {
     console.error("Error in API:", error);
