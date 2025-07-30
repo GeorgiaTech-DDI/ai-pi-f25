@@ -76,7 +76,8 @@
 }
 
 .dialogBody p {
-    margin-bottom: 12px;
+    padding-bottom: 6px;
+    margin-bottom: 0px;
     line-height: 1.5;
 }
 
@@ -225,15 +226,43 @@
     display: none;
 }
 
-.contextAccordion summary::after {
-    content: "+";
-    position: absolute;
-    right: 15px;
-    transition: transform 0.3s ease;
+.contextAccordion summary::before {
+    content: "▶";
+    margin-right: 8px;
+    transition: transform 0.2s;
 }
 
-.contextAccordion[open] summary::after {
-    transform: rotate(45deg);
+.contextAccordion[open] summary::before {
+    transform: rotate(90deg);
+}
+
+/* External context styling */
+.contextAccordion summary:has-text("🌐") {
+    background: linear-gradient(135deg, #1a1a3a 0%, #2a2a4a 100%);
+    border-left: 4px solid #4a9eff;
+}
+
+.contextAccordion summary:has-text("🌐"):hover {
+    background: linear-gradient(135deg, #2a2a4a 0%, #3a3a5a 100%);
+}
+
+.externalContextSource {
+    background: linear-gradient(135deg, #0d1b0d 0%, #1a3a1a 100%);
+    border: 1px solid #2a5a2a;
+    border-radius: 4px;
+    padding: 8px;
+    font-size: 0.85rem;
+    color: #88cc88;
+}
+
+.externalContextBadge {
+    background: #1a4a9e;
+    color: #ffffff;
+    padding: 2px 6px;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    margin-left: 8px;
+    font-weight: 500;
 }
 
 .contextContent {

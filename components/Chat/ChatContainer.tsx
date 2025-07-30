@@ -7,6 +7,8 @@ import styles from "../../styles/Chat.module.css";
 interface ChatContainerProps {
   messages: Message[];
   loading: boolean;
+  webSearchLoading: boolean;
+  webSearchStatus: string;
   error: string;
   onSubmit: (message: string) => void;
   onFeedbackClick: (index: number) => void;
@@ -16,6 +18,8 @@ interface ChatContainerProps {
 const ChatContainer: React.FC<ChatContainerProps> = ({
   messages,
   loading,
+  webSearchLoading,
+  webSearchStatus,
   error,
   onSubmit,
   onFeedbackClick,
@@ -28,6 +32,8 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
       <MessagesList
         messages={messages}
         loading={loading}
+        webSearchLoading={webSearchLoading}
+        webSearchStatus={webSearchStatus}
         onFeedbackClick={onFeedbackClick}
         onReferencesClick={onReferencesClick}
       />

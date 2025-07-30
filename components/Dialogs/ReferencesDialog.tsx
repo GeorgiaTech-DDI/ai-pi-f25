@@ -26,6 +26,15 @@ const ReferencesDialog: React.FC<ReferencesDialogProps> = ({
     return acc;
   }, {});
 
+  // Sort groups to put DuckDuckGo contexts first
+  const sortedGroups = Object.entries(groupedReferences).sort(([filenameA], [filenameB]) => {
+    const isAExternal = filenameA.startsWith("🌐");
+    const isBExternal = filenameB.startsWith("🌐");
+    if (isAExternal && !isBExternal) return -1;
+    if (!isAExternal && isBExternal) return 1;
+    return 0;
+  });
+
   const handleSummaryClick = (e: React.MouseEvent<HTMLElement>) => {
     e.preventDefault();
     const details = e.currentTarget.parentNode as HTMLDetailsElement;
@@ -64,12 +73,24 @@ const ReferencesDialog: React.FC<ReferencesDialogProps> = ({
         <div className={styles.dialogBody}>
           {references.length > 0 ? (
             <>
-              {Object.entries(groupedReferences).map(([filename, fileContexts], index) => (
+              {sortedGroups.map(([filename, fileContexts], index) => (
                 <details key={index} className={styles.contextAccordion}>
-                  <summary onClick={handleSummaryClick}>{filename}</summary>
+                  <summary onClick={handleSummaryClick}>
+                    {filename}
+                    {filename.startsWith("🌐") && (
+                      <span className={styles.externalContextBadge}>External Source</span>
+                    )}
+                  </summary>
                   <div className={styles.contextContent}>
                     {fileContexts.map((context, contextIndex) => (
-                      <p key={contextIndex}>{context.metadata.text || JSON.stringify(context)}</p>
+                      <div key={contextIndex}>
+                        <p>{context.metadata.text || JSON.stringify(context)}</p>
+                        {context.metadata.source && (
+                          <div className={styles.externalContextSource}>
+                            Source: {context.metadata.source}
+                          </div>
+                        )}
+                      </div>
                     ))}
                   </div>
                 </details>

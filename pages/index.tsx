@@ -9,6 +9,8 @@ import { saveChatAsText } from "../utils/chatUtils";
 
 export default function Home() {
   const [loading, setLoading] = useState<boolean>(false);
+  const [webSearchLoading, setWebSearchLoading] = useState<boolean>(false);
+  const [webSearchStatus, setWebSearchStatus] = useState<string>("");
   const [error, setError] = useState<string>("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [_, setContexts] = useState<Context[]>([]);
@@ -43,6 +45,8 @@ export default function Home() {
 
   const handleSubmit = async (message: string): Promise<void> => {
     setLoading(true);
+    setWebSearchLoading(false);
+    setWebSearchStatus("");
     setError("");
 
     // Add user message to chat
@@ -64,6 +68,19 @@ export default function Home() {
       // Check if localhost for development mode
       if (window.location.hostname === "localhost") {
         // Development mode mock response with simulated streaming
+
+        // Simulate web search loading
+        setWebSearchLoading(true);
+        setWebSearchStatus("Searching web for additional context...");
+
+        // Wait 1 second to simulate web search
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+
+        // Simulate web search completion
+        setWebSearchLoading(false);
+        setWebSearchStatus("Found context from DuckDuckGo");
+        setTimeout(() => setWebSearchStatus(""), 2000);
+
         let mockAnswer = "";
         const mockChunks = [
           "This ",
@@ -80,6 +97,17 @@ export default function Home() {
         ];
 
         const mockContexts: Context[] = [
+          {
+            id: "ddg-test",
+            score: 1.0,
+            values: [],
+            metadata: {
+              chunk_idx: -1,
+              filename: "🌐 DuckDuckGo",
+              text: "This is a test external context from DuckDuckGo search results. It provides additional information that complements the internal knowledge base.",
+              source: "DuckDuckGo",
+            },
+          },
           {
             id: "60",
             score: 0.549824595,
@@ -212,8 +240,27 @@ export default function Home() {
                     const eventData = JSON.parse(line.slice(5));
 
                     // Handle different event types
-                    if (eventData.type === "contexts") {
+                    if (eventData.type === "web_search_loading") {
+                      // Show web search loading indicator
+                      setWebSearchLoading(true);
+                      setWebSearchStatus(eventData.message || "Searching web...");
+                    } else if (eventData.type === "web_search_complete") {
+                      // Hide web search loading indicator
+                      setWebSearchLoading(false);
+                      if (eventData.found) {
+                        setWebSearchStatus(`Found context from ${eventData.source}`);
+                      } else {
+                        setWebSearchStatus("No additional context found");
+                      }
+                      // Clear status after 2 seconds
+                      setTimeout(() => setWebSearchStatus(""), 2000);
+                    } else if (eventData.type === "contexts") {
                       // Update the message with contexts
+                      console.log("Received contexts:", eventData.contexts);
+                      console.log(
+                        "DuckDuckGo contexts found:",
+                        eventData.contexts.filter((ctx: any) => ctx.id?.startsWith("ddg-")),
+                      );
                       setMessages((currentMessages) => {
                         const newMessages = [...currentMessages];
                         newMessages[newMessages.length - 1] = {
@@ -423,6 +470,8 @@ export default function Home() {
           <ChatContainer
             messages={messages}
             loading={loading}
+            webSearchLoading={webSearchLoading}
+            webSearchStatus={webSearchStatus}
             error={error}
             onSubmit={handleSubmit}
             onFeedbackClick={initiateFeedback}

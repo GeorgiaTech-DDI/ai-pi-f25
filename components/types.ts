@@ -15,6 +15,7 @@ export interface Context {
     chunk_idx: number;
     filename: string;
     text: string;
+    source?: string;
   };
 }
 

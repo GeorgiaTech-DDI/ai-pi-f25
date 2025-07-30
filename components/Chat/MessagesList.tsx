@@ -6,6 +6,8 @@ import styles from "../../styles/Chat.module.css";
 interface MessagesListProps {
   messages: Message[];
   loading: boolean;
+  webSearchLoading: boolean;
+  webSearchStatus: string;
   onFeedbackClick: (index: number) => void;
   onReferencesClick: (index: number) => void;
 }
@@ -13,6 +15,8 @@ interface MessagesListProps {
 const MessagesList: React.FC<MessagesListProps> = ({
   messages,
   loading,
+  webSearchLoading,
+  webSearchStatus,
   onFeedbackClick,
   onReferencesClick,
 }) => {
@@ -42,6 +46,19 @@ const MessagesList: React.FC<MessagesListProps> = ({
           onReferencesClick={onReferencesClick}
         />
       ))}
+
+      {webSearchLoading && (
+        <div className={styles.webSearchIndicator}>
+          <div className={styles.searchSpinner}></div>
+          <span>{webSearchStatus}</span>
+        </div>
+      )}
+
+      {webSearchStatus && !webSearchLoading && (
+        <div className={styles.webSearchStatus}>
+          <span>{webSearchStatus}</span>
+        </div>
+      )}
 
       {loading && !messages.some((msg) => msg.isStreaming) && (
         <div className={styles.assistantMessage}>

@@ -599,9 +599,229 @@ ${contextStr}`,
 }
 
 // --- RAG Query Function with Chutes API ---
+/**
+ * Use LLM to extract up to 10 tokens as keyword for DuckDuckGo search
+ */
+async function extractKeywordForDuckDuckGo(question: string): Promise<string> {
+  try {
+    const keywordExtractionPrompt = `Extract the most important search keywords from this question for finding general information on DuckDuckGo. You can provide multiple keyword variations separated by commas, with the most important first.
+
+Examples:
+Question: "How does laser cutting work?"
+Keywords: laser cutting, laser cutting process, industrial laser cutting
+
+Question: "What materials can be used in 3D printing?"
+Keywords: 3D printing materials, additive manufacturing materials, printing filaments
+
+Question: "How do I maintain a CNC machine?"
+Keywords: CNC machine maintenance, CNC maintenance procedures, machine tool maintenance
+
+Question: "What safety precautions are needed for waterjet cutting?"
+Keywords: waterjet cutting safety, waterjet safety procedures, high pressure cutting safety
+
+Question: "Can you explain the difference between milling and turning?"
+Keywords: milling turning difference, machining processes comparison, milling vs turning
+
+Question: "${question}"
+
+Return only the keywords as comma-separated phrases, no explanation:`;
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout for keyword extraction
+
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.OPENROUTER_API_KEY || ""}`,
+        "HTTP-Referer": process.env.PUBLIC_SITE_URL || "https://matrixlab.gatech.edu",
+        "X-Title": "Matrix Lab AI",
+        "Content-Type": "application/json",
+      },
+      signal: controller.signal,
+      body: JSON.stringify({
+        model: "meta-llama/llama-3.1-8b-instruct:free",
+        messages: [
+          {
+            role: "user",
+            content: keywordExtractionPrompt,
+          },
+        ],
+        max_tokens: 20,
+        temperature: 0.1,
+        stream: false,
+      }),
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      throw new Error(`LLM API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const keywords = data.choices?.[0]?.message?.content?.trim();
+
+    if (!keywords || keywords.length < 2) {
+      throw new Error("No valid keywords extracted");
+    }
+
+    // Take the first keyword from comma-separated list for the search
+    const keywordList = keywords.split(",").map((k: string) => k.trim());
+    let primaryKeyword = keywordList[0] || keywords;
+
+    // Ensure primary keyword doesn't exceed 10 tokens
+    const tokens = primaryKeyword.split(/\s+/);
+    if (tokens.length > 10) {
+      primaryKeyword = tokens.slice(0, 10).join(" ");
+    }
+
+    console.log(`LLM extracted keywords: "${keywords}" -> using primary: "${primaryKeyword}"`);
+    return primaryKeyword;
+  } catch (error) {
+    console.warn("LLM keyword extraction failed:", error);
+    return "";
+  }
+}
+
+/**
+ * Fetch context from DuckDuckGo Instant Answers API
+ */
+async function fetchDuckDuckGoContext(keyword: string): Promise<{
+  text: string;
+  source: string;
+  filename: string;
+} | null> {
+  try {
+    const encodedKeyword = encodeURIComponent(keyword);
+    const url = `https://api.duckduckgo.com/?q=${encodedKeyword}&format=json&no_html=1&skip_disambig=1`;
+
+    console.log(`Fetching DuckDuckGo context for: "${keyword}" from ${url}`);
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+
+    const response = await fetch(url, {
+      headers: {
+        "User-Agent": "Matrix Lab AI (matrixlab.gatech.edu)",
+      },
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      console.warn(`DuckDuckGo API error: ${response.status}`);
+      return null;
+    }
+
+    const data = await response.json();
+
+    // Log the structure for debugging
+    console.log(`DuckDuckGo response structure for "${keyword}":`, {
+      hasAbstract: !!data.Abstract,
+      abstractLength: data.Abstract?.length || 0,
+      hasAbstractText: !!data.AbstractText,
+      abstractTextLength: data.AbstractText?.length || 0,
+      abstractSource: data.AbstractSource || null,
+      hasDefinition: !!data.Definition,
+      definitionLength: data.Definition?.length || 0,
+      hasAnswer: !!data.Answer,
+      answerLength: data.Answer?.length || 0,
+      relatedTopicsCount: data.RelatedTopics?.length || 0,
+      relatedTopicsStructure: data.RelatedTopics?.slice(0, 2).map((topic: any) => ({
+        hasText: !!topic.Text,
+        textLength: topic.Text?.length || 0,
+        hasName: !!topic.Name,
+        hasTopics: !!topic.Topics,
+        topicsCount: topic.Topics?.length || 0,
+      })),
+    });
+
+    // Extract useful information from the response
+    let contextText = "";
+    let source = "DuckDuckGo";
+
+    // Try different fields in order of preference - Abstract is the highest priority
+    if (data.Abstract && data.Abstract.trim()) {
+      contextText = data.Abstract;
+      source = data.AbstractSource || "DuckDuckGo Abstract";
+      console.log(`Using Abstract from ${source}: ${contextText.length} chars`);
+    } else if (data.AbstractText && data.AbstractText.trim()) {
+      contextText = data.AbstractText;
+      source = data.AbstractSource || "DuckDuckGo Abstract";
+      console.log(`Using AbstractText from ${source}: ${contextText.length} chars`);
+    } else if (data.Definition && data.Definition.trim()) {
+      contextText = data.Definition;
+      source = data.DefinitionSource || "DuckDuckGo Definition";
+      console.log(`Using Definition from ${source}: ${contextText.length} chars`);
+    } else if (data.Answer && data.Answer.trim()) {
+      contextText = data.Answer;
+      source = "DuckDuckGo Answer";
+      console.log(`Using Answer: ${contextText.length} chars`);
+    } else if (data.RelatedTopics && data.RelatedTopics.length > 0) {
+      // Find the most relevant topic from RelatedTopics
+      const directTopics = data.RelatedTopics.filter(
+        (topic: any) => topic.Text && !topic.Name && topic.Text.length > 20,
+      );
+
+      if (directTopics.length > 0) {
+        // Use the first direct topic
+        contextText = directTopics[0].Text;
+        source = "DuckDuckGo Related Topics";
+        console.log(`Using direct Related Topic: ${contextText.length} chars`);
+      } else {
+        // Look for topics with subtopics (categorized results)
+        for (const topicGroup of data.RelatedTopics) {
+          if (topicGroup.Topics && topicGroup.Topics.length > 0) {
+            // Find the most relevant subtopic
+            const subtopic = topicGroup.Topics.find((sub: any) => sub.Text && sub.Text.length > 20);
+            if (subtopic) {
+              contextText = subtopic.Text;
+              source = `DuckDuckGo ${topicGroup.Name || "Related Topics"}`;
+              console.log(
+                `Using categorized Related Topic from ${topicGroup.Name}: ${contextText.length} chars`,
+              );
+              break;
+            }
+          }
+        }
+      }
+
+      // Fallback to any available topic
+      if (!contextText && data.RelatedTopics[0]?.Text) {
+        contextText = data.RelatedTopics[0].Text;
+        source = "DuckDuckGo Related Topics";
+        console.log(`Using fallback Related Topic: ${contextText.length} chars`);
+      }
+    }
+
+    if (!contextText || contextText.trim().length < 10) {
+      console.log(`No useful context found in DuckDuckGo response for "${keyword}"`);
+      return null;
+    }
+
+    // Limit context length to avoid overwhelming the model
+    if (contextText.length > 500) {
+      contextText = contextText.substring(0, 497) + "...";
+    }
+
+    console.log(`DuckDuckGo context found: ${contextText.length} chars from ${source}`);
+
+    return {
+      text: contextText,
+      source: source,
+      filename: `external-${keyword.replace(/\s+/g, "-")}.ddg`,
+    };
+  } catch (error) {
+    console.warn(`Failed to fetch DuckDuckGo context for "${keyword}":`, error);
+    return null;
+  }
+}
+
 async function ragQuery(
   question: string,
   conversationHistory: string = "",
+  res?: NextApiResponse,
 ): Promise<[string | ReadableStream<Uint8Array>, any[]]> {
   try {
     // Use intelligent context extraction for better embeddings
@@ -648,10 +868,33 @@ async function ragQuery(
       throw new Error("Unexpected embedding structure.");
     }
 
-    // Prioritize question-based search over conversation context
+    // Get DuckDuckGo context first (with error handling)
+    const keyword = await extractKeywordForDuckDuckGo(question);
+    console.log(`Extracted keyword for DuckDuckGo: "${keyword}"`);
+    let duckDuckGoContext = null;
+    try {
+      duckDuckGoContext = await fetchDuckDuckGoContext(keyword);
+    } catch (ddgError) {
+      console.warn(`DuckDuckGo integration failed for keyword "${keyword}":`, ddgError);
+    } finally {
+      // Always emit web search complete event regardless of success/failure
+      if (res) {
+        res.write(
+          `data: ${JSON.stringify({
+            type: "web_search_complete",
+            found: !!duckDuckGoContext,
+            keyword: keyword,
+            source: duckDuckGoContext?.source || null,
+            error: !duckDuckGoContext,
+          })}\n\n`,
+        );
+      }
+    }
+
+    // Adjust RAG results based on whether we have DuckDuckGo context
     const questionResult = await index.query({
       vector: questionVec,
-      topK: 4,
+      topK: duckDuckGoContext ? 3 : 4, // Reduce by 1 only if we have DuckDuckGo context
       includeMetadata: true,
     });
 
@@ -683,7 +926,7 @@ async function ragQuery(
       return true;
     });
 
-    // Create array of objects with text and filename
+    // Create array of objects with text and filename, including DuckDuckGo context
     const contextObjects = relevantContexts
       .map((match) => {
         if (match.metadata?.text && match.metadata?.filename) {
@@ -695,6 +938,19 @@ async function ragQuery(
         return null;
       })
       .filter((item): item is { text: string; filename: string } => item !== null);
+
+    // Add DuckDuckGo context if available
+    if (duckDuckGoContext) {
+      contextObjects.unshift({
+        text: duckDuckGoContext.text, // Clean text without prefix for LLM
+        filename: duckDuckGoContext.filename,
+      });
+      console.log(
+        `Added DuckDuckGo context for keyword "${keyword}" from ${duckDuckGoContext.source} (${duckDuckGoContext.text.length} chars)`,
+      );
+    } else {
+      console.log(`No DuckDuckGo context found for keyword "${keyword}"`);
+    }
 
     const contextStr = constructContext(contextObjects);
 
@@ -726,8 +982,27 @@ async function ragQuery(
     }
     console.log(`OpenRouter response received!`);
 
+    // Create enhanced contexts array that includes DuckDuckGo info
+    let enhancedContexts = contexts;
+    if (duckDuckGoContext) {
+      // Add a synthetic context object for the frontend
+      const duckDuckGoMatch = {
+        id: `ddg-${keyword}`,
+        score: 1.0, // High relevance score for external context
+        values: [],
+        metadata: {
+          chunk_idx: -1,
+          filename: `🌐 ${duckDuckGoContext.source}`,
+          text: duckDuckGoContext.text,
+          source: duckDuckGoContext.source,
+        },
+      };
+      enhancedContexts = [duckDuckGoMatch, ...contexts];
+      console.log(`Enhanced contexts array created with DuckDuckGo context at position 0`);
+    }
+
     // For streaming responses, return the stream directly
-    return [openRouterResponse.body as ReadableStream<Uint8Array>, contexts];
+    return [openRouterResponse.body as ReadableStream<Uint8Array>, enhancedContexts];
   } catch (error) {
     console.error("Error in ragQuery:", error);
     throw error;
@@ -792,19 +1067,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     }
 
+    // Set appropriate headers for streaming before starting
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+
+    // Emit web search loading event
+    res.write(
+      `data: ${JSON.stringify({ type: "web_search_loading", message: "Searching web for additional context..." })}\n\n`,
+    );
+
     // Pass both the current question and conversation history to ragQuery
-    const [streamOrString, contexts] = await ragQuery(question, conversationHistory);
+    const [streamOrString, contexts] = await ragQuery(question, conversationHistory, res);
 
     // If we got a stream back, pipe it to the client
     if (streamOrString instanceof ReadableStream) {
-      // Set appropriate headers for streaming
-      res.setHeader("Content-Type", "text/event-stream");
-      res.setHeader("Cache-Control", "no-cache");
-      res.setHeader("Connection", "keep-alive");
-
       console.log("Starting stream response");
 
       // Send contexts data and metrics as the first events
+      console.log(`Sending ${contexts.length} contexts to frontend:`);
+      console.log(
+        `Context breakdown: ${contexts.filter((ctx) => ctx.id?.startsWith("ddg-")).length} DuckDuckGo, ${contexts.filter((ctx) => !ctx.id?.startsWith("ddg-")).length} RAG`,
+      );
       res.write(`data: ${JSON.stringify({ type: "contexts", contexts })}\n\n`);
       res.write(`data: ${JSON.stringify({ type: "metrics", metrics })}\n\n`);
 
