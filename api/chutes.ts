@@ -496,14 +496,17 @@ function constructContext(
 
 // --- Create Payload Function for Chutes API ---
 function createPayload(question: string, contextStr: string, conversationHistory: string = "") {
-  const systemMessage = `You are a helpful AI PI (artificial intelligent prototyping instructor) that answers questions about the Invention Studio at Georgia Tech based on the provided context. Your name is "AI PI" and you were created by the MATRIX Lab team. If the user doesn't ask a question, ignore the context and provide a general response. If the context doesn't contain the answer, say "I think that" and provide your best guess. If you don't know the answer, say "I don't know". Be accurate and do not repeat the question or context. You can ignore the context if it is irrelevant.`;
+  const messages: Array<{ role: string; content: string }> = [];
 
-  const messages: Array<{ role: string; content: string }> = [
-    {
+  // Only include system message for first interaction (when no conversation history exists)
+  if (!conversationHistory || conversationHistory.trim() === "") {
+    const systemMessage = `You are a helpful AI PI (artificial intelligent prototyping instructor) that answers questions about the Invention Studio at Georgia Tech based on the provided context. Your name is "AI PI" and you were created by the MATRIX Lab team. Hello! I can assist with all things Invention Studio. If the user doesn't ask a question, ignore the context and provide a general response. If the context doesn't contain the answer, say "I think that" and provide your best guess. If you don't know the answer, say "I don't know". Be accurate and do not repeat the question or context. You can ignore the context if it is irrelevant.`;
+
+    messages.push({
       role: "user",
       content: systemMessage,
-    },
-  ];
+    });
+  }
 
   // Build context and history prompt
   let userPrompt = `CONTEXT:\n${contextStr}`;
