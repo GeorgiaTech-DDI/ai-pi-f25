@@ -176,7 +176,13 @@ export default function Home() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             question: message,
-            history: updatedMessages.slice(0, -1), // Send previous messages as history
+            history: updatedMessages.slice(0, -1).map((msg) => ({
+              role: msg.role,
+              content: msg.content,
+              feedback: msg.feedback,
+              isNotification: msg.isNotification,
+              // Explicitly exclude only contexts
+            })),
           }),
         });
 

@@ -7,6 +7,7 @@ interface ConversationMessage {
   role: "user" | "assistant";
   content: string;
   timestamp: number;
+  contexts?: any[]; // Store RAG contexts for this message
 }
 
 interface PrunedHistory {
@@ -167,8 +168,34 @@ function formatHistoryForModel(prunedHistory: PrunedHistory): string {
 
   if (prunedHistory.recentMessages.length > 0) {
     formatted += "Previous conversation:\n";
-    formatted += prunedHistory.recentMessages.map((msg) => msg.content).join("\n\n");
-    formatted += "\n\nCurrent question:\n";
+    // Filter out any context-related content and format as role-based conversation
+    const cleanMessages = prunedHistory.recentMessages
+      .filter((msg) => {
+        // Skip messages that are primarily context content
+        const content = msg.content.toLowerCase();
+        if (
+          content.includes("context for current question:") ||
+          content.includes("invention studio context:")
+        ) {
+          return false;
+        }
+
+        return true;
+      })
+      .map((msg) => {
+        // Clean content to remove any embedded context from previous interactions
+        let content = msg.content;
+
+        // Remove context sections that might have been stored from previous responses
+        content = content.replace(/CONTEXT FOR CURRENT QUESTION:[\s\S]*?(?=\n\n|$)/g, "").trim();
+        content = content.replace(/Previous conversation:[\s\S]*?Current question:/g, "").trim();
+        content = content.replace(/INVENTION STUDIO CONTEXT:[\s\S]*?(?=\n\n|$)/g, "").trim();
+
+        return `${msg.role === "user" ? "User" : "Assistant"}: ${content}`;
+      })
+      .filter((msg) => msg.length > (msg.startsWith("User: ") ? 6 : 11)); // Filter out empty messages
+
+    formatted += cleanMessages.join("\n\n");
   }
 
   return formatted;
@@ -226,6 +253,7 @@ function optimizeHistoryForNextRequest(
   originalHistory: ConversationMessage[],
   currentQuestion: string,
   assistantResponse: string,
+  contexts?: any[],
 ): ConversationMessage[] {
   // Add the new exchange to history
   const updatedHistory = [
@@ -239,6 +267,7 @@ function optimizeHistoryForNextRequest(
       role: "assistant" as const,
       content: assistantResponse,
       timestamp: Date.now(),
+      contexts: contexts, // Store contexts with the assistant response
     },
   ];
 
@@ -256,10 +285,16 @@ async function performBackgroundOptimization(
   originalMessages: ConversationMessage[],
   question: string,
   response: string,
+  contexts?: any[],
 ): Promise<void> {
   try {
     // Optimize history for future requests
-    const optimizedHistory = optimizeHistoryForNextRequest(originalMessages, question, response);
+    const optimizedHistory = optimizeHistoryForNextRequest(
+      originalMessages,
+      question,
+      response,
+      contexts,
+    );
 
     // Log optimization results
     const originalChars = originalMessages.reduce((sum, msg) => sum + msg.content.length, 0);
@@ -498,28 +533,48 @@ function constructContext(
 function createPayload(question: string, contextStr: string, conversationHistory: string = "") {
   const messages: Array<{ role: string; content: string }> = [];
 
-  // Only include system message for first interaction (when no conversation history exists)
-  if (!conversationHistory || conversationHistory.trim() === "") {
-    const systemMessage = `You are a helpful AI PI (artificial intelligent prototyping instructor) that answers questions about the Invention Studio at Georgia Tech based on the provided context. Your name is "AI PI" and you were created by the MATRIX Lab team. Hello! I can assist with all things Invention Studio. If the user doesn't ask a question, ignore the context and provide a general response. If the context doesn't contain the answer, say "I think that" and provide your best guess. If you don't know the answer, say "I don't know". Be accurate and do not repeat the question or context. You can ignore the context if it is irrelevant.`;
+  // System message without embedding context directly
+  const systemMessage = `You are a helpful AI PI (artificial intelligent prototyping instructor) that answers questions about the Invention Studio at Georgia Tech. Your name is "AI PI" and you were created by the MATRIX Lab team. Hello! I can assist with all things Invention Studio.
 
+If the user doesn't ask a question, provide a general response. If the provided context doesn't contain the answer, say "I think that" and provide your best guess. If you don't know the answer, say "I don't know". Be accurate and do not repeat the question or context. You can ignore the context if it is irrelevant.
+
+Use the context provided in the separate context message to answer the current question accurately.`;
+
+  messages.push({
+    role: "system",
+    content: systemMessage,
+  });
+
+  // Add the current RAG context as a separate "user" role
+  if (contextStr && contextStr.trim() !== "") {
     messages.push({
       role: "user",
-      content: systemMessage,
+      content: `CONTEXT FOR CURRENT QUESTION:
+${contextStr}`,
     });
   }
 
-  // Build context and history prompt
-  let userPrompt = `CONTEXT:\n${contextStr}`;
+  // Add conversation history if it exists (filtered to exclude previous context roles)
+  if (conversationHistory && conversationHistory.trim() !== "") {
+    // Filter out any context roles from previous interactions
+    const cleanHistory = conversationHistory
+      .split("\n\n")
+      .filter((section) => !section.includes("CONTEXT FOR CURRENT QUESTION:"))
+      .join("\n\n")
+      .trim();
 
-  if (conversationHistory) {
-    userPrompt += `\n\n${conversationHistory}`;
+    if (cleanHistory) {
+      messages.push({
+        role: "user",
+        content: cleanHistory,
+      });
+    }
   }
 
-  userPrompt += `\n\nCURRENT QUESTION:\n${question}`;
-
+  // Add the current question
   messages.push({
     role: "user",
-    content: userPrompt,
+    content: question,
   });
 
   return {
@@ -838,7 +893,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             );
 
             // Run optimization in background (don't await)
-            performBackgroundOptimization(messages, question, "").catch(console.error);
+            performBackgroundOptimization(messages, question, "", contexts).catch(console.error);
           }
         }
       };
