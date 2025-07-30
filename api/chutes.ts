@@ -639,7 +639,7 @@ Return only the keywords as comma-separated phrases, no explanation:`;
       },
       signal: controller.signal,
       body: JSON.stringify({
-        model: "meta-llama/llama-3.1-8b-instruct:free",
+        model: "google/gemma-3n-e4b-it:free",
         messages: [
           {
             role: "user",
