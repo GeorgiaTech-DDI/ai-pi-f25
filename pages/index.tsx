@@ -364,7 +364,7 @@ export default function Home() {
     // Add a confirmation message to the chat
     updatedMessages.push({
       role: "system",
-      content: "Feedback submitted. Thank you!",
+      content: "Feedback added to chat history. Press download and then upload your chat history to send feedback. Thank you!",
       isNotification: true,
     });
 
