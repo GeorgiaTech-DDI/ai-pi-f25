@@ -1,13 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
-import { checkAuthStatus, logout } from '../../utils/authUtils';
+import { signOut } from 'firebase/auth';
+import { auth } from '../../lib/firebase';
+import { useAuth } from '../../context/AuthContext';
+import ProtectedRoute from '../../components/ProtectedRoute';
 import styles from '../../styles/Dashboard.module.css';
-
-interface User {
-  username: string;
-  role: string;
-}
 
 interface DashboardStats {
   totalUsers: number;
@@ -18,8 +16,7 @@ interface DashboardStats {
 
 export default function AdminDashboard() {
   const router = useRouter();
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { user, loading } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [stats] = useState<DashboardStats>({
     totalUsers: 1247,
@@ -28,50 +25,19 @@ export default function AdminDashboard() {
     lastUpdated: new Date().toLocaleString()
   });
 
-  useEffect(() => {
-    // Check authentication status on component mount
-    const verifyAuth = async () => {
-      try {
-        const authenticatedUser = await checkAuthStatus();
-        
-        if (authenticatedUser) {
-          setUser(authenticatedUser as User);
-        } else {
-          // Redirect to login if not authenticated
-          router.replace('/admin/login');
-          return;
-        }
-      } catch (error) {
-        console.error('Auth verification error:', error);
-        router.replace('/admin/login');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    verifyAuth();
-  }, [router]);
+  // Authentication is now handled by ProtectedRoute component
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
     
     try {
-      const success = await logout();
-      
-      if (success) {
-        // Clear user state and redirect to login
-        setUser(null);
-        router.replace('/admin/login');
-      } else {
-        console.error('Logout failed');
-        // Even if logout API fails, clear local state and redirect
-        setUser(null);
-        router.replace('/admin/login');
-      }
+      await signOut(auth);
+      console.log('🔥 Firebase logout successful');
+      // Firebase auth state change will be handled by AuthContext
+      // ProtectedRoute will automatically redirect to login
     } catch (error) {
-      console.error('Logout error:', error);
-      // Fallback: clear state and redirect anyway
-      setUser(null);
+      console.error('🔥 Firebase logout error:', error);
+      // Even if logout fails, redirect to login
       router.replace('/admin/login');
     } finally {
       setIsLoggingOut(false);
@@ -82,22 +48,8 @@ export default function AdminDashboard() {
     router.push('/');
   };
 
-  // Show loading spinner while checking authentication
-  if (isLoading) {
-    return (
-      <div className={styles.loadingContainer}>
-        <div className={styles.spinner}></div>
-        <p>Verifying authentication...</p>
-      </div>
-    );
-  }
-
-  // Don't render anything if user is not authenticated (will redirect)
-  if (!user) {
-    return null;
-  }
-
   return (
+    <ProtectedRoute>
     <>
       <Head>
         <title>Admin Dashboard - AI PI</title>
@@ -111,7 +63,7 @@ export default function AdminDashboard() {
             <img src="/images/logo.svg" alt="AI PI Logo" className={styles.logo} />
             <div className={styles.headerInfo}>
               <h1 className={styles.title}>AI PI Admin Dashboard</h1>
-              <p className={styles.subtitle}>Welcome back, {user.username}</p>
+              <p className={styles.subtitle}>Welcome back, {user?.displayName || user?.email}</p>
             </div>
           </div>
           
@@ -253,5 +205,6 @@ export default function AdminDashboard() {
         </main>
       </div>
     </>
+    </ProtectedRoute>
   );
 }

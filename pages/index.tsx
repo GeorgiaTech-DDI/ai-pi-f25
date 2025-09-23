@@ -18,8 +18,8 @@ export default function Home() {
 
   // Terms of Service state
   const [tosAccepted, setTosAccepted] = useState<boolean>(false);
-  const [showTosDialog, setShowTosDialog] = useState<boolean>(true);
-  const [tosFadeState, setTosFadeState] = useState<DialogFadeState>("visible");
+  const [showTosDialog, setShowTosDialog] = useState<boolean>(false);
+  const [tosFadeState, setTosFadeState] = useState<DialogFadeState>("hidden");
 
   // Feedback dialog state
   const [showFeedbackDialog, setShowFeedbackDialog] = useState<boolean>(false);
@@ -31,6 +31,20 @@ export default function Home() {
   const [activeReferences, setActiveReferences] = useState<Context[]>([]);
   const [activeReferenceTitle, setActiveReferenceTitle] = useState<string>("");
   const [referencesFadeState, setReferencesFadeState] = useState<DialogFadeState>("hidden");
+
+  // Check localStorage for TOS acceptance on component mount
+  useEffect(() => {
+    const tosAcceptedStorage = localStorage.getItem('tosAccepted');
+    if (tosAcceptedStorage === 'true') {
+      setTosAccepted(true);
+      setShowTosDialog(false);
+      setTosFadeState("hidden");
+    } else {
+      setTosAccepted(false);
+      setShowTosDialog(true);
+      setTosFadeState("visible");
+    }
+  }, []);
 
   // Handle ToS dialog animation
   useEffect(() => {
@@ -397,6 +411,9 @@ export default function Home() {
 
   // Function to handle TOS acceptance
   const acceptTerms = (): void => {
+    // Save acceptance to localStorage
+    localStorage.setItem('tosAccepted', 'true');
+    
     setTosFadeState("exiting");
     setTimeout(() => {
       setShowTosDialog(false);
@@ -425,9 +442,6 @@ export default function Home() {
       // Clear the chat
       setMessages([]);
       setContexts([]);
-      // Reset ToS acceptance and show dialog
-      setTosAccepted(false);
-      setShowTosDialog(true);
     }
   };
 

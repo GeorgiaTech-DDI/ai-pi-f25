@@ -1,22 +1,13 @@
 import { useState, FormEvent } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '../../lib/firebase';
 import styles from '../../styles/Login.module.css';
 
 interface LoginFormData {
-  username: string;
+  username: string; // Will be used as email for Firebase Auth
   password: string;
-}
-
-interface LoginResponse {
-  success: boolean;
-  message: string;
-  user?: {
-    username: string;
-    role: string;
-  };
-  error?: string;
-  retryAfter?: number;
 }
 
 export default function AdminLogin() {
@@ -27,8 +18,6 @@ export default function AdminLogin() {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [isRateLimited, setIsRateLimited] = useState(false);
-  const [retryAfter, setRetryAfter] = useState(0);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -48,59 +37,54 @@ export default function AdminLogin() {
     
     // Basic client-side validation
     if (!formData.username.trim() || !formData.password.trim()) {
-      setError('Please enter both username and password');
+      setError('Please enter both email and password');
       return;
     }
 
     setIsLoading(true);
     setError('');
-    setIsRateLimited(false);
 
     try {
-      const response = await fetch('/api/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          username: formData.username.trim(),
-          password: formData.password.trim(),
-        }),
-        credentials: 'include', // Include cookies in request
-      });
-
-      const data: LoginResponse = await response.json();
-
-      if (response.ok && data.success) {
-        // Successful login - redirect to admin dashboard
-        router.push('/admin/dashboard');
-      } else {
-        // Handle different error types
-        if (response.status === 429) {
-          setIsRateLimited(true);
-          setRetryAfter(data.retryAfter || 60);
-          setError(`Too many login attempts. Please try again in ${data.retryAfter || 60} seconds.`);
-          
-          // Start countdown timer
-          let countdown = data.retryAfter || 60;
-          const timer = setInterval(() => {
-            countdown -= 1;
-            setRetryAfter(countdown);
-            
-            if (countdown <= 0) {
-              clearInterval(timer);
-              setIsRateLimited(false);
-              setRetryAfter(0);
-              setError('');
-            }
-          }, 1000);
-        } else {
-          setError(data.message || 'Login failed. Please check your credentials and try again.');
+      // Use Firebase Authentication
+      await signInWithEmailAndPassword(auth, formData.username.trim(), formData.password.trim());
+      
+      // Successful login - redirect to admin dashboard
+      router.push('/admin/dashboard');
+    } catch (err: any) {
+      console.error('Firebase login error:', err);
+      
+      // Handle Firebase Auth errors
+      let errorMessage = 'Login failed. Please check your credentials and try again.';
+      
+      if (err.code) {
+        switch (err.code) {
+          case 'auth/invalid-email':
+            errorMessage = 'Please enter a valid email address.';
+            break;
+          case 'auth/user-disabled':
+            errorMessage = 'This account has been disabled. Please contact support.';
+            break;
+          case 'auth/user-not-found':
+            errorMessage = 'Invalid email or password. Please check your credentials.';
+            break;
+          case 'auth/wrong-password':
+            errorMessage = 'Invalid email or password. Please check your credentials.';
+            break;
+          case 'auth/invalid-credential':
+            errorMessage = 'Invalid email or password. Please check your credentials.';
+            break;
+          case 'auth/too-many-requests':
+            errorMessage = 'Too many failed login attempts. Please try again later.';
+            break;
+          case 'auth/network-request-failed':
+            errorMessage = 'Network error. Please check your connection and try again.';
+            break;
+          default:
+            errorMessage = 'Login failed. Please try again.';
         }
       }
-    } catch (err) {
-      console.error('Login error:', err);
-      setError('Network error. Please check your connection and try again.');
+      
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -124,19 +108,19 @@ export default function AdminLogin() {
           <form onSubmit={handleSubmit} className={styles.form}>
             <div className={styles.inputGroup}>
               <label htmlFor="username" className={styles.label}>
-                Username
+                Email
               </label>
               <input
-                type="text"
+                type="email"
                 id="username"
                 name="username"
                 value={formData.username}
                 onChange={handleInputChange}
                 required
-                disabled={isLoading || isRateLimited}
+                disabled={isLoading}
                 className={`${styles.input} ${error ? styles.inputError : ''}`}
-                placeholder="Enter your username"
-                autoComplete="username"
+                placeholder="Enter your email"
+                autoComplete="email"
               />
             </div>
 
@@ -151,7 +135,7 @@ export default function AdminLogin() {
                 value={formData.password}
                 onChange={handleInputChange}
                 required
-                disabled={isLoading || isRateLimited}
+                disabled={isLoading}
                 className={`${styles.input} ${error ? styles.inputError : ''}`}
                 placeholder="Enter your password"
                 autoComplete="current-password"
@@ -162,24 +146,19 @@ export default function AdminLogin() {
               <div className={styles.errorMessage}>
                 <span className={styles.errorIcon}>⚠️</span>
                 {error}
-                {isRateLimited && retryAfter > 0 && (
-                  <span className={styles.countdown}> ({retryAfter}s)</span>
-                )}
               </div>
             )}
 
             <button
               type="submit"
-              disabled={isLoading || isRateLimited}
-              className={`${styles.submitButton} ${(isLoading || isRateLimited) ? styles.submitButtonDisabled : ''}`}
+              disabled={isLoading}
+              className={`${styles.submitButton} ${isLoading ? styles.submitButtonDisabled : ''}`}
             >
               {isLoading ? (
                 <span className={styles.loadingContainer}>
                   <span className={styles.spinner}></span>
                   Signing in...
                 </span>
-              ) : isRateLimited ? (
-                `Try again in ${retryAfter}s`
               ) : (
                 'Sign In'
               )}
