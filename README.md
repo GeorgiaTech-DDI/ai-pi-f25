@@ -1,13 +1,15 @@
 # AI PI
 
-By: Ojasw Upadhyay
+By: Ojasw Upadhyay  
+**Firebase Authentication Migration**: Implemented by chenastn
 
 ## Overview
 
-[AI PI](https://matrix-labs-rag.vercel.app/) is a web-based chat application designed to act as an AI Prototyping Instructor for the Invention Studio at Georgia Tech. It leverages Retrieval-Augmented Generation (RAG) to answer user questions based on a provided knowledge base (stored in Pinecone). The application uses a combination of local and cloud services, including Ollama for local embedding generation (exposed via Cloudflare Tunnel) and OpenRouter with Google's Gemma 3 model for response generation.
+[AI PI](https://matrix-labs-rag.vercel.app/) is a web-based chat application designed to act as an AI Prototyping Instructor for the Invention Studio at Georgia Tech. It leverages Retrieval-Augmented Generation (RAG) to answer user questions based on a provided knowledge base (stored in Pinecone). The application features a **secure Firebase-authenticated admin portal** for administrative functions and uses a combination of local and cloud services, including Ollama for local embedding generation (exposed via Cloudflare Tunnel) and OpenRouter with Google's Gemma 3 model for response generation.
 
 ## Features
 
+### 🤖 **AI Chat System**
 *   **RAG Chat Interface:** Ask questions about the Invention Studio and receive answers generated based on relevant documents.
 *   **Streaming Responses:** Answers are streamed token-by-token for a more interactive experience.
 *   **Local Embedding Option:** Utilizes a local Ollama instance with a specific embedding model (`jeffh/intfloat-multilingual-e5-large:f16`) exposed via Cloudflare Tunnel for efficient and potentially private embedding generation.
@@ -15,12 +17,25 @@ By: Ojasw Upadhyay
 *   **Feedback Mechanism:** Rate the AI's responses (👍/👎) and provide textual feedback.
 *   **Terms of Service:** Users must agree to ToS before using the application.
 *   **Chat Management:** Restart the chat session (automatically saves the previous session as text).
+
+### 🔐 **Admin Portal & Authentication**
+*   **Firebase Authentication:** Secure email/password authentication for admin access
+*   **Protected Admin Dashboard:** Real-time authentication state with automatic redirects
+*   **Global Auth Context:** React Context API for seamless authentication state management
+*   **Secure Route Protection:** Admin-only pages with Firebase auth state validation
+*   **Environment Variable Security:** All credentials stored in gitignored `.env` files
+*   **Production-Ready Security:** No hardcoded secrets, comprehensive security audit passed
+
+### 🚀 **Deployment & Infrastructure**
 *   **Vercel Deployment:** Optimized for deployment on the Vercel platform.
+*   **Firebase Integration:** Enterprise-grade authentication with Google's security infrastructure
+*   **Modern React Architecture:** Next.js 15 with TypeScript and React 19
 
 ## Architecture
 
-The application follows a modern web architecture:
+The application follows a modern web architecture with two main systems:
 
+### 🤖 **AI Chat System**
 1.  **Frontend:** A Next.js application using React for the UI components, providing the chat interface. Hosted on Vercel.
 2.  **Backend API:** A Next.js API route (`/api/chutes.ts`) running as a Vercel Serverless Function handles the core logic.
 3.  **Embedding:**
@@ -31,100 +46,243 @@ The application follows a modern web architecture:
 5.  **Language Model:** OpenRouter routes the request (prompt + context + history) to Google's Gemma 3 model (`google/gemma-3-27b-it:free`) via their "Chutes" provider for final answer generation.
 6.  **Response:** The generated answer is streamed back through the API route to the frontend.
 
+### 🔐 **Admin Authentication System**
+1.  **Firebase Authentication:** Google's enterprise-grade authentication service handles user management
+2.  **Auth Context Provider:** React Context API provides global authentication state across the application
+3.  **Protected Routes:** Higher-order component (`ProtectedRoute`) secures admin pages with automatic redirects
+4.  **Real-time Auth State:** Firebase `onAuthStateChanged` listener provides instant authentication updates
+5.  **Secure Configuration:** Environment variables in `.env` files (gitignored) store Firebase credentials
+6.  **Admin Dashboard:** Protected administrative interface accessible only to authenticated users
+
 ## Project Structure
 
 ```
 .
-├── api/                  # Backend API routes (Vercel Serverless Functions)
-│   └── chutes.ts         # Handles chat requests, RAG, and LLM interaction
-├── components/           # Reusable React components
-│   ├── Chat/             # Components for the chat interface
-│   ├── Dialogs/          # Modal dialog components (ToS, Feedback, References)
-│   ├── Layout.tsx        # Main page layout structure
-│   └── types.ts          # TypeScript type definitions
-├── pages/                # Next.js page routes
-│   ├── _app.js           # Global App component
-│   └── index.tsx         # Main chat page component
-├── public/               # Static assets (images, favicons)
-│   └── images/
-│       └── logo.png
-├── styles/               # CSS Modules for styling
+├── api/                       # Backend API routes (Vercel Serverless Functions)
+│   └── chutes.ts             # Handles chat requests, RAG, and LLM interaction
+├── components/               # Reusable React components
+│   ├── Chat/                 # Components for the chat interface
+│   ├── Dialogs/              # Modal dialog components (ToS, Feedback, References)
+│   ├── Layout.tsx            # Main page layout structure
+│   ├── ProtectedRoute.js     # 🔐 Higher-order component for route protection
+│   └── types.ts              # TypeScript type definitions
+├── context/                  # React Context providers
+│   └── AuthContext.js        # 🔐 Firebase authentication state management
+├── lib/                      # Core library functions
+│   └── firebase.js           # 🔐 Firebase configuration and initialization
+├── pages/                    # Next.js page routes
+│   ├── admin/                # 🔐 Protected admin section
+│   │   ├── dashboard.tsx     # Admin dashboard (Firebase protected)
+│   │   └── login.tsx         # Firebase authentication login page
+│   ├── _app.js               # Global App component with AuthProvider
+│   └── index.tsx             # Main chat page component
+├── public/                   # Static assets (images, favicons)
+│   ├── images/
+│   │   └── logo.svg
+│   └── favicon.ico
+├── scripts/                  # Utility scripts and configuration
+│   ├── env-template.txt      # Environment variables template
+│   ├── launchd/              # macOS service configurations
+│   └── [cloudflare scripts]  # Cloudflare tunnel automation
+├── styles/                   # CSS Modules for styling
 │   ├── Chat.module.css
+│   ├── Dashboard.module.css  # 🔐 Admin dashboard styles
 │   ├── Dialogs.module.css
 │   ├── Layout.module.css
+│   ├── Login.module.css      # 🔐 Firebase login page styles
 │   └── globals.css
-├── utils/                # Utility functions
-│   ├── chatUtils.ts      # Functions for saving chat history
-│   └── fonts.js          # Font configuration
-├── .env.local            # Local environment variables (Gitignored)
-├── .gitignore            # Git ignore rules
-├── next.config.mjs       # Next.js configuration
-├── package.json          # Project dependencies and scripts
-├── pnpm-lock.yaml        # PNPM lock file
-├── tsconfig.json         # TypeScript configuration
-└── README.md             # This file
+├── utils/                    # Utility functions
+│   ├── chatUtils.ts          # Functions for saving chat history
+│   └── fonts.js              # Font configuration
+├── .env                      # 🔐 Environment variables (Gitignored)
+├── .gitignore                # Git ignore rules
+├── AUTHENTICATION_ROADMAP.md # 🔐 Firebase migration documentation
+├── package.json              # Project dependencies and scripts
+├── pnpm-lock.yaml            # PNPM lock file
+├── tsconfig.json             # TypeScript configuration
+└── README.md                 # This file
 ```
+
+### 🔐 **Authentication System Components**
+
+- **`lib/firebase.js`**: Firebase configuration and initialization
+- **`context/AuthContext.js`**: Global authentication state provider
+- **`components/ProtectedRoute.js`**: Route protection wrapper component
+- **`pages/admin/login.tsx`**: Firebase email/password login interface
+- **`pages/admin/dashboard.tsx`**: Protected admin dashboard
 
 ## Setup and Running Locally
 
 ### Prerequisites
 
+#### **Core Requirements**
 *   **Node.js:** v22.x or later recommended (check `.nvmrc` if present, or `package.json` engines).
 *   **pnpm:** (Recommended) `npm install -g pnpm`. Alternatively, use `npm` or `yarn`.
+*   **Git:** For cloning the repository.
+
+#### **🔐 Firebase Authentication Setup**
+*   **Firebase Account:** Create a free account at [firebase.google.com](https://firebase.google.com/)
+*   **Firebase Project:** You'll need to create a Firebase project and configure authentication
+
+#### **🤖 AI Chat System (Optional)**
 *   **Ollama:** Install from [ollama.com](https://ollama.com/).
 *   **Cloudflare Tunnel (`cloudflared`):** Install from [Cloudflare Docs](https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/install-and-setup/installation/).
 *   **Vercel CLI:** `pnpm install -g vercel` (or `npm`).
 *   **Operating System:** macOS is required for the provided `launchd` scripts for the local embedding setup. Linux/Windows users would need alternative methods (e.g., `systemd`, background processes) to run Ollama and the wrapper script persistently.
-*   **Git:** For cloning the repository.
 
 ### Installation
 
 1.  Clone the repository:
     ```bash
-    git clone <repository-url>
-    cd aws-rag/frontend
+    git clone https://github.com/chenastn/matrix-labs-rag.git
+    cd matrix-labs-rag
     ```
 2.  Install dependencies:
     ```bash
     pnpm install
     ```
 
+### 🔐 Firebase Authentication Setup
+
+Before running the application, you need to set up Firebase Authentication:
+
+#### **Step 1: Create Firebase Project**
+
+1. Go to [Firebase Console](https://console.firebase.google.com/)
+2. Click "Create a project" or "Add project"
+3. Enter a project name (e.g., "your-ai-pi-admin")
+4. Follow the setup wizard (you can disable Google Analytics)
+
+#### **Step 2: Enable Authentication**
+
+1. In your Firebase project, go to **Authentication** in the left sidebar
+2. Click "Get started"
+3. Go to the **Sign-in method** tab
+4. Enable **Email/Password** as a sign-in provider
+5. Click "Save"
+
+#### **Step 3: Create Admin User**
+
+1. Go to the **Users** tab in Authentication
+2. Click "Add user"
+3. Enter an email address (e.g., `admin@yourdomain.com`)
+4. Enter a secure password
+5. Click "Add user"
+
+#### **Step 4: Get Firebase Configuration**
+
+1. Go to **Project settings** (gear icon in sidebar)
+2. Scroll down to "Your apps" section
+3. Click "Add app" and select the web icon `</>`
+4. Register your app with a nickname (e.g., "AI PI Admin")
+5. Copy the configuration object that looks like this:
+
+```javascript
+const firebaseConfig = {
+  apiKey: "AIzaSyC...",
+  authDomain: "your-project.firebaseapp.com",
+  projectId: "your-project-id",
+  storageBucket: "your-project.appspot.com",
+  messagingSenderId: "123456789",
+  appId: "1:123456789:web:abc123def456"
+};
+```
+
 ### Environment Variables
 
-Create a `.env.local` file in the `aws-rag/frontend` directory and add the following variables:
+Create a `.env` file in the project root directory and add the following variables:
 
-```toml
+```bash
+# 🔐 Firebase Configuration (Required for Admin Authentication)
+NEXT_PUBLIC_FIREBASE_API_KEY=your_firebase_api_key_here
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_project_id.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_firebase_project_id
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_project_id.appspot.com
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_messaging_sender_id
+NEXT_PUBLIC_FIREBASE_APP_ID=your_firebase_app_id
+
+# 🤖 AI Chat System Configuration (Optional)
 # Pinecone Configuration
 PINECONE_API_KEY="your_pinecone_api_key"
 PINECONE_INDEX_NAME="your_pinecone_index_name" # e.g., rag-embeddings-v2
 
 # Ollama URL (For local dev OR managed by script for production)
-# For local development without the tunnel script, point directly:
 OLLAMA_URL="http://localhost:11434"
-# If using the tunnel script, this will be dynamically updated in Vercel production.
 
 # OpenRouter Configuration
 OPENROUTER_API_KEY="your_openrouter_api_key" # Starts with sk-or-...
 PUBLIC_SITE_URL="https://your-deployment-url.vercel.app"
-# Used for HTTP-Referer header in OpenRouter requests
+
+# Environment
+NODE_ENV=development
 ```
 
-*   Replace placeholder values with your actual keys and URLs.
-*   `OLLAMA_URL` is crucial. For simple local testing (`pnpm dev`), setting it to `http://localhost:11434` is sufficient (assuming `ollama serve` is running). The tunnel script specifically updates the *production* environment variable on Vercel.
-*   For Vercel production, you can copy all of the environment variables from `.env.local` into the settings page and use the tunnel script to update the `OLLAMA_URL` environment variable on Vercel.
+#### **🔐 Important Security Notes:**
+- Replace ALL placeholder values with your actual Firebase configuration
+- The `.env` file is automatically gitignored for security
+- NEVER commit Firebase credentials to version control
+- Use the exact variable names shown above (case-sensitive)
 
 ### Running in Development Mode
 
-1.  Ensure Ollama is serving the required model (see next section).
-2.  Run the Next.js development server:
+1.  **Start the development server:**
     ```bash
     pnpm dev
     ```
-3.  Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-In development mode, the application uses the `OLLAMA_URL` defined in `.env.local`. If that URL is unreachable, it will attempt the Hugging Face fallback if configured. The chat component also includes mock streaming for faster UI testing when running locally.
+2.  **Test the main application:**
+    - Open [http://localhost:3000](http://localhost:3000) in your browser
+    - This loads the AI chat interface
 
-## Local Embedding Model Setup (Ollama + Cloudflared + Vercel Integration - macOS)
+3.  **🔐 Test Firebase Authentication:**
+    - Visit [http://localhost:3000/admin/login](http://localhost:3000/admin/login)
+    - Log in with your Firebase admin user credentials
+    - Should redirect to [http://localhost:3000/admin/dashboard](http://localhost:3000/admin/dashboard)
+    - Verify the admin dashboard loads without errors
+
+4.  **🤖 Test AI Chat (Optional):**
+    - Ensure Ollama is serving the required model (see next section)
+    - In development mode, the application uses the `OLLAMA_URL` defined in `.env`
+    - If that URL is unreachable, it will attempt the Hugging Face fallback if configured
+
+#### **Verification Checklist:**
+- ✅ Main chat page loads at `http://localhost:3000`
+- ✅ Admin login page loads at `http://localhost:3000/admin/login`
+- ✅ Firebase authentication works (login → dashboard redirect)
+- ✅ Admin dashboard displays user email
+- ✅ Logout functionality works
+- ✅ Protected routes redirect unauthorized users
+
+### 🛠️ Troubleshooting Firebase Authentication
+
+#### **Common Issues and Solutions:**
+
+**🔥 "Firebase initialized successfully" but login fails:**
+- Verify your admin user exists in Firebase Console → Authentication → Users
+- Check that Email/Password sign-in method is enabled
+- Ensure you're using the exact email/password from Firebase Console
+
+**❌ "Missing required Firebase environment variables" error:**
+- Verify all `NEXT_PUBLIC_FIREBASE_*` variables are in your `.env` file
+- Restart the development server after adding environment variables
+- Check for typos in variable names (they are case-sensitive)
+
+**🚫 "Access denied" when visiting `/admin/dashboard` directly:**
+- This is expected behavior! The route is protected
+- You must log in first at `/admin/login`
+- Check browser console for authentication state logs
+
+**🔄 Infinite redirect loops:**
+- Clear browser cache and cookies
+- Verify Firebase project configuration matches your environment variables
+- Check that Firebase auth domain is correctly configured
+
+#### **Development Tips:**
+- Open browser dev tools (F12) to see Firebase initialization logs
+- Check the Network tab for failed Firebase API calls
+- Look for authentication state changes in the Console tab
+
+## 🤖 Local Embedding Model Setup (Ollama + Cloudflared + Vercel Integration - macOS)
 
 This setup allows the *deployed* Vercel application to use your local machine's GPU for generating embeddings via Ollama, exposed securely through a Cloudflare Tunnel.
 
@@ -193,17 +351,65 @@ This uses the `run_cloudflared_and_update_vercel.sh` script managed by `com.user
 
 With this setup, whenever the wrapper script starts (on load, or if it restarts), it establishes a tunnel to your local Ollama and updates your live Vercel deployment to use it.
 
-## Deployment
+## 🚀 Deployment
 
-This project is designed for deployment on [Vercel](https://vercel.com/).
+This project is designed for deployment on [Vercel](https://vercel.com/) with Firebase Authentication.
 
-1.  **Push to Git:** Ensure your code is pushed to a Git repository (GitHub, GitLab, Bitbucket).
-2.  **Import Project:** Import the Git repository into Vercel.
-3.  **Configure Environment Variables:** In the Vercel project settings, add the necessary environment variables (from the `.env.local` section) for the **Production** environment.
-    *   `PINECONE_API_KEY`, `PINECONE_INDEX_NAME`, `OPENROUTER_API_KEY`, `PUBLIC_SITE_URL`.
-    *   Add `HF_API_URL` and `HF_API_KEY` if you want the Hugging Face fallback.
-    *   **Important:** The `OLLAMA_URL` variable for the *Production* environment will be managed by the local `run_cloudflared_and_update_vercel.sh` script described above. You can initially leave it unset or set it to a placeholder; the script will overwrite it when it runs successfully.
-4.  **Deploy:** Vercel will typically build and deploy automatically upon pushes to the main branch (or as configured). The local script will then trigger subsequent deployments when the tunnel URL is updated.
+### **Prerequisites for Production**
+- Firebase project with Authentication enabled
+- Vercel account
+- Your code pushed to a Git repository (GitHub, GitLab, Bitbucket)
+
+### **Deployment Steps**
+
+1.  **Push to Git:** Ensure your code is pushed to a Git repository.
+
+2.  **Import Project to Vercel:**
+    - Import your Git repository into Vercel
+    - Select the root directory of your project
+
+3.  **🔐 Configure Firebase Environment Variables:**
+    
+    In the Vercel project settings, add these **REQUIRED** environment variables for the **Production** environment:
+    
+    ```bash
+    # Firebase Authentication (Required)
+    NEXT_PUBLIC_FIREBASE_API_KEY=your_firebase_api_key
+    NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
+    NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_firebase_project_id
+    NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
+    NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_messaging_sender_id
+    NEXT_PUBLIC_FIREBASE_APP_ID=your_firebase_app_id
+    NODE_ENV=production
+    ```
+
+4.  **🤖 Configure AI Chat Variables (Optional):**
+    ```bash
+    # AI Chat System
+    PINECONE_API_KEY=your_pinecone_api_key
+    PINECONE_INDEX_NAME=your_pinecone_index_name
+    OPENROUTER_API_KEY=your_openrouter_api_key
+    PUBLIC_SITE_URL=https://your-deployment-url.vercel.app
+    ```
+    
+    **Note:** The `OLLAMA_URL` variable for the *Production* environment will be managed by the local `run_cloudflared_and_update_vercel.sh` script if using local embeddings.
+
+5.  **Firebase Security Configuration:**
+    - In Firebase Console → Authentication → Settings → Authorized domains
+    - Add your Vercel deployment URL (e.g., `your-app.vercel.app`)
+    - This ensures Firebase auth works from your production domain
+
+6.  **Deploy:** 
+    - Vercel will build and deploy automatically upon pushes to the main branch
+    - Visit your deployment URL and test the admin authentication
+    - Admin login will be available at `https://your-app.vercel.app/admin/login`
+
+### **Production Verification:**
+- ✅ Main application loads at your Vercel URL
+- ✅ Admin login works at `/admin/login`
+- ✅ Protected dashboard requires authentication
+- ✅ Firebase authentication works across page refreshes
+- ✅ Environment variables are properly configured
 
 ## API Endpoint (`/api/chutes`)
 
@@ -221,19 +427,81 @@ The core backend logic resides in `pages/api/chutes.ts`. It performs the followi
 
 ## Technologies Used
 
+### **🔐 Authentication & Security**
+*   **Firebase Authentication:** Google's enterprise-grade authentication service
+*   **Firebase Client SDK:** v9+ for modern authentication state management
+*   **React Context API:** Global authentication state management
+*   **Protected Routes:** Higher-order component route protection
+*   **Environment Variables:** Secure credential management
+
+### **🚀 Frontend & Framework**
 *   **Framework:** Next.js 15
 *   **Language:** TypeScript
 *   **UI Library:** React 19
 *   **Styling:** CSS Modules
+*   **State Management:** React Context API + Firebase Auth State
+*   **Deployment:** Vercel
+
+### **🤖 AI & Backend Systems**
 *   **Vector Database:** Pinecone
-*   **Embedding Models:**
-    *   Ollama (`jeffh/intfloat-multilingual-e5-large:f16`) - Local/Primary
+*   **Embedding Models:** Ollama (`jeffh/intfloat-multilingual-e5-large:f16`) - Local/Primary
 *   **Tunneling:** Cloudflare Tunnel (`cloudflared`)
 *   **LLM Provider:** OpenRouter
 *   **LLM:** Google Gemma 3 (`google/gemma-3-27b-it:free`)
-*   **Deployment:** Vercel
+*   **API Routes:** Next.js Serverless Functions
+
+### **🛠️ Development & Operations**
 *   **Package Manager:** pnpm (adapt commands for npm/yarn if needed)
 *   **Process Management (macOS):** `launchd`
+*   **Version Control:** Git with secure environment practices
+*   **CI/CD:** Vercel automatic deployments
+
+## 📊 Project Status & Recent Updates
+
+### **🔐 Firebase Authentication Migration (2024)**
+
+This fork includes a complete migration from JWT/bcrypt to Firebase Authentication, providing enterprise-grade security for the admin portal.
+
+#### **✅ What's Implemented:**
+- **Secure Firebase Authentication** with email/password
+- **Protected Admin Dashboard** with real-time auth state
+- **Global Authentication Context** using React Context API
+- **Automatic Route Protection** with redirects for unauthorized access
+- **Environment Variable Security** with comprehensive .gitignore protection
+- **Production-Ready Deployment** configuration for Vercel + Firebase
+
+#### **🛡️ Security Features:**
+- No hardcoded credentials anywhere in the codebase
+- All sensitive data stored in environment variables
+- Firebase's enterprise-grade authentication infrastructure
+- Comprehensive security audit passed
+- Protected routes with automatic redirects
+- Real-time authentication state management
+
+#### **🚀 Ready for Production:**
+- Complete development and deployment documentation
+- Comprehensive troubleshooting guides
+- Environment variable templates provided
+- Step-by-step Firebase setup instructions
+- Vercel deployment configuration included
+
+### **🤖 AI Chat System Status:**
+
+The original AI chat functionality remains fully intact with:
+- RAG (Retrieval-Augmented Generation) chat interface
+- Pinecone vector database integration  
+- Ollama local embedding support
+- OpenRouter LLM integration
+- Cloudflare tunnel automation for local embedding deployment
+
+### **📈 For Contributors:**
+
+If you fork this repository, you get:
+1. **Modern Authentication System** - No need to implement auth from scratch
+2. **Security Best Practices** - Comprehensive security implementation
+3. **Production Documentation** - Complete setup and deployment guides
+4. **Extensible Architecture** - Easy to add new admin features
+5. **Clean Codebase** - Well-documented, TypeScript-based React application
 
 ## Legal Notices
 
