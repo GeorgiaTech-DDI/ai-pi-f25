@@ -93,6 +93,13 @@
     transform: translateY(-50%);
 }
 
+.adminButtonHeader {
+    position: absolute;
+    top: 90px;
+    right: 25%;
+    transform: translateY(-50%);
+}
+
 .downloadButtonHeader {
     position: absolute;
     top: 90px;
@@ -112,6 +119,14 @@
         top: 130px;
         left: 10%;
     }
+    .adminButtonHeader {
+        top: 130px;
+        right: 10%;
+    }
+    .restartButtonHeader {
+        top: 130px;
+        right: 25%;
+    }
     .header {
         margin-bottom: 30px;
     }
@@ -128,6 +143,11 @@
     }
     .restartButtonHeader {
         top: 145px;
+        right: 10%;
+    }
+    .adminButtonHeader {
+        top: 145px;
+        right: 40%;
     }
     .header {
         margin-bottom: 30px;

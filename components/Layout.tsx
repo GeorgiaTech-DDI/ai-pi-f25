@@ -1,5 +1,6 @@
 import React from "react";
 import Head from "next/head";
+import Link from "next/link";
 import styles from "../styles/Layout.module.css";
 
 interface LayoutProps {
@@ -53,6 +54,9 @@ const Layout: React.FC<LayoutProps> = ({
         >
           Restart
         </button>
+        <Link href="/admin/login" className={`${styles.actionButton} ${styles.adminButtonHeader}`}>
+          Admin
+        </Link>
       </header>
 
       {children}

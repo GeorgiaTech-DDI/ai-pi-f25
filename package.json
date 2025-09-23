@@ -6,14 +6,20 @@
     "@vercel/analytics": "^1.5.0",
     "@vercel/blob": "^1.1.1",
     "@vercel/speed-insights": "^1.2.0",
+    "bcrypt": "^6.0.0",
     "deepinfra": "^2.0.2",
+    "dotenv": "^17.2.2",
     "file-saver": "^2.0.5",
+    "jsonwebtoken": "^9.0.2",
     "next": "^15.1.7",
+    "rate-limiter-flexible": "^7.3.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "@types/bcrypt": "^6.0.0",
     "@types/file-saver": "^2.0.7",
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^22.13.10",
     "@types/react": "19.1.0",
     "typescript": "5.8.2"
