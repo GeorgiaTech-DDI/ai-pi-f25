@@ -1,7 +1,7 @@
 # AI PI
 
 By: Ojasw Upadhyay  
-**Firebase Authentication Migration**: Implemented by chenastn
+**Azure AD Authentication Migration**: Implemented by chenastn
 
 ## Overview
 
@@ -19,7 +19,7 @@ By: Ojasw Upadhyay
 *   **Chat Management:** Restart the chat session (automatically saves the previous session as text).
 
 ### 🔐 **Admin Portal & Authentication**
-*   **Firebase Authentication:** Secure email/password authentication for admin access
+*   **Azure AD (Microsoft Entra ID):** Secure Microsoft sign-in for admin access
 *   **Protected Admin Dashboard:** Real-time authentication state with automatic redirects
 *   **Global Auth Context:** React Context API for seamless authentication state management
 *   **Secure Route Protection:** Admin-only pages with Firebase auth state validation
@@ -47,7 +47,7 @@ The application follows a modern web architecture with two main systems:
 6.  **Response:** The generated answer is streamed back through the API route to the frontend.
 
 ### 🔐 **Admin Authentication System**
-1.  **Firebase Authentication:** Google's enterprise-grade authentication service handles user management
+1.  **Azure AD (MSAL):** Microsoft Entra ID handles user authentication via MSAL
 2.  **Auth Context Provider:** React Context API provides global authentication state across the application
 3.  **Protected Routes:** Higher-order component (`ProtectedRoute`) secures admin pages with automatic redirects
 4.  **Real-time Auth State:** Firebase `onAuthStateChanged` listener provides instant authentication updates
@@ -67,9 +67,9 @@ The application follows a modern web architecture with two main systems:
 │   ├── ProtectedRoute.js     # 🔐 Higher-order component for route protection
 │   └── types.ts              # TypeScript type definitions
 ├── context/                  # React Context providers
-│   └── AuthContext.js        # 🔐 Firebase authentication state management
+│   └── AuthContext.js        # 🔐 MSAL authentication state management
 ├── lib/                      # Core library functions
-│   └── firebase.js           # 🔐 Firebase configuration and initialization
+│   └── msal.ts               # 🔐 MSAL configuration and initialization
 ├── pages/                    # Next.js page routes
 │   ├── admin/                # 🔐 Protected admin section
 │   │   ├── dashboard.tsx     # Admin dashboard (Firebase protected)
@@ -105,10 +105,10 @@ The application follows a modern web architecture with two main systems:
 
 ### 🔐 **Authentication System Components**
 
-- **`lib/firebase.js`**: Firebase configuration and initialization
+- **`lib/msal.ts`**: MSAL configuration and initialization
 - **`context/AuthContext.js`**: Global authentication state provider
 - **`components/ProtectedRoute.js`**: Route protection wrapper component
-- **`pages/admin/login.tsx`**: Firebase email/password login interface
+- **`pages/admin/login.tsx`**: Microsoft sign-in login interface
 - **`pages/admin/dashboard.tsx`**: Protected admin dashboard
 
 ## Setup and Running Locally
@@ -120,9 +120,9 @@ The application follows a modern web architecture with two main systems:
 *   **pnpm:** (Recommended) `npm install -g pnpm`. Alternatively, use `npm` or `yarn`.
 *   **Git:** For cloning the repository.
 
-#### **🔐 Firebase Authentication Setup**
-*   **Firebase Account:** Create a free account at [firebase.google.com](https://firebase.google.com/)
-*   **Firebase Project:** You'll need to create a Firebase project and configure authentication
+#### **🔐 Azure AD Authentication Setup**
+*   **Azure Account:** Access to Azure portal and Microsoft Entra ID
+*   **App Registration:** Register a SPA app and configure authentication
 
 #### **🤖 AI Chat System (Optional)**
 *   **Ollama:** Install from [ollama.com](https://ollama.com/).
@@ -142,64 +142,37 @@ The application follows a modern web architecture with two main systems:
     pnpm install
     ```
 
-### 🔐 Firebase Authentication Setup
+### 🔐 Azure AD Authentication Setup
 
-Before running the application, you need to set up Firebase Authentication:
+Before running the application, you need to set up Azure AD Authentication:
 
-#### **Step 1: Create Firebase Project**
+#### **Step 1: Register App in Azure**
 
-1. Go to [Firebase Console](https://console.firebase.google.com/)
-2. Click "Create a project" or "Add project"
-3. Enter a project name (e.g., "your-ai-pi-admin")
-4. Follow the setup wizard (you can disable Google Analytics)
+1. Go to `https://portal.azure.com` → Microsoft Entra ID → App registrations
+2. Click "New registration"
+3. Name: "AI PI Admin"
+4. Supported account types: Select your tenant or multi-tenant as needed
+5. Redirect URI: Single-page application (SPA) → `http://localhost:3000`
+6. Register and note the Application (client) ID and Directory (tenant) ID
 
-#### **Step 2: Enable Authentication**
+#### **Step 2: Configure Authentication**
 
-1. In your Firebase project, go to **Authentication** in the left sidebar
-2. Click "Get started"
-3. Go to the **Sign-in method** tab
-4. Enable **Email/Password** as a sign-in provider
-5. Click "Save"
-
-#### **Step 3: Create Admin User**
-
-1. Go to the **Users** tab in Authentication
-2. Click "Add user"
-3. Enter an email address (e.g., `admin@yourdomain.com`)
-4. Enter a secure password
-5. Click "Add user"
-
-#### **Step 4: Get Firebase Configuration**
-
-1. Go to **Project settings** (gear icon in sidebar)
-2. Scroll down to "Your apps" section
-3. Click "Add app" and select the web icon `</>`
-4. Register your app with a nickname (e.g., "AI PI Admin")
-5. Copy the configuration object that looks like this:
-
-```javascript
-const firebaseConfig = {
-  apiKey: "AIzaSyC...",
-  authDomain: "your-project.firebaseapp.com",
-  projectId: "your-project-id",
-  storageBucket: "your-project.appspot.com",
-  messagingSenderId: "123456789",
-  appId: "1:123456789:web:abc123def456"
-};
-```
+1. In your app registration → "Authentication"
+2. Add platform: Single-page application
+3. Add redirect URIs for local and production
+4. Enable "Access tokens" and "ID tokens"
+5. Save
 
 ### Environment Variables
 
 Create a `.env` file in the project root directory and add the following variables:
 
 ```bash
-# 🔐 Firebase Configuration (Required for Admin Authentication)
-NEXT_PUBLIC_FIREBASE_API_KEY=your_firebase_api_key_here
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_project_id.firebaseapp.com
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_firebase_project_id
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_project_id.appspot.com
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_messaging_sender_id
-NEXT_PUBLIC_FIREBASE_APP_ID=your_firebase_app_id
+# 🔐 Azure AD (MSAL) Configuration (Required for Admin Authentication)
+NEXT_PUBLIC_AZURE_AD_TENANT_ID=your_tenant_id
+NEXT_PUBLIC_AZURE_AD_CLIENT_ID=your_app_client_id
+NEXT_PUBLIC_AZURE_AD_REDIRECT_URI=http://localhost:3000
+NEXT_PUBLIC_AZURE_AD_POST_LOGOUT_REDIRECT_URI=http://localhost:3000
 
 # 🤖 AI Chat System Configuration (Optional)
 # Pinecone Configuration
@@ -248,22 +221,21 @@ NODE_ENV=development
 #### **Verification Checklist:**
 - ✅ Main chat page loads at `http://localhost:3000`
 - ✅ Admin login page loads at `http://localhost:3000/admin/login`
-- ✅ Firebase authentication works (login → dashboard redirect)
+- ✅ Azure AD authentication works (login → dashboard redirect)
 - ✅ Admin dashboard displays user email
 - ✅ Logout functionality works
 - ✅ Protected routes redirect unauthorized users
 
-### 🛠️ Troubleshooting Firebase Authentication
+### 🛠️ Troubleshooting Azure AD Authentication
 
 #### **Common Issues and Solutions:**
 
-**🔥 "Firebase initialized successfully" but login fails:**
-- Verify your admin user exists in Firebase Console → Authentication → Users
-- Check that Email/Password sign-in method is enabled
-- Ensure you're using the exact email/password from Firebase Console
+**🚫 Login redirect issues or blank screen after redirect:**
+- Ensure redirect URIs exactly match environment variables
+- Clear site data and retry
 
-**❌ "Missing required Firebase environment variables" error:**
-- Verify all `NEXT_PUBLIC_FIREBASE_*` variables are in your `.env` file
+**❌ Missing Azure env vars:**
+- Verify all `NEXT_PUBLIC_AZURE_AD_*` variables are in your `.env` file
 - Restart the development server after adding environment variables
 - Check for typos in variable names (they are case-sensitive)
 
@@ -274,8 +246,7 @@ NODE_ENV=development
 
 **🔄 Infinite redirect loops:**
 - Clear browser cache and cookies
-- Verify Firebase project configuration matches your environment variables
-- Check that Firebase auth domain is correctly configured
+- Verify app registration redirect URIs match your site URLs
 
 #### **Development Tips:**
 - Open browser dev tools (F12) to see Firebase initialization logs
@@ -368,18 +339,16 @@ This project is designed for deployment on [Vercel](https://vercel.com/) with Fi
     - Import your Git repository into Vercel
     - Select the root directory of your project
 
-3.  **🔐 Configure Firebase Environment Variables:**
+3.  **🔐 Configure Azure AD Environment Variables:**
     
     In the Vercel project settings, add these **REQUIRED** environment variables for the **Production** environment:
     
     ```bash
-    # Firebase Authentication (Required)
-    NEXT_PUBLIC_FIREBASE_API_KEY=your_firebase_api_key
-    NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
-    NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_firebase_project_id
-    NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
-    NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_messaging_sender_id
-    NEXT_PUBLIC_FIREBASE_APP_ID=your_firebase_app_id
+    # Azure AD (MSAL) Authentication (Required)
+    NEXT_PUBLIC_AZURE_AD_TENANT_ID=your_tenant_id
+    NEXT_PUBLIC_AZURE_AD_CLIENT_ID=your_app_client_id
+    NEXT_PUBLIC_AZURE_AD_REDIRECT_URI=https://your-deployment-url.vercel.app
+    NEXT_PUBLIC_AZURE_AD_POST_LOGOUT_REDIRECT_URI=https://your-deployment-url.vercel.app
     NODE_ENV=production
     ```
 

@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
-import { signOut } from 'firebase/auth';
-import { auth } from '../../lib/firebase';
+import { useMsal } from '@azure/msal-react';
 import { useAuth } from '../../context/AuthContext';
 import ProtectedRoute from '../../components/ProtectedRoute';
 import styles from '../../styles/Dashboard.module.css';
@@ -17,6 +16,7 @@ interface DashboardStats {
 export default function AdminDashboard() {
   const router = useRouter();
   const { user, loading } = useAuth();
+  const { instance } = useMsal();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [stats] = useState<DashboardStats>({
     totalUsers: 1247,
@@ -31,12 +31,12 @@ export default function AdminDashboard() {
     setIsLoggingOut(true);
     
     try {
-      await signOut(auth);
-      console.log('🔥 Firebase logout successful');
-      // Firebase auth state change will be handled by AuthContext
+      await instance.logoutPopup();
+      console.log('🔐 MSAL logout successful');
+      // MSAL auth state change will be handled by AuthContext
       // ProtectedRoute will automatically redirect to login
     } catch (error) {
-      console.error('🔥 Firebase logout error:', error);
+      console.error('🔐 MSAL logout error:', error);
       // Even if logout fails, redirect to login
       router.replace('/admin/login');
     } finally {

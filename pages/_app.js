@@ -2,17 +2,34 @@ import "../styles/globals.css";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { inter } from "../utils/fonts";
-import { AuthProvider } from "../context/AuthContext";
+import { AuthProvider, useAuth } from "../context/AuthContext";
+import { MsalProvider } from "@azure/msal-react";
+import { msalInstance } from "../lib/msal";
+import SessionWarning from "../components/SessionWarning";
 
-function MyApp({ Component, pageProps }) {
+// Inner component that can use AuthContext
+function AppContent({ Component, pageProps }) {
+  const { lastActivity, extendSession } = useAuth();
+  
   return (
-    <AuthProvider>
+    <>
       <main className={`${inter.className}`}>
         <Component {...pageProps} />
         <Analytics />
         <SpeedInsights />
       </main>
-    </AuthProvider>
+      <SessionWarning lastActivity={lastActivity} onExtendSession={extendSession} />
+    </>
+  );
+}
+
+function MyApp({ Component, pageProps }) {
+  return (
+    <MsalProvider instance={msalInstance}>
+      <AuthProvider>
+        <AppContent Component={Component} pageProps={pageProps} />
+      </AuthProvider>
+    </MsalProvider>
   );
 }
 

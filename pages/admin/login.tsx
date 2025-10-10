@@ -1,87 +1,71 @@
-import { useState, FormEvent } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '../../lib/firebase';
+import { useMsal } from '@azure/msal-react';
+import { loginRequest, validateGatechEmail } from '../../lib/msal';
 import styles from '../../styles/Login.module.css';
-
-interface LoginFormData {
-  username: string; // Will be used as email for Firebase Auth
-  password: string;
-}
 
 export default function AdminLogin() {
   const router = useRouter();
-  const [formData, setFormData] = useState<LoginFormData>({
-    username: '',
-    password: ''
-  });
+  const { instance, accounts } = useMsal();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-    
-    // Clear error when user starts typing
-    if (error) {
-      setError('');
+  // Redirect if already authenticated
+  useEffect(() => {
+    const account = accounts[0];
+    if (account && validateGatechEmail(account.username)) {
+      console.log('🔐 User already authenticated, redirecting to dashboard...');
+      router.push('/admin/dashboard');
     }
-  };
+  }, [accounts, router]);
 
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    
-    // Basic client-side validation
-    if (!formData.username.trim() || !formData.password.trim()) {
-      setError('Please enter both email and password');
-      return;
-    }
-
+  const handleAzureLogin = async () => {
     setIsLoading(true);
     setError('');
 
     try {
-      // Use Firebase Authentication
-      await signInWithEmailAndPassword(auth, formData.username.trim(), formData.password.trim());
+      console.log('🔐 Initiating Azure OAuth login...');
+      
+      // Use popup for login
+      const response = await instance.loginPopup(loginRequest);
+      
+      console.log('🔐 Azure login successful:', response);
+      const email = response.account.username;
+      
+      // Validate email domain
+      if (!validateGatechEmail(email)) {
+        console.error('🔐 Invalid email domain:', email);
+        
+        // Logout the user immediately
+        await instance.logoutPopup({
+          account: response.account,
+          postLogoutRedirectUri: window.location.origin
+        });
+        
+        throw new Error('Only @gatech.edu email addresses are allowed to access this portal.');
+      }
+      
+      console.log('🔐 Valid @gatech.edu email, redirecting to dashboard...');
       
       // Successful login - redirect to admin dashboard
       router.push('/admin/dashboard');
     } catch (err: any) {
-      console.error('Firebase login error:', err);
+      console.error('🔐 Azure login error:', err);
       
-      // Handle Firebase Auth errors
-      let errorMessage = 'Login failed. Please check your credentials and try again.';
+      // Handle different error types
+      let errorMessage = 'Login failed. Please try again.';
       
-      if (err.code) {
-        switch (err.code) {
-          case 'auth/invalid-email':
-            errorMessage = 'Please enter a valid email address.';
-            break;
-          case 'auth/user-disabled':
-            errorMessage = 'This account has been disabled. Please contact support.';
-            break;
-          case 'auth/user-not-found':
-            errorMessage = 'Invalid email or password. Please check your credentials.';
-            break;
-          case 'auth/wrong-password':
-            errorMessage = 'Invalid email or password. Please check your credentials.';
-            break;
-          case 'auth/invalid-credential':
-            errorMessage = 'Invalid email or password. Please check your credentials.';
-            break;
-          case 'auth/too-many-requests':
-            errorMessage = 'Too many failed login attempts. Please try again later.';
-            break;
-          case 'auth/network-request-failed':
-            errorMessage = 'Network error. Please check your connection and try again.';
-            break;
-          default:
-            errorMessage = 'Login failed. Please try again.';
-        }
+      if (err.message && err.message.includes('@gatech.edu')) {
+        errorMessage = err.message;
+      } else if (err.errorCode === 'user_cancelled') {
+        errorMessage = 'Login was cancelled. Please try again.';
+      } else if (err.errorCode === 'access_denied') {
+        errorMessage = 'Access denied. Please contact your administrator.';
+      } else if (err.errorCode === 'popup_window_error') {
+        errorMessage = 'Please allow popups for this site and try again.';
+      } else if (err.message) {
+        errorMessage = err.message;
       }
       
       setError(errorMessage);
@@ -102,46 +86,10 @@ export default function AdminLogin() {
           <div className={styles.logoSection}>
             <img src="/images/logo.svg" alt="AI PI Logo" className={styles.logo} />
             <h1 className={styles.title}>AI PI Admin Portal</h1>
-            <p className={styles.subtitle}>Please sign in to access the admin dashboard</p>
+            <p className={styles.subtitle}>Sign in with your Georgia Tech account</p>
           </div>
 
-          <form onSubmit={handleSubmit} className={styles.form}>
-            <div className={styles.inputGroup}>
-              <label htmlFor="username" className={styles.label}>
-                Email
-              </label>
-              <input
-                type="email"
-                id="username"
-                name="username"
-                value={formData.username}
-                onChange={handleInputChange}
-                required
-                disabled={isLoading}
-                className={`${styles.input} ${error ? styles.inputError : ''}`}
-                placeholder="Enter your email"
-                autoComplete="email"
-              />
-            </div>
-
-            <div className={styles.inputGroup}>
-              <label htmlFor="password" className={styles.label}>
-                Password
-              </label>
-              <input
-                type="password"
-                id="password"
-                name="password"
-                value={formData.password}
-                onChange={handleInputChange}
-                required
-                disabled={isLoading}
-                className={`${styles.input} ${error ? styles.inputError : ''}`}
-                placeholder="Enter your password"
-                autoComplete="current-password"
-              />
-            </div>
-
+          <div className={styles.form}>
             {error && (
               <div className={styles.errorMessage}>
                 <span className={styles.errorIcon}>⚠️</span>
@@ -150,9 +98,15 @@ export default function AdminLogin() {
             )}
 
             <button
-              type="submit"
+              onClick={handleAzureLogin}
               disabled={isLoading}
               className={`${styles.submitButton} ${isLoading ? styles.submitButtonDisabled : ''}`}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '12px'
+              }}
             >
               {isLoading ? (
                 <span className={styles.loadingContainer}>
@@ -160,10 +114,22 @@ export default function AdminLogin() {
                   Signing in...
                 </span>
               ) : (
-                'Sign In'
+                <>
+                  <svg width="20" height="20" viewBox="0 0 21 21" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M10 0H0V10H10V0Z" fill="#F25022"/>
+                    <path d="M21 0H11V10H21V0Z" fill="#7FBA00"/>
+                    <path d="M10 11H0V21H10V11Z" fill="#00A4EF"/>
+                    <path d="M21 11H11V21H21V11Z" fill="#FFB900"/>
+                  </svg>
+                  Sign in with Microsoft
+                </>
               )}
             </button>
-          </form>
+
+            <p className={styles.subtitle} style={{ marginTop: '20px', fontSize: '14px', color: '#64748b' }}>
+              Only @gatech.edu accounts are allowed
+            </p>
+          </div>
 
           <div className={styles.footer}>
             <p className={styles.disclaimer}>
