@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import { useMsal } from '@azure/msal-react';
@@ -13,6 +13,19 @@ interface DashboardStats {
   lastUpdated: string;
 }
 
+interface FileMetadata {
+  filename: string;
+  uploadDate: string;
+  fileSize: number;
+  chunkCount: number;
+  description?: string;
+}
+
+interface PineconeFile {
+  id: string;
+  metadata: FileMetadata;
+}
+
 export default function AdminDashboard() {
   const router = useRouter();
   const { user, loading } = useAuth();
@@ -24,6 +37,115 @@ export default function AdminDashboard() {
     avgSessionLength: '12m 34s',
     lastUpdated: new Date().toLocaleString()
   });
+
+  // File management state
+  const [files, setFiles] = useState<PineconeFile[]>([]);
+  const [loadingFiles, setLoadingFiles] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadDescription, setUploadDescription] = useState('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  // Load files on component mount
+  useEffect(() => {
+    loadFiles();
+  }, []);
+
+  // File management functions
+  const loadFiles = async () => {
+    setLoadingFiles(true);
+    setError(null);
+    try {
+      const response = await fetch('/api/files');
+      if (!response.ok) {
+        throw new Error('Failed to load files');
+      }
+      const data = await response.json();
+      setFiles(data.files || []);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoadingFiles(false);
+    }
+  };
+
+  const handleFileUpload = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!uploadFile) return;
+
+    setUploading(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const content = await uploadFile.text();
+      const response = await fetch('/api/files', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          filename: uploadFile.name,
+          content,
+          description: uploadDescription,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Upload failed');
+      }
+
+      setSuccess('File uploaded successfully!');
+      setUploadFile(null);
+      setUploadDescription('');
+      loadFiles(); // Refresh file list
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleFileDelete = async (filename: string) => {
+    setDeleting(filename);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const response = await fetch(`/api/files?filename=${encodeURIComponent(filename)}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Delete failed');
+      }
+
+      setSuccess('File deleted successfully!');
+      setShowDeleteConfirm(null);
+      loadFiles(); // Refresh file list
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setDeleting(null);
+    }
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleString();
+  };
 
   // Authentication is now handled by ProtectedRoute component
 
@@ -184,6 +306,114 @@ export default function AdminDashboard() {
             </section>
           </div>
 
+          {/* File Management */}
+          <section className={styles.fileManagement}>
+            <h2 className={styles.sectionTitle}>File Management</h2>
+            
+            {/* File Management Grid */}
+            <div className={styles.fileManagementGrid}>
+              {/* Upload Section */}
+              <div className={styles.fileManagementSection}>
+                <h3 className={styles.subsectionTitle}>Upload New File</h3>
+                <form onSubmit={handleFileUpload} className={styles.uploadForm}>
+                  <div className={styles.formGroup}>
+                    <label className={styles.label}>
+                      Select File:
+                      <input
+                        type="file"
+                        onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
+                        accept=".txt,.md,.pdf"
+                        className={styles.fileInput}
+                        disabled={uploading}
+                      />
+                    </label>
+                  </div>
+                  <div className={styles.formGroup}>
+                    <label className={styles.label}>
+                      Description (optional):
+                      <input
+                        type="text"
+                        value={uploadDescription}
+                        onChange={(e) => setUploadDescription(e.target.value)}
+                        placeholder="Brief description of the file content"
+                        className={styles.textInput}
+                        disabled={uploading}
+                      />
+                    </label>
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={!uploadFile || uploading}
+                    className={`${styles.button} ${styles.buttonPrimary}`}
+                  >
+                    {uploading ? 'Uploading...' : 'Upload File'}
+                  </button>
+                </form>
+              </div>
+
+              {/* File List */}
+              <div className={styles.fileManagementSection}>
+                <div className={styles.fileListHeader}>
+                  <h3 className={styles.subsectionTitle}>Uploaded Files</h3>
+                  <button
+                    onClick={loadFiles}
+                    disabled={loadingFiles}
+                    className={`${styles.button} ${styles.buttonSecondary} ${styles.smallButton}`}
+                  >
+                    {loadingFiles ? 'Refreshing...' : 'Refresh'}
+                  </button>
+                </div>
+
+                {error && (
+                  <div className={styles.errorMessage}>
+                    Error: {error}
+                  </div>
+                )}
+
+                {success && (
+                  <div className={styles.successMessage}>
+                    {success}
+                  </div>
+                )}
+
+                {loadingFiles ? (
+                  <div className={styles.loadingMessage}>Loading files...</div>
+                ) : files.length === 0 ? (
+                  <div className={styles.emptyMessage}>No files uploaded yet.</div>
+                ) : (
+                  <div className={styles.fileList}>
+                    {files.map((file) => (
+                      <div key={file.id} className={styles.fileItem}>
+                        <div className={styles.fileInfo}>
+                          <div className={styles.fileName}>{file.metadata.filename}</div>
+                          <div className={styles.fileDetails}>
+                            <span>Size: {formatFileSize(file.metadata.fileSize)}</span>
+                            <span>Chunks: {file.metadata.chunkCount}</span>
+                            <span>Uploaded: {formatDate(file.metadata.uploadDate)}</span>
+                          </div>
+                          {file.metadata.description && (
+                            <div className={styles.fileDescription}>
+                              {file.metadata.description}
+                            </div>
+                          )}
+                        </div>
+                        <div className={styles.fileActions}>
+                          <button
+                            onClick={() => setShowDeleteConfirm(file.metadata.filename)}
+                            disabled={deleting === file.metadata.filename}
+                            className={`${styles.button} ${styles.buttonDanger} ${styles.smallButton}`}
+                          >
+                            {deleting === file.metadata.filename ? 'Deleting...' : 'Delete'}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </section>
+
           {/* Quick Actions */}
           <section className={styles.quickActions}>
             <h2 className={styles.sectionTitle}>Quick Actions</h2>
@@ -204,6 +434,33 @@ export default function AdminDashboard() {
           </section>
         </main>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      {showDeleteConfirm && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modal}>
+            <h3 className={styles.modalTitle}>Confirm Delete</h3>
+            <p className={styles.modalMessage}>
+              Are you sure you want to delete "{showDeleteConfirm}"? This action cannot be undone.
+            </p>
+            <div className={styles.modalActions}>
+              <button
+                onClick={() => setShowDeleteConfirm(null)}
+                className={`${styles.button} ${styles.buttonSecondary}`}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleFileDelete(showDeleteConfirm)}
+                disabled={deleting === showDeleteConfirm}
+                className={`${styles.button} ${styles.buttonDanger}`}
+              >
+                {deleting === showDeleteConfirm ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
     </ProtectedRoute>
   );
