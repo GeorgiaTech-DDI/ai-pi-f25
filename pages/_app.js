@@ -7,7 +7,7 @@ import { MsalProvider } from "@azure/msal-react";
 import { msalInstance } from "../lib/msal";
 import { validateGatechEmail } from "../lib/msal";
 import SessionWarning from "../components/SessionWarning";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 
 // Inner component that can use AuthContext
@@ -28,9 +28,10 @@ function AppContent({ Component, pageProps }) {
 
 function MyApp({ Component, pageProps }) {
   const router = useRouter();
+  const [isRedirectHandled, setIsRedirectHandled] = useState(false);
   
   useEffect(() => {
-    // Handle redirect response from Azure AD
+    // Handle redirect response from Azure AD BEFORE rendering app
     const handleRedirect = async () => {
       try {
         const response = await msalInstance.handleRedirectPromise();
@@ -54,20 +55,45 @@ function MyApp({ Component, pageProps }) {
           }
           
           console.log('✅ Valid @gatech.edu user authenticated:', email);
-          
-          // If we're on the login page, redirect to dashboard
-          if (window.location.pathname === '/admin/login') {
-            console.log('🔐 Redirecting to dashboard after successful login...');
-            router.push('/admin/dashboard');
-          }
         }
       } catch (error) {
         console.error('🔐 Error handling redirect:', error);
+      } finally {
+        // Mark redirect handling as complete
+        setIsRedirectHandled(true);
       }
     };
     
     handleRedirect();
   }, [router]);
+  
+  // Don't render app until redirect is handled
+  if (!isRedirectHandled) {
+    return (
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '100vh',
+        backgroundColor: '#f8fafc'
+      }}>
+        <div style={{
+          width: '40px',
+          height: '40px',
+          border: '4px solid #e2e8f0',
+          borderTop: '4px solid #3b82f6',
+          borderRadius: '50%',
+          animation: 'spin 1s linear infinite'
+        }}></div>
+        <style jsx>{`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}</style>
+      </div>
+    );
+  }
   
   return (
     <MsalProvider instance={msalInstance}>
