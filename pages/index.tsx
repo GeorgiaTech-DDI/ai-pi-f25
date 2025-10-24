@@ -174,12 +174,13 @@ export default function Home() {
           },
         ];
 
-        // First update with contexts
+        // First update with contexts (simulate RAG being used)
         setMessages((currentMessages) => {
           const newMessages = [...currentMessages];
           newMessages[newMessages.length - 1] = {
             ...newMessages[newMessages.length - 1],
             contexts: mockContexts,
+            usedRAG: true, // Mock shows RAG being used
           };
           return newMessages;
         });
@@ -269,17 +270,21 @@ export default function Home() {
                       // Clear status after 2 seconds
                       setTimeout(() => setWebSearchStatus(""), 2000);
                     } else if (eventData.type === "contexts") {
-                      // Update the message with contexts
+                      // Update the message with contexts and usedRAG flag
                       console.log("Received contexts:", eventData.contexts);
-                      console.log(
-                        "DuckDuckGo contexts found:",
-                        eventData.contexts.filter((ctx: any) => ctx.id?.startsWith("ddg-")),
-                      );
+                      console.log("Used RAG:", eventData.usedRAG);
+                      if (eventData.usedRAG) {
+                        console.log(
+                          "DuckDuckGo contexts found:",
+                          eventData.contexts.filter((ctx: any) => ctx.id?.startsWith("ddg-")),
+                        );
+                      }
                       setMessages((currentMessages) => {
                         const newMessages = [...currentMessages];
                         newMessages[newMessages.length - 1] = {
                           ...newMessages[newMessages.length - 1],
                           contexts: eventData.contexts,
+                          usedRAG: eventData.usedRAG,
                         };
                         return newMessages;
                       });
