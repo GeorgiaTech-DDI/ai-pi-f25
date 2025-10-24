@@ -47,17 +47,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { instance, accounts, inProgress } = useMsal();
 
   useEffect(() => {
-    console.log('🔐 Setting up MSAL auth listener...');
+    console.log('🔐 AuthContext: Setting up MSAL auth listener...');
+    console.log('🔐 AuthContext: inProgress =', inProgress);
+    console.log('🔐 AuthContext: accounts =', accounts);
     
     // Handle MSAL authentication state changes
     if (inProgress === 'none') {
+      console.log('🔐 AuthContext: No auth in progress, checking accounts...');
       const account = accounts[0];
       
       if (account) {
-        console.log('🔐 MSAL account found:', account.username);
+        console.log('🔐 AuthContext: MSAL account found:', account.username);
         
         // Validate email domain for @gatech.edu
         if (validateGatechEmail(account.username)) {
+          console.log('🔐 AuthContext: Email validation passed, setting user...');
           setUser({
             uid: account.homeAccountId,
             email: account.username,
@@ -66,23 +70,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             role: 'admin' // Since this is the admin portal, all authenticated users are admins
           });
           setError(null);
-          console.log('✅ @gatech.edu user authenticated successfully');
+          console.log('✅ AuthContext: @gatech.edu user authenticated successfully');
         } else {
-          console.log('❌ Non-@gatech.edu user detected, logging out...');
+          console.log('❌ AuthContext: Non-@gatech.edu user detected, logging out...');
           setUser(null);
           setError('Only @gatech.edu email addresses are allowed');
           // Auto-logout non-gatech users
-          instance.logoutPopup().catch(err => {
+          instance.logoutRedirect({
+            postLogoutRedirectUri: window.location.origin + '/admin/login'
+          }).catch(err => {
             console.error('Error during auto-logout:', err);
           });
         }
       } else {
-        console.log('🔐 No MSAL account found');
+        console.log('🔐 AuthContext: No MSAL account found, setting user to null');
         setUser(null);
         setError(null);
       }
       
+      console.log('🔐 AuthContext: Setting loading to false');
       setLoading(false);
+    } else {
+      console.log('🔐 AuthContext: Auth in progress, keeping loading state...');
     }
   }, [accounts, inProgress, instance]);
 
