@@ -59,9 +59,15 @@ export default function AdminDashboard() {
     setLoadingFiles(true);
     setError(null);
     try {
-      const response = await fetch('/api/files');
+      const response = await fetch('/api/files', {
+        headers: {
+          'x-user-email': user?.email || '',
+          'x-user-name': user?.displayName || ''
+        }
+      });
       if (!response.ok) {
-        throw new Error('Failed to load files');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to load files');
       }
       const data = await response.json();
       setFiles(data.files || []);
@@ -86,6 +92,8 @@ export default function AdminDashboard() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'x-user-email': user?.email || '',
+          'x-user-name': user?.displayName || ''
         },
         body: JSON.stringify({
           filename: uploadFile.name,
@@ -102,6 +110,9 @@ export default function AdminDashboard() {
       setSuccess('File uploaded successfully!');
       setUploadFile(null);
       setUploadDescription('');
+      // Clear the file input
+      const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+      if (fileInput) fileInput.value = '';
       loadFiles(); // Refresh file list
     } catch (err: any) {
       setError(err.message);
@@ -118,6 +129,10 @@ export default function AdminDashboard() {
     try {
       const response = await fetch(`/api/files?filename=${encodeURIComponent(filename)}`, {
         method: 'DELETE',
+        headers: {
+          'x-user-email': user?.email || '',
+          'x-user-name': user?.displayName || ''
+        }
       });
 
       if (!response.ok) {
@@ -322,11 +337,14 @@ export default function AdminDashboard() {
                       <input
                         type="file"
                         onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
-                        accept=".txt,.md,.pdf"
+                        accept=".txt,.md"
                         className={styles.fileInput}
                         disabled={uploading}
                       />
                     </label>
+                    <p style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>
+                      Accepted formats: .txt, .md (max 5MB)
+                    </p>
                   </div>
                   <div className={styles.formGroup}>
                     <label className={styles.label}>

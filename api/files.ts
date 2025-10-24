@@ -1,12 +1,17 @@
 import { Pinecone } from "@pinecone-database/pinecone";
 import { Embeddings } from "deepinfra";
 import type { NextApiRequest, NextApiResponse } from "next";
+import { validateAzureToken } from "../lib/auth";
 
 // Initialize Pinecone Client
 const pinecone = new Pinecone({
   apiKey: process.env.PINECONE_API_KEY || "",
 });
 const index = pinecone.index(process.env.PINECONE_INDEX_NAME || "rag-embeddings");
+
+// Configuration constants
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB in bytes
+const ALLOWED_EXTENSIONS = ['.txt', '.md', '.pdf'];
 
 // Embedding helpers (DeepInfra preferred, fallback to Hugging Face Inference API)
 async function generateEmbeddings(texts: string[]): Promise<number[][]> {
@@ -71,6 +76,18 @@ interface PineconeFile {
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  // 🔒 AUTHENTICATION CHECK - Validate Azure AD token
+  const user = await validateAzureToken(req);
+  
+  if (!user) {
+    console.log('🔒 Unauthorized API access attempt to /api/files');
+    return res.status(401).json({ 
+      error: "Unauthorized - Please log in with a @gatech.edu account" 
+    });
+  }
+
+  console.log(`✅ Authenticated user ${user.email} accessing /api/files`);
+
   const { method } = req;
 
   try {
@@ -125,7 +142,55 @@ async function handleUploadFile(req: NextApiRequest, res: NextApiResponse) {
     return res.status(400).json({ error: "Filename and content are required" });
   }
 
+  // 🔒 VALIDATION 1: File size limit (5MB)
+  if (content.length > MAX_FILE_SIZE) {
+    const sizeMB = (content.length / (1024 * 1024)).toFixed(2);
+    const maxSizeMB = (MAX_FILE_SIZE / (1024 * 1024)).toFixed(0);
+    console.log(`❌ File too large: ${sizeMB}MB (max: ${maxSizeMB}MB)`);
+    return res.status(413).json({ 
+      error: `File too large (${sizeMB}MB). Maximum size is ${maxSizeMB}MB` 
+    });
+  }
+
+  // 🔒 VALIDATION 2: File type validation
+  const fileExtension = filename.toLowerCase().substring(filename.lastIndexOf('.'));
+  
+  if (!ALLOWED_EXTENSIONS.includes(fileExtension)) {
+    console.log(`❌ Invalid file type: ${fileExtension}`);
+    return res.status(400).json({ 
+      error: `File type not allowed. Accepted types: ${ALLOWED_EXTENSIONS.join(', ')}` 
+    });
+  }
+
+  // 🔒 VALIDATION 3: PDF files not yet supported
+  if (fileExtension === '.pdf') {
+    console.log(`❌ PDF upload attempted (not yet supported)`);
+    return res.status(400).json({ 
+      error: 'PDF support is not yet implemented. Please convert to .txt or .md format.' 
+    });
+  }
+
   try {
+    // 🔒 VALIDATION 4: Check for duplicate filename
+    const existingFiles = await index.query({
+      vector: new Array(1024).fill(0),
+      topK: 1,
+      includeMetadata: true,
+      filter: {
+        type: "file_metadata",
+        filename: filename
+      }
+    });
+
+    if (existingFiles.matches.length > 0) {
+      console.log(`❌ Duplicate file: ${filename}`);
+      return res.status(409).json({ 
+        error: `File "${filename}" already exists. Please delete it first or choose a different name.` 
+      });
+    }
+
+    console.log(`✅ File validations passed for: ${filename}`);
+
     // Split content into chunks (similar to existing implementation)
     const chunks = splitTextIntoChunks(content, 1000, 200);
     
