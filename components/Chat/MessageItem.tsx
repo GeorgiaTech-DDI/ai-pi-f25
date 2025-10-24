@@ -51,28 +51,26 @@ const MessageItem: React.FC<MessageItemProps> = ({
           )}
         </div>
 
-        {!isStreaming && (
+        {!isStreaming && hasContexts && (
           <div className={styles.messageActions}>
             <button
               className={`${styles.feedbackButton} ${styles.referencesButton}`}
               onClick={() => onReferencesClick(index)}
-              aria-label="Provide feedback"
-              title="Provide feedback on this answer"
+              aria-label="View references"
+              title="View references used for this answer"
             >
               <span className={styles.feedbackIcon}>📚</span>
               <span className={styles.feedbackText}>References</span>
             </button>
 
-            {hasContexts && (
-              <button
-                className={styles.feedbackButton}
-                onClick={() => onFeedbackClick(index)}
-                aria-label="Provide feedback on this response"
-              >
-                <span className={styles.feedbackIcon}>⭐</span>
-                <span className={styles.feedbackText}>Rate</span>
-              </button>
-            )}
+            <button
+              className={styles.feedbackButton}
+              onClick={() => onFeedbackClick(index)}
+              aria-label="Provide feedback on this response"
+            >
+              <span className={styles.feedbackIcon}>⭐</span>
+              <span className={styles.feedbackText}>Rate</span>
+            </button>
           </div>
         )}
       </div>
