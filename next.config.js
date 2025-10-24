@@ -58,7 +58,7 @@ const nextConfig = {
   compress: true,
   
   // Production optimizations
-  swcMinify: true,
+  // swcMinify was removed in Next.js 15 and is always on
   
   // Security: Don't expose source maps in production
   productionBrowserSourceMaps: false,

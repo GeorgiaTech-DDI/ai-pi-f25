@@ -59,13 +59,29 @@ export default function AdminDashboard() {
     setLoadingFiles(true);
     setError(null);
     try {
-      const response = await fetch('/api/files');
+      const response = await fetch('/api/files', {
+        headers: {
+          'x-user-email': user?.email || '',
+          'x-user-name': user?.displayName || ''
+        }
+      });
       if (!response.ok) {
-        throw new Error('Failed to load files');
+        // Read response text first, then try to parse as JSON
+        let errorMessage = 'Failed to load files';
+        const responseText = await response.text();
+        try {
+          const errorData = JSON.parse(responseText);
+          errorMessage = errorData.error || errorMessage;
+        } catch {
+          // Not JSON, use the text directly
+          errorMessage = responseText || `HTTP ${response.status}: ${response.statusText}`;
+        }
+        throw new Error(errorMessage);
       }
       const data = await response.json();
       setFiles(data.files || []);
     } catch (err: any) {
+      console.error('Error loading files:', err);
       setError(err.message);
     } finally {
       setLoadingFiles(false);
@@ -86,6 +102,8 @@ export default function AdminDashboard() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'x-user-email': user?.email || '',
+          'x-user-name': user?.displayName || ''
         },
         body: JSON.stringify({
           filename: uploadFile.name,
@@ -95,13 +113,30 @@ export default function AdminDashboard() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Upload failed');
+        // Handle 413 Payload Too Large specially
+        if (response.status === 413) {
+          throw new Error('File too large for upload. Maximum size is 4MB. Please use a smaller file.');
+        }
+        
+        // Read response text first, then try to parse as JSON
+        const responseText = await response.text();
+        let errorMessage = 'Upload failed';
+        try {
+          const errorData = JSON.parse(responseText);
+          errorMessage = errorData.error || errorMessage;
+        } catch {
+          // Not JSON, use the text directly
+          errorMessage = responseText || `HTTP ${response.status}: ${response.statusText}`;
+        }
+        throw new Error(errorMessage);
       }
 
       setSuccess('File uploaded successfully!');
       setUploadFile(null);
       setUploadDescription('');
+      // Clear the file input
+      const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+      if (fileInput) fileInput.value = '';
       loadFiles(); // Refresh file list
     } catch (err: any) {
       setError(err.message);
@@ -118,11 +153,23 @@ export default function AdminDashboard() {
     try {
       const response = await fetch(`/api/files?filename=${encodeURIComponent(filename)}`, {
         method: 'DELETE',
+        headers: {
+          'x-user-email': user?.email || '',
+          'x-user-name': user?.displayName || ''
+        }
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Delete failed');
+        // Read response text first, then try to parse as JSON
+        const responseText = await response.text();
+        let errorMessage = 'Delete failed';
+        try {
+          const errorData = JSON.parse(responseText);
+          errorMessage = errorData.error || errorMessage;
+        } catch {
+          errorMessage = responseText || `HTTP ${response.status}: ${response.statusText}`;
+        }
+        throw new Error(errorMessage);
       }
 
       setSuccess('File deleted successfully!');
@@ -153,15 +200,15 @@ export default function AdminDashboard() {
     setIsLoggingOut(true);
     
     try {
-      await instance.logoutPopup();
-      console.log('🔐 MSAL logout successful');
-      // MSAL auth state change will be handled by AuthContext
-      // ProtectedRoute will automatically redirect to login
+      await instance.logoutRedirect({
+        postLogoutRedirectUri: window.location.origin + '/admin/login'
+      });
+      console.log('🔐 MSAL logout initiated');
+      // Note: Code after logoutRedirect won't execute as page redirects
     } catch (error) {
       console.error('🔐 MSAL logout error:', error);
       // Even if logout fails, redirect to login
       router.replace('/admin/login');
-    } finally {
       setIsLoggingOut(false);
     }
   };
@@ -322,11 +369,14 @@ export default function AdminDashboard() {
                       <input
                         type="file"
                         onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
-                        accept=".txt,.md,.pdf"
+                        accept=".txt,.md"
                         className={styles.fileInput}
                         disabled={uploading}
                       />
                     </label>
+                    <p style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>
+                      Accepted formats: .txt, .md (max 4MB)
+                    </p>
                   </div>
                   <div className={styles.formGroup}>
                     <label className={styles.label}>

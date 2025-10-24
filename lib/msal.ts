@@ -5,16 +5,19 @@ export const msalConfig: Configuration = {
   auth: {
     clientId: process.env.NEXT_PUBLIC_AZURE_AD_CLIENT_ID as string,
     authority: `https://login.microsoftonline.com/${process.env.NEXT_PUBLIC_AZURE_AD_TENANT_ID}`,
-    redirectUri: process.env.NEXT_PUBLIC_AZURE_AD_REDIRECT_URI || (typeof window !== "undefined" ? window.location.origin : undefined),
-    postLogoutRedirectUri: process.env.NEXT_PUBLIC_AZURE_AD_POST_LOGOUT_REDIRECT_URI || (typeof window !== "undefined" ? window.location.origin : undefined),
+    redirectUri: process.env.NEXT_PUBLIC_AZURE_AD_REDIRECT_URI || (typeof window !== "undefined" ? window.location.origin + '/admin/login' : undefined),
+    postLogoutRedirectUri: process.env.NEXT_PUBLIC_AZURE_AD_POST_LOGOUT_REDIRECT_URI || (typeof window !== "undefined" ? window.location.origin + '/admin/login' : undefined),
     // Restrict to Georgia Tech tenant only for additional security
-    knownAuthorities: [process.env.NEXT_PUBLIC_AZURE_AD_TENANT_ID ? `https://login.microsoftonline.com/${process.env.NEXT_PUBLIC_AZURE_AD_TENANT_ID}` : undefined].filter(Boolean),
+    knownAuthorities:
+      process.env.NEXT_PUBLIC_AZURE_AD_TENANT_ID
+        ? [`https://login.microsoftonline.com/${process.env.NEXT_PUBLIC_AZURE_AD_TENANT_ID}`]
+        : [],
+    // Don't use navigateToLoginRequestUrl - we'll handle navigation ourselves
+    navigateToLoginRequestUrl: false,
   },
   cache: {
     cacheLocation: "localStorage",
     storeAuthStateInCookie: false,
-    // Shorter token expiration for enhanced security
-    tokenRenewalOffsetSeconds: 300, // Renew tokens 5 minutes before expiry
   },
   system: {
     loggerOptions: {
