@@ -25,19 +25,27 @@ function getPineconeIndex() {
 async function generateEmbeddings(texts: string[]): Promise<number[][]> {
   // Prefer DeepInfra if configured
   if (process.env.DEEPINFRA_API_KEY) {
-    const client = new Embeddings(
-      "intfloat/multilingual-e5-large",
-      process.env.DEEPINFRA_API_KEY,
-    );
-    const body = { inputs: texts.map((t) => `passage: ${t}`) };
-    const output: any = await client.generate(body);
-    if (!output || !Array.isArray(output.embeddings)) {
-      throw new Error("DeepInfra returned invalid embeddings response");
+    console.log('🤖 Using DeepInfra for embeddings');
+    try {
+      const client = new Embeddings(
+        "intfloat/multilingual-e5-large",
+        process.env.DEEPINFRA_API_KEY,
+      );
+      const body = { inputs: texts.map((t) => `passage: ${t}`) };
+      const output: any = await client.generate(body);
+      if (!output || !Array.isArray(output.embeddings)) {
+        throw new Error("DeepInfra returned invalid embeddings response");
+      }
+      return output.embeddings as number[][];
+    } catch (error) {
+      console.error('❌ DeepInfra error:', error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new Error(`DeepInfra API error: ${errorMessage}. Check that DEEPINFRA_API_KEY is valid.`);
     }
-    return output.embeddings as number[][];
   }
 
   // Fallback to Hugging Face Inference API
+  console.log('🤗 Using Hugging Face for embeddings');
   const hfApiUrl = process.env.HF_API_URL || "https://api-inference.huggingface.co";
   const hfApiKey = process.env.HF_API_KEY;
   if (!hfApiKey) {
@@ -50,24 +58,32 @@ async function generateEmbeddings(texts: string[]): Promise<number[][]> {
     "Content-Type": "application/json",
   } as const;
 
-  const embeddings: number[][] = [];
-  for (const text of texts) {
-    const response = await fetch(hfApiUrl, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ inputs: `passage: ${text}` }),
-    });
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Hugging Face API error: ${response.status} - ${errorText}`);
+  try {
+    const embeddings: number[][] = [];
+    for (const text of texts) {
+      const response = await fetch(hfApiUrl, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ inputs: `passage: ${text}` }),
+      });
+      if (!response.ok) {
+        const errorText = await response.text();
+        if (response.status === 401) {
+          throw new Error(`Hugging Face API key is invalid. Status: 401. Check that HF_API_KEY is correct.`);
+        }
+        throw new Error(`Hugging Face API error: ${response.status} - ${errorText}`);
+      }
+      const result = await response.json();
+      if (!Array.isArray(result)) {
+        throw new Error("Unexpected embedding format from Hugging Face");
+      }
+      embeddings.push(result);
     }
-    const result = await response.json();
-    if (!Array.isArray(result)) {
-      throw new Error("Unexpected embedding format from Hugging Face");
-    }
-    embeddings.push(result);
+    return embeddings;
+  } catch (error) {
+    console.error('❌ Hugging Face error:', error);
+    throw error;
   }
-  return embeddings;
 }
 
 interface FileMetadata {
@@ -147,8 +163,13 @@ async function handleGetFiles(req: NextApiRequest, res: NextApiResponse) {
   try {
     // Query Pinecone to get all files (using a special query to get file metadata)
     const index = getPineconeIndex();
+    
+    // Create dummy query vector with at least one non-zero value (Pinecone requirement)
+    const dummyVector = new Array(1024).fill(0);
+    dummyVector[0] = 0.0001;
+    
     const queryResponse = await index.query({
-      vector: new Array(1024).fill(0), // Dummy vector for metadata query (matches model dim)
+      vector: dummyVector,
       topK: 1000, // Get all files
       includeMetadata: true,
       filter: {
@@ -218,8 +239,13 @@ async function handleUploadFile(req: NextApiRequest, res: NextApiResponse) {
   try {
     // 🔒 VALIDATION 4: Check for duplicate filename
     const index = getPineconeIndex();
+    
+    // Create dummy query vector with at least one non-zero value (Pinecone requirement)
+    const dummyVector = new Array(1024).fill(0);
+    dummyVector[0] = 0.0001;
+    
     const existingFiles = await index.query({
-      vector: new Array(1024).fill(0),
+      vector: dummyVector,
       topK: 1,
       includeMetadata: true,
       filter: {
@@ -257,10 +283,13 @@ async function handleUploadFile(req: NextApiRequest, res: NextApiResponse) {
     }));
 
     // Add file metadata vector
+    // Note: Pinecone requires at least one non-zero value, so we use a small epsilon
+    const metadataVector = new Array(1024).fill(0);
+    metadataVector[0] = 0.0001; // Small non-zero value to satisfy Pinecone
+    
     const fileMetadataVector = {
       id: `file_metadata_${filename}`,
-      // Use the same dimension as the embedding model (e5-large: 1024)
-      values: new Array(1024).fill(0),
+      values: metadataVector,
       metadata: {
         type: "file_metadata",
         filename,
@@ -296,8 +325,13 @@ async function handleDeleteFile(req: NextApiRequest, res: NextApiResponse) {
   try {
     // First, get all vectors for this file
     const index = getPineconeIndex();
+    
+    // Create dummy query vector with at least one non-zero value (Pinecone requirement)
+    const dummyVector = new Array(1024).fill(0);
+    dummyVector[0] = 0.0001;
+    
     const queryResponse = await index.query({
-      vector: new Array(1024).fill(0),
+      vector: dummyVector,
       topK: 1000,
       includeMetadata: true,
       filter: {
