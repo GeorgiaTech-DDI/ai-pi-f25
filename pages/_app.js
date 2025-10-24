@@ -34,7 +34,11 @@ function MyApp({ Component, pageProps }) {
     // Handle redirect response from Azure AD BEFORE rendering app
     const handleRedirect = async () => {
       try {
+        console.log('🔐 Starting handleRedirectPromise...');
         const response = await msalInstance.handleRedirectPromise();
+        
+        console.log('🔐 handleRedirectPromise completed. Response:', response);
+        console.log('🔐 Current accounts:', msalInstance.getAllAccounts());
         
         if (response) {
           console.log('🔐 Azure redirect response received:', response);
@@ -55,17 +59,22 @@ function MyApp({ Component, pageProps }) {
           }
           
           console.log('✅ Valid @gatech.edu user authenticated:', email);
+          console.log('🔐 Accounts after auth:', msalInstance.getAllAccounts());
+        } else {
+          console.log('🔐 No redirect response (user may already be authenticated or first load)');
+          console.log('🔐 Existing accounts:', msalInstance.getAllAccounts());
         }
       } catch (error) {
         console.error('🔐 Error handling redirect:', error);
       } finally {
+        console.log('🔐 Marking redirect as handled, rendering app...');
         // Mark redirect handling as complete
         setIsRedirectHandled(true);
       }
     };
     
     handleRedirect();
-  }, [router]);
+  }, []);
   
   // Don't render app until redirect is handled
   if (!isRedirectHandled) {
