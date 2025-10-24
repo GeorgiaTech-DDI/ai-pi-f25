@@ -1,7 +1,7 @@
 import { Pinecone } from "@pinecone-database/pinecone";
 import { Embeddings } from "deepinfra";
 import type { NextApiRequest, NextApiResponse } from "next";
-import { validateAzureToken } from "../lib/auth";
+import { validateAzureToken } from "../../lib/auth";
 
 // Configuration constants
 const MAX_FILE_SIZE = 4 * 1024 * 1024; // 4MB in bytes (Vercel limit is 4.5MB, stay under)
