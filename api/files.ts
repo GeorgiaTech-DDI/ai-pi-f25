@@ -10,7 +10,7 @@ const pinecone = new Pinecone({
 const index = pinecone.index(process.env.PINECONE_INDEX_NAME || "rag-embeddings");
 
 // Configuration constants
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB in bytes
+const MAX_FILE_SIZE = 4 * 1024 * 1024; // 4MB in bytes (Vercel limit is 4.5MB, stay under)
 const ALLOWED_EXTENSIONS = ['.txt', '.md', '.pdf'];
 
 // Embedding helpers (DeepInfra preferred, fallback to Hugging Face Inference API)

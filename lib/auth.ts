@@ -1,108 +1,67 @@
+import type { NextApiRequest } from 'next';
+
 /**
- * Server-side Authentication Utilities
- * 
- * Validates Azure AD tokens from API requests to ensure only
- * authenticated @gatech.edu users can access protected endpoints.
+ * Authenticated user information
  */
-
-import type { NextApiRequest } from "next";
-
-interface AuthUser {
-  uid: string;
+export interface AuthenticatedUser {
   email: string;
   displayName: string;
-  role: string;
 }
 
 /**
- * Validates Azure AD authentication token from request headers
+ * Validates Azure AD authentication for API routes
  * 
- * In a production environment, this would:
- * 1. Extract the Bearer token from Authorization header
- * 2. Verify the token signature with Azure AD public keys
- * 3. Validate token expiration and claims
- * 4. Return user info if valid
+ * This is a simple header-based validation for MVP.
+ * In production, you would validate JWT tokens from Azure AD.
  * 
- * For now, we'll use a simplified approach that checks for
- * the MSAL session cookie that Next.js sets client-side.
- * 
- * @param req - Next.js API request object
- * @returns User object if authenticated, null otherwise
+ * @param req - The Next.js API request
+ * @returns The authenticated user if valid, null otherwise
  */
-export async function validateAzureToken(req: NextApiRequest): Promise<AuthUser | null> {
-  try {
-    // Check for custom auth header (set by frontend)
-    const authHeader = req.headers['x-user-email'] as string;
-    
-    if (!authHeader) {
-      console.log('🔒 No auth header found');
-      return null;
-    }
+export async function validateAzureToken(req: NextApiRequest): Promise<AuthenticatedUser | null> {
+  // Extract user information from headers
+  // These are set by the frontend after successful Azure AD login
+  const userEmail = req.headers['x-user-email'] as string;
+  const userName = req.headers['x-user-name'] as string;
 
-    // Validate email format
-    const email = authHeader.toLowerCase();
-    if (!email || typeof email !== 'string') {
-      console.log('🔒 Invalid email format');
-      return null;
-    }
-
-    // Verify @gatech.edu domain
-    if (!email.endsWith('@gatech.edu')) {
-      console.log('🔒 Non-@gatech.edu email rejected:', email);
-      return null;
-    }
-
-    // Extract display name if provided
-    const displayName = (req.headers['x-user-name'] as string) || email.split('@')[0];
-
-    console.log('✅ User authenticated:', email);
-
-    return {
-      uid: email, // Use email as unique ID
-      email: email,
-      displayName: displayName,
-      role: 'admin'
-    };
-  } catch (error) {
-    console.error('🔒 Token validation error:', error);
+  // Validate email exists and is from Georgia Tech
+  if (!userEmail || !userEmail.endsWith('@gatech.edu')) {
     return null;
   }
-}
 
-/**
- * Validates that a user has @gatech.edu email
- * 
- * @param email - Email address to validate
- * @returns true if valid @gatech.edu email
- */
-export function validateGatechEmail(email: string): boolean {
-  if (!email || typeof email !== 'string') {
-    return false;
-  }
-  return email.toLowerCase().endsWith('@gatech.edu');
-}
-
-/**
- * Middleware wrapper for protecting API routes
- * 
- * Usage:
- * export default withAuth(async function handler(req, res, user) {
- *   // user is guaranteed to be authenticated here
- * });
- */
-export function withAuth(
-  handler: (req: NextApiRequest, res: any, user: AuthUser) => Promise<any>
-) {
-  return async (req: NextApiRequest, res: any) => {
-    const user = await validateAzureToken(req);
-    
-    if (!user) {
-      return res.status(401).json({ 
-        error: 'Unauthorized - Please log in with a @gatech.edu account' 
-      });
-    }
-    
-    return handler(req, res, user);
+  // Return authenticated user
+  return {
+    email: userEmail,
+    displayName: userName || userEmail,
   };
 }
 
+/**
+ * NOTE: This is a simplified authentication approach for MVP.
+ * 
+ * For production, you should:
+ * 1. Use server-side JWT validation with Azure AD public keys
+ * 2. Implement proper session management
+ * 3. Add rate limiting
+ * 4. Add CSRF protection
+ * 5. Use secure HTTP-only cookies instead of headers
+ * 
+ * Example with JWT validation:
+ * ```typescript
+ * import { jwtVerify } from 'jose';
+ * 
+ * const JWKS_URI = `https://login.microsoftonline.com/${tenantId}/discovery/v2.0/keys`;
+ * 
+ * export async function validateAzureToken(req: NextApiRequest) {
+ *   const token = req.headers.authorization?.split('Bearer ')[1];
+ *   if (!token) return null;
+ *   
+ *   try {
+ *     const { payload } = await jwtVerify(token, getKey);
+ *     if (!payload.email?.endsWith('@gatech.edu')) return null;
+ *     return { email: payload.email, displayName: payload.name };
+ *   } catch {
+ *     return null;
+ *   }
+ * }
+ * ```
+ */

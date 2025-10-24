@@ -112,8 +112,21 @@ export default function AdminDashboard() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Upload failed');
+        // Handle 413 Payload Too Large specially
+        if (response.status === 413) {
+          throw new Error('File too large for upload. Maximum size is 4MB. Please use a smaller file.');
+        }
+        
+        // Try to parse JSON error, fallback to text
+        let errorMessage = 'Upload failed';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch {
+          const errorText = await response.text();
+          errorMessage = errorText || `HTTP ${response.status}: ${response.statusText}`;
+        }
+        throw new Error(errorMessage);
       }
 
       setSuccess('File uploaded successfully!');
@@ -352,7 +365,7 @@ export default function AdminDashboard() {
                       />
                     </label>
                     <p style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>
-                      Accepted formats: .txt, .md (max 5MB)
+                      Accepted formats: .txt, .md (max 4MB)
                     </p>
                   </div>
                   <div className={styles.formGroup}>
