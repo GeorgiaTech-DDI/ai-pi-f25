@@ -8,12 +8,54 @@ const pinecone = new Pinecone({
 });
 const index = pinecone.index(process.env.PINECONE_INDEX_NAME || "rag-embeddings");
 
-// Initialize DeepInfra embeddings
-const embeddings = new Embeddings({
-  apiKey: process.env.HF_API_KEY || "",
-  model: "jeffh/intfloat-multilingual-e5-large:f16",
-  baseURL: process.env.HF_API_URL || "https://api-inference.huggingface.co",
-});
+// Embedding helpers (DeepInfra preferred, fallback to Hugging Face Inference API)
+async function generateEmbeddings(texts: string[]): Promise<number[][]> {
+  // Prefer DeepInfra if configured
+  if (process.env.DEEPINFRA_API_KEY) {
+    const client = new Embeddings(
+      "intfloat/multilingual-e5-large",
+      process.env.DEEPINFRA_API_KEY,
+    );
+    const body = { inputs: texts.map((t) => `passage: ${t}`) };
+    const output: any = await client.generate(body);
+    if (!output || !Array.isArray(output.embeddings)) {
+      throw new Error("DeepInfra returned invalid embeddings response");
+    }
+    return output.embeddings as number[][];
+  }
+
+  // Fallback to Hugging Face Inference API
+  const hfApiUrl = process.env.HF_API_URL || "https://api-inference.huggingface.co";
+  const hfApiKey = process.env.HF_API_KEY;
+  if (!hfApiKey) {
+    throw new Error("No embedding provider configured (set DEEPINFRA_API_KEY or HF_API_KEY)");
+  }
+
+  const headers = {
+    Accept: "application/json",
+    Authorization: `Bearer ${hfApiKey}`,
+    "Content-Type": "application/json",
+  } as const;
+
+  const embeddings: number[][] = [];
+  for (const text of texts) {
+    const response = await fetch(hfApiUrl, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ inputs: `passage: ${text}` }),
+    });
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Hugging Face API error: ${response.status} - ${errorText}`);
+    }
+    const result = await response.json();
+    if (!Array.isArray(result)) {
+      throw new Error("Unexpected embedding format from Hugging Face");
+    }
+    embeddings.push(result);
+  }
+  return embeddings;
+}
 
 interface FileMetadata {
   filename: string;
@@ -53,7 +95,7 @@ async function handleGetFiles(req: NextApiRequest, res: NextApiResponse) {
   try {
     // Query Pinecone to get all files (using a special query to get file metadata)
     const queryResponse = await index.query({
-      vector: new Array(1536).fill(0), // Dummy vector for metadata query
+      vector: new Array(1024).fill(0), // Dummy vector for metadata query (matches model dim)
       topK: 1000, // Get all files
       includeMetadata: true,
       filter: {
@@ -61,12 +103,13 @@ async function handleGetFiles(req: NextApiRequest, res: NextApiResponse) {
       }
     });
 
-    const files: PineconeFile[] = queryResponse.matches
-      .filter(match => match.metadata?.type === "file_metadata")
-      .map(match => ({
-        id: match.id,
-        metadata: match.metadata as FileMetadata
-      }));
+    const files: PineconeFile[] = queryResponse.matches.reduce((acc: PineconeFile[], match) => {
+      const meta = match.metadata as any;
+      if (meta && meta.type === "file_metadata") {
+        acc.push({ id: match.id, metadata: meta as FileMetadata });
+      }
+      return acc;
+    }, []);
 
     return res.status(200).json({ files });
   } catch (error) {
@@ -87,13 +130,13 @@ async function handleUploadFile(req: NextApiRequest, res: NextApiResponse) {
     const chunks = splitTextIntoChunks(content, 1000, 200);
     
     // Generate embeddings for each chunk
-    const chunkTexts = chunks.map(chunk => chunk.text);
-    const embeddingsResponse = await embeddings.embedDocuments(chunkTexts);
+    const chunkTexts = chunks.map((chunk) => chunk.text);
+    const embeddingsArray = await generateEmbeddings(chunkTexts);
     
     // Prepare vectors for Pinecone
     const vectors = chunks.map((chunk, index) => ({
       id: `${filename}_chunk_${index}`,
-      values: embeddingsResponse.data[index],
+      values: embeddingsArray[index],
       metadata: {
         text: chunk.text,
         filename,
@@ -105,7 +148,8 @@ async function handleUploadFile(req: NextApiRequest, res: NextApiResponse) {
     // Add file metadata vector
     const fileMetadataVector = {
       id: `file_metadata_${filename}`,
-      values: new Array(1536).fill(0), // Dummy vector for metadata
+      // Use the same dimension as the embedding model (e5-large: 1024)
+      values: new Array(1024).fill(0),
       metadata: {
         type: "file_metadata",
         filename,
@@ -141,7 +185,7 @@ async function handleDeleteFile(req: NextApiRequest, res: NextApiResponse) {
   try {
     // First, get all vectors for this file
     const queryResponse = await index.query({
-      vector: new Array(1536).fill(0),
+      vector: new Array(1024).fill(0),
       topK: 1000,
       includeMetadata: true,
       filter: {
