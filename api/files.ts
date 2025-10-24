@@ -3,15 +3,23 @@ import { Embeddings } from "deepinfra";
 import type { NextApiRequest, NextApiResponse } from "next";
 import { validateAzureToken } from "../lib/auth";
 
-// Initialize Pinecone Client
-const pinecone = new Pinecone({
-  apiKey: process.env.PINECONE_API_KEY || "",
-});
-const index = pinecone.index(process.env.PINECONE_INDEX_NAME || "rag-embeddings");
-
 // Configuration constants
 const MAX_FILE_SIZE = 4 * 1024 * 1024; // 4MB in bytes (Vercel limit is 4.5MB, stay under)
 const ALLOWED_EXTENSIONS = ['.txt', '.md', '.pdf'];
+
+// Lazy Pinecone initialization (only initialize when needed, after env var validation)
+let pineconeInstance: Pinecone | null = null;
+let indexInstance: any = null;
+
+function getPineconeIndex() {
+  if (!pineconeInstance) {
+    pineconeInstance = new Pinecone({
+      apiKey: process.env.PINECONE_API_KEY || "",
+    });
+    indexInstance = pineconeInstance.index(process.env.PINECONE_INDEX_NAME || "rag-embeddings");
+  }
+  return indexInstance;
+}
 
 // Embedding helpers (DeepInfra preferred, fallback to Hugging Face Inference API)
 async function generateEmbeddings(texts: string[]): Promise<number[][]> {
@@ -127,6 +135,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 async function handleGetFiles(req: NextApiRequest, res: NextApiResponse) {
   try {
     // Query Pinecone to get all files (using a special query to get file metadata)
+    const index = getPineconeIndex();
     const queryResponse = await index.query({
       vector: new Array(1024).fill(0), // Dummy vector for metadata query (matches model dim)
       topK: 1000, // Get all files
@@ -136,7 +145,7 @@ async function handleGetFiles(req: NextApiRequest, res: NextApiResponse) {
       }
     });
 
-    const files: PineconeFile[] = queryResponse.matches.reduce((acc: PineconeFile[], match) => {
+    const files: PineconeFile[] = queryResponse.matches.reduce((acc: PineconeFile[], match: any) => {
       const meta = match.metadata as any;
       if (meta && meta.type === "file_metadata") {
         acc.push({ id: match.id, metadata: meta as FileMetadata });
@@ -197,6 +206,7 @@ async function handleUploadFile(req: NextApiRequest, res: NextApiResponse) {
 
   try {
     // 🔒 VALIDATION 4: Check for duplicate filename
+    const index = getPineconeIndex();
     const existingFiles = await index.query({
       vector: new Array(1024).fill(0),
       topK: 1,
@@ -274,6 +284,7 @@ async function handleDeleteFile(req: NextApiRequest, res: NextApiResponse) {
 
   try {
     // First, get all vectors for this file
+    const index = getPineconeIndex();
     const queryResponse = await index.query({
       vector: new Array(1024).fill(0),
       topK: 1000,
@@ -284,7 +295,7 @@ async function handleDeleteFile(req: NextApiRequest, res: NextApiResponse) {
     });
 
     // Extract all IDs to delete
-    const idsToDelete = queryResponse.matches.map(match => match.id);
+    const idsToDelete = queryResponse.matches.map((match: any) => match.id);
 
     if (idsToDelete.length === 0) {
       return res.status(404).json({ error: "File not found" });
