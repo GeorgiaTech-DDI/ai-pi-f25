@@ -34,6 +34,11 @@ function MyApp({ Component, pageProps }) {
     // Handle redirect response from Azure AD BEFORE rendering app
     const handleRedirect = async () => {
       try {
+        console.log('🔐 Initializing MSAL...');
+        // CRITICAL: Must initialize MSAL before calling any methods
+        await msalInstance.initialize();
+        console.log('✅ MSAL initialized successfully');
+        
         console.log('🔐 Starting handleRedirectPromise...');
         const response = await msalInstance.handleRedirectPromise();
         
