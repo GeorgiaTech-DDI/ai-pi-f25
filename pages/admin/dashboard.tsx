@@ -66,14 +66,15 @@ export default function AdminDashboard() {
         }
       });
       if (!response.ok) {
-        // Try to parse as JSON, fallback to text
+        // Read response text first, then try to parse as JSON
         let errorMessage = 'Failed to load files';
+        const responseText = await response.text();
         try {
-          const errorData = await response.json();
+          const errorData = JSON.parse(responseText);
           errorMessage = errorData.error || errorMessage;
         } catch {
-          const errorText = await response.text();
-          errorMessage = errorText || `HTTP ${response.status}: ${response.statusText}`;
+          // Not JSON, use the text directly
+          errorMessage = responseText || `HTTP ${response.status}: ${response.statusText}`;
         }
         throw new Error(errorMessage);
       }
@@ -117,14 +118,15 @@ export default function AdminDashboard() {
           throw new Error('File too large for upload. Maximum size is 4MB. Please use a smaller file.');
         }
         
-        // Try to parse JSON error, fallback to text
+        // Read response text first, then try to parse as JSON
+        const responseText = await response.text();
         let errorMessage = 'Upload failed';
         try {
-          const errorData = await response.json();
+          const errorData = JSON.parse(responseText);
           errorMessage = errorData.error || errorMessage;
         } catch {
-          const errorText = await response.text();
-          errorMessage = errorText || `HTTP ${response.status}: ${response.statusText}`;
+          // Not JSON, use the text directly
+          errorMessage = responseText || `HTTP ${response.status}: ${response.statusText}`;
         }
         throw new Error(errorMessage);
       }
@@ -158,8 +160,16 @@ export default function AdminDashboard() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Delete failed');
+        // Read response text first, then try to parse as JSON
+        const responseText = await response.text();
+        let errorMessage = 'Delete failed';
+        try {
+          const errorData = JSON.parse(responseText);
+          errorMessage = errorData.error || errorMessage;
+        } catch {
+          errorMessage = responseText || `HTTP ${response.status}: ${response.statusText}`;
+        }
+        throw new Error(errorMessage);
       }
 
       setSuccess('File deleted successfully!');
