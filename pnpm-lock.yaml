@@ -14,6 +14,12 @@ importers:
       '@aws-sdk/credential-providers':
         specifier: ^3.750.0
         version: 3.782.0
+      '@azure/msal-browser':
+        specifier: ^4.24.1
+        version: 4.25.1
+      '@azure/msal-react':
+        specifier: ^3.0.20
+        version: 3.0.20(@azure/msal-browser@4.25.1)(react@19.1.0)
       '@pinecone-database/pinecone':
         specifier: ^5.0.0
         version: 5.1.1
@@ -29,6 +35,9 @@ importers:
       deepinfra:
         specifier: ^2.0.2
         version: 2.0.2
+      dotenv:
+        specifier: ^17.2.2
+        version: 17.2.3
       file-saver:
         specifier: ^2.0.5
         version: 2.0.5
@@ -177,6 +186,21 @@ packages:
     peerDependenciesMeta:
       aws-crt:
         optional: true
+
+  '@azure/msal-browser@4.25.1':
+    resolution: {integrity: sha512-kAdOSNjvMbeBmEyd5WnddGmIpKCbAAGj4Gg/1iURtF+nHmIfS0+QUBBO3uaHl7CBB2R1SEAbpOgxycEwrHOkFA==}
+    engines: {node: '>=0.8.0'}
+
+  '@azure/msal-common@15.13.0':
+    resolution: {integrity: sha512-8oF6nj02qX7eE/6+wFT5NluXRHc05AgdCC3fJnkjiJooq8u7BcLmxaYYSwc2AfEkWRMRi6Eyvvbeqk4U4412Ag==}
+    engines: {node: '>=0.8.0'}
+
+  '@azure/msal-react@3.0.20':
+    resolution: {integrity: sha512-+mlGe5rzJDe1Feb0BcPwCkcRTIXAUX0mxBnP8hDuzIXrwBAT/iHHl6wcsZ5iKBnMuqOicJhGX5l2/Iwqguom0Q==}
+    engines: {node: '>=10'}
+    peerDependencies:
+      '@azure/msal-browser': ^4.24.0
+      react: ^16.8.0 || ^17 || ^18 || ^19
 
   '@emnapi/runtime@1.4.0':
     resolution: {integrity: sha512-64WYIf4UYcdLnbKn/umDlNjQDSS8AgZrI/R9+x5ilkUVFxXcA1Ebl+gQLc/6mERA4407Xof0R7wEyEuj091CVw==}
@@ -733,6 +757,10 @@ packages:
   detect-libc@2.0.3:
     resolution: {integrity: sha512-bwy0MGW55bG41VqxxypOsdSdGqLwXPI/focwgTYCFMbdUiBAxLg9CFzG08sz2aqzknwiX7Hkl0bQENjg8iLByw==}
     engines: {node: '>=8'}
+
+  dotenv@17.2.3:
+    resolution: {integrity: sha512-JVUnt+DUIzu87TABbhPmNfVdBDt18BLOWjMUFJMSi/Qqg7NTYtabbvSNJGOJ7afbRuv9D/lngizHtP7QyLQ+9w==}
+    engines: {node: '>=12'}
 
   dunder-proto@1.0.1:
     resolution: {integrity: sha512-KIN/nDJBQRcXw0MLVhZE9iQHmG68qAVIBg9CqmUYjmQIhgij9U5MFvrqkUL5FbtyyzZuOeOt0zdeRe4UY7ct+A==}
@@ -1364,6 +1392,17 @@ snapshots:
       '@smithy/types': 4.2.0
       tslib: 2.8.1
 
+  '@azure/msal-browser@4.25.1':
+    dependencies:
+      '@azure/msal-common': 15.13.0
+
+  '@azure/msal-common@15.13.0': {}
+
+  '@azure/msal-react@3.0.20(@azure/msal-browser@4.25.1)(react@19.1.0)':
+    dependencies:
+      '@azure/msal-browser': 4.25.1
+      react: 19.1.0
+
   '@emnapi/runtime@1.4.0':
     dependencies:
       tslib: 2.8.1
@@ -1926,6 +1965,8 @@ snapshots:
 
   detect-libc@2.0.3:
     optional: true
+
+  dotenv@17.2.3: {}
 
   dunder-proto@1.0.1:
     dependencies:
