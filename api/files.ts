@@ -76,6 +76,21 @@ interface PineconeFile {
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  // ⚙️ CONFIGURATION CHECK - Validate environment variables
+  if (!process.env.PINECONE_API_KEY) {
+    console.error('❌ PINECONE_API_KEY is not configured');
+    return res.status(500).json({ 
+      error: "Server configuration error: PINECONE_API_KEY is missing. Please configure Pinecone in Vercel environment variables." 
+    });
+  }
+
+  if (!process.env.DEEPINFRA_API_KEY && !process.env.HF_API_KEY) {
+    console.error('❌ No embedding provider configured');
+    return res.status(500).json({ 
+      error: "Server configuration error: No embedding provider configured. Set DEEPINFRA_API_KEY or HF_API_KEY." 
+    });
+  }
+
   // 🔒 AUTHENTICATION CHECK - Validate Azure AD token
   const user = await validateAzureToken(req);
   
@@ -104,7 +119,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
   } catch (error) {
     console.error("Files API error:", error);
-    return res.status(500).json({ error: "Internal server error" });
+    const errorMessage = error instanceof Error ? error.message : "Internal server error";
+    return res.status(500).json({ error: errorMessage });
   }
 }
 
@@ -131,7 +147,16 @@ async function handleGetFiles(req: NextApiRequest, res: NextApiResponse) {
     return res.status(200).json({ files });
   } catch (error) {
     console.error("Error fetching files:", error);
-    return res.status(500).json({ error: "Failed to fetch files" });
+    const errorMessage = error instanceof Error ? error.message : "Failed to fetch files";
+    
+    // Check for common Pinecone errors
+    if (errorMessage.includes("Index") && errorMessage.includes("not found")) {
+      return res.status(500).json({ 
+        error: `Pinecone index '${process.env.PINECONE_INDEX_NAME || "rag-embeddings"}' not found. Please create it in Pinecone Console with 1024 dimensions.` 
+      });
+    }
+    
+    return res.status(500).json({ error: `Failed to fetch files: ${errorMessage}` });
   }
 }
 
