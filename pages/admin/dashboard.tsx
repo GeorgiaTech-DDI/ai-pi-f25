@@ -168,15 +168,15 @@ export default function AdminDashboard() {
     setIsLoggingOut(true);
     
     try {
-      await instance.logoutPopup();
-      console.log('🔐 MSAL logout successful');
-      // MSAL auth state change will be handled by AuthContext
-      // ProtectedRoute will automatically redirect to login
+      await instance.logoutRedirect({
+        postLogoutRedirectUri: window.location.origin + '/admin/login'
+      });
+      console.log('🔐 MSAL logout initiated');
+      // Note: Code after logoutRedirect won't execute as page redirects
     } catch (error) {
       console.error('🔐 MSAL logout error:', error);
       // Even if logout fails, redirect to login
       router.replace('/admin/login');
-    } finally {
       setIsLoggingOut(false);
     }
   };

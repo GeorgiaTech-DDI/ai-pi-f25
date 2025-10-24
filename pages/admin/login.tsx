@@ -27,29 +27,14 @@ export default function AdminLogin() {
     try {
       console.log('🔐 Initiating Azure OAuth login...');
       
-      // Use popup for login
-      const response = await instance.loginPopup(loginRequest);
+      // Use redirect for login (more reliable than popup)
+      // This will redirect to Azure AD, then back to this page
+      await instance.loginRedirect({
+        ...loginRequest,
+        redirectStartPage: window.location.origin + '/admin/dashboard'
+      });
       
-      console.log('🔐 Azure login successful:', response);
-      const email = response.account.username;
-      
-      // Validate email domain
-      if (!validateGatechEmail(email)) {
-        console.error('🔐 Invalid email domain:', email);
-        
-        // Logout the user immediately
-        await instance.logoutPopup({
-          account: response.account,
-          postLogoutRedirectUri: window.location.origin
-        });
-        
-        throw new Error('Only @gatech.edu email addresses are allowed to access this portal.');
-      }
-      
-      console.log('🔐 Valid @gatech.edu email, redirecting to dashboard...');
-      
-      // Successful login - redirect to admin dashboard
-      router.push('/admin/dashboard');
+      // Note: Code after loginRedirect won't execute as page redirects
     } catch (err: any) {
       console.error('🔐 Azure login error:', err);
       
@@ -62,14 +47,11 @@ export default function AdminLogin() {
         errorMessage = 'Login was cancelled. Please try again.';
       } else if (err.errorCode === 'access_denied') {
         errorMessage = 'Access denied. Please contact your administrator.';
-      } else if (err.errorCode === 'popup_window_error') {
-        errorMessage = 'Please allow popups for this site and try again.';
       } else if (err.message) {
         errorMessage = err.message;
       }
       
       setError(errorMessage);
-    } finally {
       setIsLoading(false);
     }
   };
