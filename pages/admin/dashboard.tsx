@@ -66,12 +66,21 @@ export default function AdminDashboard() {
         }
       });
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to load files');
+        // Try to parse as JSON, fallback to text
+        let errorMessage = 'Failed to load files';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch {
+          const errorText = await response.text();
+          errorMessage = errorText || `HTTP ${response.status}: ${response.statusText}`;
+        }
+        throw new Error(errorMessage);
       }
       const data = await response.json();
       setFiles(data.files || []);
     } catch (err: any) {
+      console.error('Error loading files:', err);
       setError(err.message);
     } finally {
       setLoadingFiles(false);
