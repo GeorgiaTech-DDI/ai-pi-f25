@@ -8,6 +8,7 @@ import { msalInstance } from "../lib/msal";
 import { validateGatechEmail } from "../lib/msal";
 import SessionWarning from "../components/SessionWarning";
 import { useEffect } from "react";
+import { useRouter } from "next/router";
 
 // Inner component that can use AuthContext
 function AppContent({ Component, pageProps }) {
@@ -26,6 +27,8 @@ function AppContent({ Component, pageProps }) {
 }
 
 function MyApp({ Component, pageProps }) {
+  const router = useRouter();
+  
   useEffect(() => {
     // Handle redirect response from Azure AD
     const handleRedirect = async () => {
@@ -51,7 +54,12 @@ function MyApp({ Component, pageProps }) {
           }
           
           console.log('✅ Valid @gatech.edu user authenticated:', email);
-          // AuthContext will pick up the authenticated state
+          
+          // If we're on the login page, redirect to dashboard
+          if (window.location.pathname === '/admin/login') {
+            console.log('🔐 Redirecting to dashboard after successful login...');
+            router.push('/admin/dashboard');
+          }
         }
       } catch (error) {
         console.error('🔐 Error handling redirect:', error);
@@ -59,7 +67,7 @@ function MyApp({ Component, pageProps }) {
     };
     
     handleRedirect();
-  }, []);
+  }, [router]);
   
   return (
     <MsalProvider instance={msalInstance}>
