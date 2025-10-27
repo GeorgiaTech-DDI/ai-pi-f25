@@ -36,13 +36,14 @@ export default function AdminDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  // Load files on component mount
-  useEffect(() => {
-    loadFiles();
-  }, []);
-
   // File management functions
   const loadFiles = async () => {
+    // Don't attempt to load if user is not authenticated yet
+    if (!user?.email) {
+      console.log('⏳ Waiting for user authentication before loading files...');
+      return;
+    }
+    
     setLoadingFiles(true);
     setError(null);
     try {
@@ -203,6 +204,33 @@ export default function AdminDashboard() {
   const navigateToMainApp = () => {
     router.push('/');
   };
+
+  // Load files when user is authenticated
+  useEffect(() => {
+    // Wait for auth to complete and user to be available
+    if (!loading && user?.email) {
+      console.log('🔐 User authenticated, loading files...');
+      loadFiles();
+    }
+  }, [user, loading]); // Run when user or loading state changes
+
+  // Auto-refresh files every 30 seconds for real-time updates
+  useEffect(() => {
+    // Only set up auto-refresh if user is authenticated
+    if (!user?.email) return;
+
+    console.log('🔄 Setting up auto-refresh for file list (every 30 seconds)');
+    const refreshInterval = setInterval(() => {
+      console.log('🔄 Auto-refreshing file list...');
+      loadFiles();
+    }, 30000); // 30 seconds
+
+    // Cleanup interval on unmount
+    return () => {
+      console.log('🔄 Cleaning up auto-refresh interval');
+      clearInterval(refreshInterval);
+    };
+  }, [user?.email]); // Re-setup if user changes
 
   return (
     <ProtectedRoute>
