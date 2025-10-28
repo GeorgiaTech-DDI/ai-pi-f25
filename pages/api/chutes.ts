@@ -1358,6 +1358,52 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         `data: ${JSON.stringify({ type: "classification", usedRAG: false, reasoning: classification.reasoning })}\n\n`,
       );
 
+      // Log GENERAL classified query for analytics
+      try {
+        const generalQueryLog = {
+          timestamp: new Date().toISOString(),
+          question: question,
+          bestScore: 0, // No RAG search performed
+          totalMatches: 0,
+          relevantMatches: 0,
+          matchesAbove06: 0,
+          matchesAbove05: 0,
+          matchesAbove04: 0,
+          topDocuments: [],
+          decision: 'USE_GENERAL',
+          confidenceLevel: 'n/a' // Not applicable for GENERAL queries
+        };
+
+        console.log('📊 GENERAL Query:', JSON.stringify(generalQueryLog, null, 2));
+
+        // Store log in Pinecone
+        const dummyVector = new Array(1024).fill(0);
+        dummyVector[0] = 0.0001;
+
+        await index.upsert([{
+          id: `query-log-${Date.now()}-${Math.random().toString(36).substring(7)}`,
+          values: dummyVector,
+          metadata: {
+            type: 'query_log',
+            timestamp: generalQueryLog.timestamp,
+            question: generalQueryLog.question,
+            bestScore: generalQueryLog.bestScore,
+            totalMatches: generalQueryLog.totalMatches,
+            relevantMatches: generalQueryLog.relevantMatches,
+            matchesAbove06: generalQueryLog.matchesAbove06,
+            matchesAbove05: generalQueryLog.matchesAbove05,
+            matchesAbove04: generalQueryLog.matchesAbove04,
+            topDocuments: JSON.stringify(generalQueryLog.topDocuments),
+            decision: generalQueryLog.decision,
+            confidenceLevel: generalQueryLog.confidenceLevel
+          }
+        }]);
+        console.log('✅ GENERAL query log stored in Pinecone for admin analytics');
+      } catch (logError) {
+        console.warn('⚠️ Failed to store GENERAL query log:', logError);
+        // Don't throw - logging failure shouldn't break the query
+      }
+
       // Generate response without RAG
       streamOrString = await generateGeneralResponse(question, conversationHistory);
       contexts = []; // No contexts for general queries

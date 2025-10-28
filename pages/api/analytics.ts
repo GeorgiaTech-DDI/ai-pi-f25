@@ -18,7 +18,7 @@ interface QueryLog {
   matchesAbove04: number;
   topDocuments: { filename: string; score: number }[];
   decision: 'USE_RAG' | 'USE_GENERAL';
-  confidenceLevel: 'high' | 'medium' | 'low';
+  confidenceLevel: 'high' | 'medium' | 'low' | 'n/a'; // 'n/a' for queries classified as GENERAL
 }
 
 interface DocumentationGap {
@@ -116,7 +116,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             matchesAbove04: match.metadata.matchesAbove04 as number,
             topDocuments: topDocuments,
             decision: match.metadata.decision as 'USE_RAG' | 'USE_GENERAL',
-            confidenceLevel: match.metadata.confidenceLevel as 'high' | 'medium' | 'low'
+            confidenceLevel: match.metadata.confidenceLevel as 'high' | 'medium' | 'low' | 'n/a'
           };
         }
         return null;
