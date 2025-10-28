@@ -1100,6 +1100,81 @@ async function ragQuery(
       return true;
     });
 
+    // ========================================
+    // OPTION 2: SMART FALLBACK - CONFIDENCE THRESHOLD CHECK
+    // ========================================
+    const CONFIDENCE_THRESHOLD = 0.6;
+    const bestScore = relevantContexts.length > 0 
+      ? Math.max(...relevantContexts.map(match => match.score || 0))
+      : 0;
+
+    console.log(`RAG Quality Check: Best match score = ${bestScore.toFixed(3)}, Threshold = ${CONFIDENCE_THRESHOLD}`);
+
+    // Log RAG performance for admin analytics
+    const ragPerformanceLog = {
+      timestamp: new Date().toISOString(),
+      question: question,
+      bestScore: bestScore,
+      totalMatches: contexts.length,
+      relevantMatches: relevantContexts.length,
+      matchesAbove06: relevantContexts.filter(m => (m.score || 0) >= 0.6).length,
+      matchesAbove05: relevantContexts.filter(m => (m.score || 0) >= 0.5).length,
+      matchesAbove04: relevantContexts.filter(m => (m.score || 0) >= 0.4).length,
+      topDocuments: relevantContexts.slice(0, 3).map(m => ({
+        filename: m.metadata?.filename || 'unknown',
+        score: m.score || 0
+      })),
+      decision: bestScore >= CONFIDENCE_THRESHOLD ? 'USE_RAG' : 'USE_GENERAL',
+      confidenceLevel: bestScore >= 0.7 ? 'high' : bestScore >= 0.5 ? 'medium' : 'low'
+    };
+
+    console.log('📊 RAG Performance:', JSON.stringify(ragPerformanceLog, null, 2));
+
+    // Store log in Pinecone for admin analytics
+    try {
+      // Serialize topDocuments array to JSON string for Pinecone metadata
+      const metadataForPinecone = {
+        type: 'query_log',
+        timestamp: ragPerformanceLog.timestamp,
+        question: ragPerformanceLog.question,
+        bestScore: ragPerformanceLog.bestScore,
+        totalMatches: ragPerformanceLog.totalMatches,
+        relevantMatches: ragPerformanceLog.relevantMatches,
+        matchesAbove06: ragPerformanceLog.matchesAbove06,
+        matchesAbove05: ragPerformanceLog.matchesAbove05,
+        matchesAbove04: ragPerformanceLog.matchesAbove04,
+        topDocuments: JSON.stringify(ragPerformanceLog.topDocuments), // Serialize to string
+        decision: ragPerformanceLog.decision,
+        confidenceLevel: ragPerformanceLog.confidenceLevel
+      };
+
+      await index.upsert([{
+        id: `query-log-${Date.now()}-${Math.random().toString(36).substring(7)}`,
+        values: new Array(1024).fill(0), // Zero vector for metadata-only record
+        metadata: metadataForPinecone
+      }]);
+      console.log('✅ Query log stored in Pinecone for admin analytics');
+    } catch (logError) {
+      console.warn('⚠️ Failed to store query log:', logError);
+      // Don't throw - logging failure shouldn't break the query
+    }
+
+    // If best match score is below confidence threshold, abandon RAG
+    if (bestScore < CONFIDENCE_THRESHOLD) {
+      console.log(
+        `⚠️ RAG ABANDONED: Best score (${bestScore.toFixed(3)}) below confidence threshold (${CONFIDENCE_THRESHOLD}). ` +
+        `Using general knowledge instead.`
+      );
+      
+      // Return empty contexts to signal general knowledge should be used
+      return [
+        await generateGeneralResponse(question, conversationHistory),
+        [] // Empty contexts array - no references to show
+      ];
+    }
+
+    console.log(`✅ RAG APPROVED: Best score (${bestScore.toFixed(3)}) meets confidence threshold. Proceeding with RAG.`);
+
     // Create array of objects with text and filename, including DuckDuckGo context
     const contextObjects = relevantContexts
       .map((match) => {

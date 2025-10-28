@@ -19,6 +19,34 @@ interface PineconeFile {
   metadata: FileMetadata;
 }
 
+interface DocumentationGap {
+  question: string;
+  frequency: number;
+  bestScore: number;
+  topDocument: string;
+  lastAsked: string;
+}
+
+interface DocumentPerformance {
+  filename: string;
+  queryCount: number;
+  averageScore: number;
+  highScoreCount: number;
+  status: 'excellent' | 'good' | 'needs_improvement';
+}
+
+interface AnalyticsData {
+  summary: {
+    totalQueries: number;
+    ragSuccessCount: number;
+    generalFallbackCount: number;
+    ragSuccessRate: number;
+    avgBestScore: number;
+  };
+  documentationGaps: DocumentationGap[];
+  documentPerformance: DocumentPerformance[];
+}
+
 export default function AdminDashboard() {
   const router = useRouter();
   const { user, loading } = useAuth();
@@ -35,6 +63,11 @@ export default function AdminDashboard() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  // Analytics state
+  const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
+  const [loadingAnalytics, setLoadingAnalytics] = useState(false);
+  const [analyticsError, setAnalyticsError] = useState<string | null>(null);
 
   // File management functions
   const loadFiles = async () => {
@@ -73,6 +106,44 @@ export default function AdminDashboard() {
       setError(err.message);
     } finally {
       setLoadingFiles(false);
+    }
+  };
+
+  const loadAnalytics = async () => {
+    // Don't attempt to load if user is not authenticated yet
+    if (!user?.email) {
+      console.log('⏳ Waiting for user authentication before loading analytics...');
+      return;
+    }
+
+    setLoadingAnalytics(true);
+    setAnalyticsError(null);
+    try {
+      const response = await fetch('/api/analytics', {
+        headers: {
+          'x-user-email': user?.email || '',
+          'x-user-name': user?.displayName || ''
+        }
+      });
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorMessage = 'Failed to load analytics';
+        try {
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData.error || errorMessage;
+        } catch {
+          errorMessage = errorText || `HTTP ${response.status}: ${response.statusText}`;
+        }
+        throw new Error(errorMessage);
+      }
+      const data = await response.json();
+      setAnalytics(data);
+      console.log('✅ Analytics loaded:', data);
+    } catch (err: any) {
+      console.error('Error loading analytics:', err);
+      setAnalyticsError(err.message);
+    } finally {
+      setLoadingAnalytics(false);
     }
   };
 
@@ -205,12 +276,13 @@ export default function AdminDashboard() {
     router.push('/');
   };
 
-  // Load files when user is authenticated
+  // Load files and analytics when user is authenticated
   useEffect(() => {
     // Wait for auth to complete and user to be available
     if (!loading && user?.email) {
-      console.log('🔐 User authenticated, loading files...');
+      console.log('🔐 User authenticated, loading dashboard data...');
       loadFiles();
+      loadAnalytics();
     }
   }, [user, loading]); // Run when user or loading state changes
 
@@ -386,6 +458,148 @@ export default function AdminDashboard() {
                 )}
               </div>
             </div>
+          </section>
+
+          {/* Documentation Quality Analytics */}
+          <section className={styles.fileManagement}>
+            <div className={styles.fileListHeader}>
+              <h2 className={styles.sectionTitle}>📊 Documentation Quality</h2>
+              <button
+                onClick={loadAnalytics}
+                disabled={loadingAnalytics}
+                className={`${styles.button} ${styles.buttonSecondary} ${styles.smallButton}`}
+              >
+                {loadingAnalytics ? 'Refreshing...' : 'Refresh'}
+              </button>
+            </div>
+
+            {analyticsError && (
+              <div className={styles.errorMessage}>
+                Error loading analytics: {analyticsError}
+              </div>
+            )}
+
+            {loadingAnalytics ? (
+              <div className={styles.loadingMessage}>Loading analytics...</div>
+            ) : analytics ? (
+              <>
+                {/* Summary Stats */}
+                <div className={styles.fileManagementGrid} style={{ marginBottom: '24px' }}>
+                  <div className={styles.fileManagementSection}>
+                    <h3 className={styles.subsectionTitle}>RAG Performance Summary</h3>
+                    <div style={{ padding: '16px', backgroundColor: '#1e293b', borderRadius: '8px' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px' }}>
+                        <div>
+                          <p style={{ fontSize: '14px', color: '#94a3b8', marginBottom: '4px' }}>Total Queries</p>
+                          <p style={{ fontSize: '24px', fontWeight: 'bold', color: '#f1f5f9' }}>
+                            {analytics.summary.totalQueries}
+                          </p>
+                        </div>
+                        <div>
+                          <p style={{ fontSize: '14px', color: '#94a3b8', marginBottom: '4px' }}>RAG Success Rate</p>
+                          <p style={{ fontSize: '24px', fontWeight: 'bold', color: analytics.summary.ragSuccessRate >= 70 ? '#22c55e' : analytics.summary.ragSuccessRate >= 50 ? '#f59e0b' : '#ef4444' }}>
+                            {analytics.summary.ragSuccessRate.toFixed(1)}%
+                          </p>
+                        </div>
+                        <div>
+                          <p style={{ fontSize: '14px', color: '#94a3b8', marginBottom: '4px' }}>RAG Success</p>
+                          <p style={{ fontSize: '20px', fontWeight: 'bold', color: '#22c55e' }}>
+                            {analytics.summary.ragSuccessCount} queries
+                          </p>
+                        </div>
+                        <div>
+                          <p style={{ fontSize: '14px', color: '#94a3b8', marginBottom: '4px' }}>General Fallback</p>
+                          <p style={{ fontSize: '20px', fontWeight: 'bold', color: '#f59e0b' }}>
+                            {analytics.summary.generalFallbackCount} queries
+                          </p>
+                        </div>
+                      </div>
+                      <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid #334155' }}>
+                        <p style={{ fontSize: '14px', color: '#94a3b8', marginBottom: '4px' }}>Average Best Score</p>
+                        <p style={{ fontSize: '20px', fontWeight: 'bold', color: '#60a5fa' }}>
+                          {analytics.summary.avgBestScore.toFixed(3)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Documentation Gaps */}
+                <div className={styles.fileManagementGrid}>
+                  <div className={styles.fileManagementSection}>
+                    <h3 className={styles.subsectionTitle}>⚠️ Documentation Gaps</h3>
+                    <p style={{ fontSize: '14px', color: '#94a3b8', marginBottom: '16px' }}>
+                      Questions that failed to find good documentation (confidence &lt; 0.6)
+                    </p>
+                    {analytics.documentationGaps.length === 0 ? (
+                      <div className={styles.emptyMessage}>
+                        ✅ No documentation gaps found! All queries are finding good matches.
+                      </div>
+                    ) : (
+                      <div className={styles.fileList}>
+                        {analytics.documentationGaps.map((gap, index) => (
+                          <div key={index} className={styles.fileItem}>
+                            <div className={styles.fileInfo}>
+                              <div className={styles.fileName}>
+                                {index + 1}. {gap.question}
+                              </div>
+                              <div className={styles.fileDetails}>
+                                <span>Asked {gap.frequency} times</span>
+                                <span>Best score: {gap.bestScore.toFixed(3)}</span>
+                                <span>Top doc: {gap.topDocument}</span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Document Performance */}
+                  <div className={styles.fileManagementSection}>
+                    <h3 className={styles.subsectionTitle}>📄 Document Performance</h3>
+                    <p style={{ fontSize: '14px', color: '#94a3b8', marginBottom: '16px' }}>
+                      How well each document matches user queries
+                    </p>
+                    {analytics.documentPerformance.length === 0 ? (
+                      <div className={styles.emptyMessage}>
+                        No document performance data available yet.
+                      </div>
+                    ) : (
+                      <div className={styles.fileList}>
+                        {analytics.documentPerformance.map((doc, index) => (
+                          <div key={index} className={styles.fileItem}>
+                            <div className={styles.fileInfo}>
+                              <div className={styles.fileName}>
+                                {doc.status === 'excellent' && '⭐ '}
+                                {doc.status === 'good' && '✅ '}
+                                {doc.status === 'needs_improvement' && '⚠️ '}
+                                {doc.filename}
+                              </div>
+                              <div className={styles.fileDetails}>
+                                <span>Used in {doc.queryCount} queries</span>
+                                <span>Avg score: {doc.averageScore.toFixed(3)}</span>
+                                <span>High scores: {doc.highScoreCount}</span>
+                                <span style={{ 
+                                  color: doc.status === 'excellent' ? '#22c55e' : doc.status === 'good' ? '#60a5fa' : '#f59e0b',
+                                  fontWeight: 'bold'
+                                }}>
+                                  {doc.status === 'excellent' ? 'Excellent' : doc.status === 'good' ? 'Good' : 'Needs Improvement'}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className={styles.emptyMessage}>
+                No analytics data available yet. The system will start collecting data as users interact with the chatbot.
+              </div>
+            )}
           </section>
         </main>
       </div>
