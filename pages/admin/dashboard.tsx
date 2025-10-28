@@ -171,7 +171,23 @@ export default function AdminDashboard() {
     setSuccess(null);
 
     try {
-      const content = await uploadFile.text();
+      // Handle different file types
+      let content: string;
+      const isPDF = uploadFile.name.toLowerCase().endsWith('.pdf');
+      
+      if (isPDF) {
+        // For PDF files, read as base64
+        const reader = new FileReader();
+        content = await new Promise((resolve, reject) => {
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(uploadFile);
+        });
+      } else {
+        // For text files (.txt, .md), read as text
+        content = await uploadFile.text();
+      }
+      
       const response = await fetch('/api/files', {
         method: 'POST',
         headers: {
@@ -398,13 +414,13 @@ export default function AdminDashboard() {
                       <input
                         type="file"
                         onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
-                        accept=".txt,.md"
+                        accept=".txt,.md,.pdf"
                         className={styles.fileInput}
                         disabled={uploading}
                       />
                     </label>
                     <p style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>
-                      Accepted formats: .txt, .md (max 4MB)
+                      Accepted formats: .txt, .md, .pdf (max 4MB)
                     </p>
                   </div>
                   <div className={styles.formGroup}>

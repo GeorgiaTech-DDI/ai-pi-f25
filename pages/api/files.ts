@@ -3,6 +3,14 @@ import { Embeddings } from "deepinfra";
 import type { NextApiRequest, NextApiResponse } from "next";
 import { validateAzureToken } from "../../lib/auth";
 
+// Dynamic import for pdf-parse (CommonJS module)
+async function parsePDF(buffer: Buffer): Promise<{ text: string; numpages: number; info: any }> {
+  // @ts-ignore - pdf-parse types are not compatible with ES modules
+  const pdfParse = (await import('pdf-parse')).default;
+  // @ts-ignore
+  return await pdfParse(buffer);
+}
+
 // Configuration constants
 const MAX_FILE_SIZE = 4 * 1024 * 1024; // 4MB in bytes (Vercel limit is 4.5MB, stay under)
 const ALLOWED_EXTENSIONS = ['.txt', '.md', '.pdf'];
@@ -228,16 +236,45 @@ async function handleUploadFile(req: NextApiRequest, res: NextApiResponse) {
     });
   }
 
-  // 🔒 VALIDATION 3: PDF files not yet supported
-  if (fileExtension === '.pdf') {
-    console.log(`❌ PDF upload attempted (not yet supported)`);
-    return res.status(400).json({ 
-      error: 'PDF support is not yet implemented. Please convert to .txt or .md format.' 
-    });
-  }
-
   try {
-    // 🔒 VALIDATION 4: Check for duplicate filename
+    // Extract text content based on file type
+    let textContent: string;
+    
+    if (fileExtension === '.pdf') {
+      console.log(`📄 Processing PDF file: ${filename}`);
+      
+      try {
+        // Content comes as base64 for PDFs from the frontend
+        // Convert base64 to buffer
+        const base64Data = content.includes('base64,') 
+          ? content.split('base64,')[1] 
+          : content;
+        const pdfBuffer = Buffer.from(base64Data, 'base64');
+        
+        // Parse PDF to extract text
+        const pdfData = await parsePDF(pdfBuffer);
+        textContent = pdfData.text;
+        
+        if (!textContent || textContent.trim().length === 0) {
+          console.log(`❌ PDF contains no extractable text: ${filename}`);
+          return res.status(400).json({ 
+            error: 'PDF file contains no extractable text. Please ensure the PDF contains text, not just images.' 
+          });
+        }
+        
+        console.log(`✅ Successfully extracted ${textContent.length} characters from PDF`);
+      } catch (pdfError) {
+        console.error('❌ PDF parsing error:', pdfError);
+        return res.status(400).json({ 
+          error: 'Failed to parse PDF file. Please ensure it is a valid PDF document.' 
+        });
+      }
+    } else {
+      // For .txt and .md files, content is already text
+      textContent = content;
+    }
+    
+    // 🔒 VALIDATION 3: Check for duplicate filename
     const index = getPineconeIndex();
     
     // Create dummy query vector with at least one non-zero value (Pinecone requirement)
@@ -263,8 +300,8 @@ async function handleUploadFile(req: NextApiRequest, res: NextApiResponse) {
 
     console.log(`✅ File validations passed for: ${filename}`);
 
-    // Split content into chunks (similar to existing implementation)
-    const chunks = splitTextIntoChunks(content, 1000, 200);
+    // Split text content into chunks
+    const chunks = splitTextIntoChunks(textContent, 1000, 200);
     
     // Generate embeddings for each chunk
     const chunkTexts = chunks.map((chunk) => chunk.text);
@@ -294,7 +331,7 @@ async function handleUploadFile(req: NextApiRequest, res: NextApiResponse) {
         type: "file_metadata",
         filename,
         uploadDate: new Date().toISOString(),
-        fileSize: content.length,
+        fileSize: textContent.length, // Use extracted text length
         chunkCount: chunks.length,
         description: description || ""
       }
