@@ -3,6 +3,15 @@ import { Embeddings } from "deepinfra";
 import type { NextApiRequest, NextApiResponse } from "next";
 import { validateAzureToken } from "../../lib/auth";
 
+// API Route Configuration - Increase body size limit for file uploads
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '10mb', // Allow larger file uploads (Vercel max is 4.5MB for payload, but allow some overhead)
+    },
+  },
+};
+
 // Dynamic import for pdf-parse (CommonJS module)
 async function parsePDF(buffer: Buffer): Promise<{ text: string; numpages: number; info: any }> {
   // @ts-ignore - pdf-parse types are not compatible with ES modules
