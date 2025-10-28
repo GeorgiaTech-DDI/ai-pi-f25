@@ -216,13 +216,15 @@ async function handleUploadFile(req: NextApiRequest, res: NextApiResponse) {
     return res.status(400).json({ error: "Filename and content are required" });
   }
 
-  // 🔒 VALIDATION 1: File size limit (5MB)
+  // 🔒 VALIDATION 1: File size limit (4MB)
   if (content.length > MAX_FILE_SIZE) {
     const sizeMB = (content.length / (1024 * 1024)).toFixed(2);
     const maxSizeMB = (MAX_FILE_SIZE / (1024 * 1024)).toFixed(0);
     console.log(`❌ File too large: ${sizeMB}MB (max: ${maxSizeMB}MB)`);
     return res.status(413).json({ 
-      error: `File too large (${sizeMB}MB). Maximum size is ${maxSizeMB}MB` 
+      error: `File too large (${sizeMB}MB encoded). Maximum allowed size is ${maxSizeMB}MB. ` +
+             `Please compress your file, split it into smaller documents, or convert to a more compact format. ` +
+             `For larger documentation, contact your administrator about enterprise upload options.`
     });
   }
 

@@ -171,6 +171,21 @@ export default function AdminDashboard() {
     setSuccess(null);
 
     try {
+      // CLIENT-SIDE VALIDATION: Check file size before upload
+      const MAX_FILE_SIZE_MB = 4;
+      const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+      
+      // For base64 encoding, add 33% overhead
+      const estimatedUploadSize = uploadFile.size * 1.33;
+      
+      if (estimatedUploadSize > MAX_FILE_SIZE_BYTES) {
+        const fileSizeMB = (uploadFile.size / (1024 * 1024)).toFixed(2);
+        throw new Error(
+          `File too large (${fileSizeMB}MB). Maximum allowed size is ${MAX_FILE_SIZE_MB}MB. ` +
+          `Please compress the file, split it into smaller parts, or convert it to a more compact format.`
+        );
+      }
+
       // Handle different file types
       let content: string;
       const isPDF = uploadFile.name.toLowerCase().endsWith('.pdf');
@@ -422,6 +437,26 @@ export default function AdminDashboard() {
                     <p style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>
                       Accepted formats: .txt, .md, .pdf (max 4MB)
                     </p>
+                    {uploadFile && (
+                      <div style={{ 
+                        marginTop: '8px', 
+                        padding: '8px 12px', 
+                        backgroundColor: '#1e293b',
+                        borderRadius: '6px',
+                        fontSize: '13px'
+                      }}>
+                        <div style={{ color: '#94a3b8', marginBottom: '4px' }}>
+                          <strong>Selected:</strong> {uploadFile.name}
+                        </div>
+                        <div style={{ 
+                          color: uploadFile.size > 4 * 1024 * 1024 ? '#ef4444' : '#22c55e',
+                          fontWeight: '600'
+                        }}>
+                          Size: {formatFileSize(uploadFile.size)}
+                          {uploadFile.size > 4 * 1024 * 1024 && ' ⚠️ Too large!'}
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <div className={styles.formGroup}>
                     <label className={styles.label}>
