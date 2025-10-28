@@ -175,20 +175,33 @@ export default function AdminDashboard() {
       const MAX_FILE_SIZE_MB = 4;
       const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
       
-      // For base64 encoding, add 33% overhead
-      const estimatedUploadSize = uploadFile.size * 1.33;
-      
-      if (estimatedUploadSize > MAX_FILE_SIZE_BYTES) {
-        const fileSizeMB = (uploadFile.size / (1024 * 1024)).toFixed(2);
-        throw new Error(
-          `File too large (${fileSizeMB}MB). Maximum allowed size is ${MAX_FILE_SIZE_MB}MB. ` +
-          `Please compress the file, split it into smaller parts, or convert it to a more compact format.`
-        );
-      }
-
       // Handle different file types
       let content: string;
       const isPDF = uploadFile.name.toLowerCase().endsWith('.pdf');
+      
+      // For PDFs, account for base64 encoding overhead (~33%)
+      // For text files, no encoding overhead (sent as plain text in JSON)
+      const estimatedUploadSize = isPDF 
+        ? uploadFile.size * 1.33  // PDF with base64 encoding
+        : uploadFile.size;         // Text files (.txt, .md)
+      
+      if (estimatedUploadSize > MAX_FILE_SIZE_BYTES) {
+        const fileSizeMB = (uploadFile.size / (1024 * 1024)).toFixed(2);
+        const encodedSizeMB = (estimatedUploadSize / (1024 * 1024)).toFixed(2);
+        
+        if (isPDF) {
+          throw new Error(
+            `PDF file too large: ${fileSizeMB}MB original → ${encodedSizeMB}MB encoded. ` +
+            `Maximum allowed encoded size is ${MAX_FILE_SIZE_MB}MB (original file must be ≤ ~3MB due to base64 encoding overhead). ` +
+            `Please compress the PDF, split it into smaller documents, or convert to Markdown/text format.`
+          );
+        } else {
+          throw new Error(
+            `File too large: ${fileSizeMB}MB. Maximum allowed size is ${MAX_FILE_SIZE_MB}MB. ` +
+            `Please compress the file, split it into smaller parts, or convert to a more compact format.`
+          );
+        }
+      }
       
       if (isPDF) {
         // For PDF files, read as base64
@@ -435,7 +448,10 @@ export default function AdminDashboard() {
                       />
                     </label>
                     <p style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>
-                      Accepted formats: .txt, .md, .pdf (max 4MB)
+                      Accepted formats: .txt, .md (max 4MB), .pdf (max ~3MB due to encoding overhead)
+                    </p>
+                    <p style={{ fontSize: '11px', color: '#64748b', marginTop: '4px', fontStyle: 'italic' }}>
+                      ℹ️ PDF files require base64 encoding (+33% size) for upload
                     </p>
                     {uploadFile && (
                       <div style={{ 
@@ -448,13 +464,45 @@ export default function AdminDashboard() {
                         <div style={{ color: '#94a3b8', marginBottom: '4px' }}>
                           <strong>Selected:</strong> {uploadFile.name}
                         </div>
-                        <div style={{ 
-                          color: uploadFile.size > 4 * 1024 * 1024 ? '#ef4444' : '#22c55e',
-                          fontWeight: '600'
-                        }}>
-                          Size: {formatFileSize(uploadFile.size)}
-                          {uploadFile.size > 4 * 1024 * 1024 && ' ⚠️ Too large!'}
-                        </div>
+                        {(() => {
+                          const isPDF = uploadFile.name.toLowerCase().endsWith('.pdf');
+                          const estimatedSize = isPDF ? uploadFile.size * 1.33 : uploadFile.size;
+                          const maxSize = 4 * 1024 * 1024;
+                          const isTooBig = estimatedSize > maxSize;
+                          
+                          return (
+                            <>
+                              <div style={{ 
+                                color: isTooBig ? '#ef4444' : '#22c55e',
+                                fontWeight: '600'
+                              }}>
+                                {isPDF ? (
+                                  <>
+                                    Original: {formatFileSize(uploadFile.size)} → Encoded: {formatFileSize(estimatedSize)}
+                                    {isTooBig ? ' ⚠️ Too large!' : ' ✓'}
+                                  </>
+                                ) : (
+                                  <>
+                                    Size: {formatFileSize(uploadFile.size)}
+                                    {isTooBig ? ' ⚠️ Too large!' : ' ✓'}
+                                  </>
+                                )}
+                              </div>
+                              {isPDF && (
+                                <div style={{ 
+                                  color: isTooBig ? '#ef4444' : '#94a3b8',
+                                  fontSize: '11px',
+                                  marginTop: '4px',
+                                  fontStyle: 'italic'
+                                }}>
+                                  {isTooBig 
+                                    ? '⚠️ Encoded size exceeds 4MB limit' 
+                                    : 'ℹ️ PDFs are base64 encoded (+33% size)'}
+                                </div>
+                              )}
+                            </>
+                          );
+                        })()}
                       </div>
                     )}
                   </div>

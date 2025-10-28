@@ -220,12 +220,25 @@ async function handleUploadFile(req: NextApiRequest, res: NextApiResponse) {
   if (content.length > MAX_FILE_SIZE) {
     const sizeMB = (content.length / (1024 * 1024)).toFixed(2);
     const maxSizeMB = (MAX_FILE_SIZE / (1024 * 1024)).toFixed(0);
-    console.log(`❌ File too large: ${sizeMB}MB (max: ${maxSizeMB}MB)`);
-    return res.status(413).json({ 
-      error: `File too large (${sizeMB}MB encoded). Maximum allowed size is ${maxSizeMB}MB. ` +
-             `Please compress your file, split it into smaller documents, or convert to a more compact format. ` +
-             `For larger documentation, contact your administrator about enterprise upload options.`
-    });
+    const fileExtension = filename.toLowerCase().substring(filename.lastIndexOf('.'));
+    const isPDF = fileExtension === '.pdf';
+    
+    console.log(`❌ File too large: ${sizeMB}MB encoded (max: ${maxSizeMB}MB)`);
+    
+    if (isPDF) {
+      return res.status(413).json({ 
+        error: `PDF file too large: ${sizeMB}MB encoded exceeds the ${maxSizeMB}MB limit. ` +
+               `PDF files are base64 encoded (+33% size overhead), so the original file must be ≤ ~3MB. ` +
+               `Please compress the PDF, split it into smaller documents, or convert to Markdown/text format. ` +
+               `For larger documentation, contact your administrator about enterprise upload options.`
+      });
+    } else {
+      return res.status(413).json({ 
+        error: `File too large: ${sizeMB}MB exceeds the ${maxSizeMB}MB limit. ` +
+               `Please compress your file, split it into smaller documents, or convert to a more compact format. ` +
+               `For larger documentation, contact your administrator about enterprise upload options.`
+      });
+    }
   }
 
   // 🔒 VALIDATION 2: File type validation
