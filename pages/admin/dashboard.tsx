@@ -83,6 +83,7 @@ export default function AdminDashboard() {
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [loadingAnalytics, setLoadingAnalytics] = useState(false);
   const [analyticsError, setAnalyticsError] = useState<string | null>(null);
+  const [expandedReferences, setExpandedReferences] = useState<number | null>(null);
 
   // File management functions
   const loadFiles = async () => {
@@ -310,6 +311,34 @@ export default function AdminDashboard() {
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString();
+  };
+
+  // Helper function to aggregate PDF scores by filename
+  const aggregatePDFScores = (topDocuments: { filename: string; score: number }[]) => {
+    const pdfScores: { [key: string]: { scores: number[]; count: number } } = {};
+    
+    // Group scores by filename
+    topDocuments.forEach(doc => {
+      if (!pdfScores[doc.filename]) {
+        pdfScores[doc.filename] = { scores: [], count: 0 };
+      }
+      pdfScores[doc.filename].scores.push(doc.score);
+      pdfScores[doc.filename].count++;
+    });
+    
+    // Calculate average for each PDF
+    return Object.entries(pdfScores).map(([filename, data]) => ({
+      filename,
+      averageScore: data.scores.reduce((sum, score) => sum + score, 0) / data.scores.length,
+      chunkCount: data.count
+    })).sort((a, b) => b.averageScore - a.averageScore); // Sort by average score descending
+  };
+
+  // Helper function to calculate overall average score
+  const calculateAverageScore = (topDocuments: { filename: string; score: number }[]) => {
+    if (!topDocuments || topDocuments.length === 0) return 0;
+    const sum = topDocuments.reduce((acc, doc) => acc + doc.score, 0);
+    return sum / topDocuments.length;
   };
 
   // Authentication is now handled by ProtectedRoute component
@@ -767,8 +796,8 @@ export default function AdminDashboard() {
                       <th style={{ padding: '12px', textAlign: 'left', color: '#94a3b8', fontSize: '14px', fontWeight: '600' }}>Query</th>
                       <th style={{ padding: '12px', textAlign: 'center', color: '#94a3b8', fontSize: '14px', fontWeight: '600' }}>RAG Used</th>
                       <th style={{ padding: '12px', textAlign: 'center', color: '#94a3b8', fontSize: '14px', fontWeight: '600' }}>Confidence</th>
-                      <th style={{ padding: '12px', textAlign: 'center', color: '#94a3b8', fontSize: '14px', fontWeight: '600' }}>Best Score</th>
-                      <th style={{ padding: '12px', textAlign: 'left', color: '#94a3b8', fontSize: '14px', fontWeight: '600' }}>References</th>
+                      <th style={{ padding: '12px', textAlign: 'center', color: '#94a3b8', fontSize: '14px', fontWeight: '600' }}>Avg Score</th>
+                      <th style={{ padding: '12px', textAlign: 'left', color: '#94a3b8', fontSize: '14px', fontWeight: '600' }}>References (Click to Expand)</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -833,43 +862,87 @@ export default function AdminDashboard() {
                           </span>
                         </td>
                         <td style={{ padding: '12px', textAlign: 'center', color: '#cbd5e1', fontSize: '13px', fontWeight: '600' }}>
-                          {log.bestScore > 0 ? log.bestScore.toFixed(3) : '—'}
+                          {log.topDocuments && log.topDocuments.length > 0
+                            ? calculateAverageScore(log.topDocuments).toFixed(3)
+                            : '—'}
                         </td>
                         <td style={{ padding: '12px', color: '#cbd5e1', fontSize: '12px' }}>
                           {log.topDocuments && log.topDocuments.length > 0 ? (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                              {log.topDocuments.slice(0, 3).map((doc, docIndex) => (
-                                <div key={docIndex} style={{ 
-                                  display: 'flex', 
-                                  justifyContent: 'space-between',
-                                  alignItems: 'center',
-                                  padding: '4px 8px',
-                                  backgroundColor: '#0f172a',
-                                  borderRadius: '4px'
-                                }}>
-                                  <span style={{ 
-                                    color: '#94a3b8',
-                                    overflow: 'hidden',
-                                    textOverflow: 'ellipsis',
-                                    whiteSpace: 'nowrap',
-                                    maxWidth: '200px'
-                                  }}>
-                                    {doc.filename}
-                                  </span>
-                                  <span style={{ 
-                                    color: doc.score >= 0.7 ? '#22c55e' : doc.score >= 0.5 ? '#60a5fa' : '#f59e0b',
-                                    fontWeight: '600',
-                                    marginLeft: '8px'
-                                  }}>
-                                    {doc.score.toFixed(3)}
-                                  </span>
-                                </div>
-                              ))}
-                              {log.topDocuments.length > 3 && (
-                                <span style={{ color: '#64748b', fontSize: '11px', fontStyle: 'italic' }}>
-                                  +{log.topDocuments.length - 3} more
-                                </span>
-                              )}
+                              {(() => {
+                                const aggregated = aggregatePDFScores(log.topDocuments);
+                                const isExpanded = expandedReferences === index;
+                                const displayedPDFs = isExpanded ? aggregated : aggregated.slice(0, 3);
+                                
+                                return (
+                                  <>
+                                    {displayedPDFs.map((pdf, pdfIndex) => (
+                                      <div key={pdfIndex} style={{ 
+                                        display: 'flex', 
+                                        justifyContent: 'space-between',
+                                        alignItems: 'center',
+                                        padding: '4px 8px',
+                                        backgroundColor: '#0f172a',
+                                        borderRadius: '4px'
+                                      }}>
+                                        <span style={{ 
+                                          color: '#94a3b8',
+                                          overflow: 'hidden',
+                                          textOverflow: 'ellipsis',
+                                          whiteSpace: 'nowrap',
+                                          maxWidth: '200px'
+                                        }}>
+                                          {pdf.filename}
+                                          {pdf.chunkCount > 1 && (
+                                            <span style={{ 
+                                              color: '#64748b', 
+                                              fontSize: '10px', 
+                                              marginLeft: '4px' 
+                                            }}>
+                                              ({pdf.chunkCount} chunks)
+                                            </span>
+                                          )}
+                                        </span>
+                                        <span style={{ 
+                                          color: pdf.averageScore >= 0.7 ? '#22c55e' : pdf.averageScore >= 0.5 ? '#60a5fa' : '#f59e0b',
+                                          fontWeight: '600',
+                                          marginLeft: '8px'
+                                        }}>
+                                          {pdf.averageScore.toFixed(3)}
+                                        </span>
+                                      </div>
+                                    ))}
+                                    {aggregated.length > 3 && (
+                                      <button
+                                        onClick={() => setExpandedReferences(isExpanded ? null : index)}
+                                        style={{ 
+                                          color: '#60a5fa', 
+                                          fontSize: '11px', 
+                                          fontStyle: 'italic',
+                                          background: 'none',
+                                          border: 'none',
+                                          cursor: 'pointer',
+                                          textDecoration: 'underline',
+                                          padding: '4px',
+                                          textAlign: 'left'
+                                        }}
+                                      >
+                                        {isExpanded 
+                                          ? '▼ Show less' 
+                                          : `▶ Show ${aggregated.length - 3} more PDFs`}
+                                      </button>
+                                    )}
+                                    <div style={{ 
+                                      color: '#64748b', 
+                                      fontSize: '10px', 
+                                      marginTop: '4px',
+                                      fontStyle: 'italic'
+                                    }}>
+                                      {log.topDocuments.length} total chunks from {aggregated.length} {aggregated.length === 1 ? 'document' : 'documents'}
+                                    </div>
+                                  </>
+                                );
+                              })()}
                             </div>
                           ) : (
                             <span style={{ color: '#64748b', fontStyle: 'italic' }}>No references</span>
