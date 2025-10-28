@@ -35,6 +35,20 @@ interface DocumentPerformance {
   status: 'excellent' | 'good' | 'needs_improvement';
 }
 
+interface QueryLog {
+  timestamp: string;
+  question: string;
+  bestScore: number;
+  totalMatches: number;
+  relevantMatches: number;
+  matchesAbove06: number;
+  matchesAbove05: number;
+  matchesAbove04: number;
+  topDocuments: { filename: string; score: number }[];
+  decision: 'USE_RAG' | 'USE_GENERAL';
+  confidenceLevel: 'high' | 'medium' | 'low' | 'n/a';
+}
+
 interface AnalyticsData {
   summary: {
     totalQueries: number;
@@ -45,6 +59,7 @@ interface AnalyticsData {
   };
   documentationGaps: DocumentationGap[];
   documentPerformance: DocumentPerformance[];
+  recentLogs: QueryLog[];
 }
 
 export default function AdminDashboard() {
@@ -299,8 +314,26 @@ export default function AdminDashboard() {
 
     // Cleanup interval on unmount
     return () => {
-      console.log('🔄 Cleaning up auto-refresh interval');
+      console.log('🔄 Cleaning up file list auto-refresh interval');
       clearInterval(refreshInterval);
+    };
+  }, [user?.email]); // Re-setup if user changes
+
+  // Auto-refresh analytics every 30 seconds for real-time updates
+  useEffect(() => {
+    // Only set up auto-refresh if user is authenticated
+    if (!user?.email) return;
+
+    console.log('🔄 Setting up auto-refresh for analytics (every 30 seconds)');
+    const analyticsInterval = setInterval(() => {
+      console.log('🔄 Auto-refreshing analytics...');
+      loadAnalytics();
+    }, 30000); // 30 seconds
+
+    // Cleanup interval on unmount
+    return () => {
+      console.log('🔄 Cleaning up analytics auto-refresh interval');
+      clearInterval(analyticsInterval);
     };
   }, [user?.email]); // Re-setup if user changes
 
@@ -598,6 +631,159 @@ export default function AdminDashboard() {
             ) : (
               <div className={styles.emptyMessage}>
                 No analytics data available yet. The system will start collecting data as users interact with the chatbot.
+              </div>
+            )}
+          </section>
+
+          {/* Recent Query Logs */}
+          <section className={styles.fileManagement}>
+            <div className={styles.fileListHeader}>
+              <h2 className={styles.sectionTitle}>📋 Recent Query Logs</h2>
+              <button
+                onClick={loadAnalytics}
+                disabled={loadingAnalytics}
+                className={`${styles.button} ${styles.buttonSecondary} ${styles.smallButton}`}
+              >
+                {loadingAnalytics ? 'Refreshing...' : 'Refresh'}
+              </button>
+            </div>
+            <p style={{ fontSize: '14px', color: '#94a3b8', marginBottom: '16px' }}>
+              All queries from users, updated in real-time (auto-refreshes every 30 seconds)
+            </p>
+
+            {loadingAnalytics ? (
+              <div className={styles.loadingMessage}>Loading query logs...</div>
+            ) : analytics && analytics.recentLogs && analytics.recentLogs.length > 0 ? (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ 
+                  width: '100%', 
+                  borderCollapse: 'collapse',
+                  backgroundColor: '#1e293b',
+                  borderRadius: '8px',
+                  overflow: 'hidden'
+                }}>
+                  <thead>
+                    <tr style={{ backgroundColor: '#0f172a' }}>
+                      <th style={{ padding: '12px', textAlign: 'left', color: '#94a3b8', fontSize: '14px', fontWeight: '600' }}>Timestamp</th>
+                      <th style={{ padding: '12px', textAlign: 'left', color: '#94a3b8', fontSize: '14px', fontWeight: '600' }}>Query</th>
+                      <th style={{ padding: '12px', textAlign: 'center', color: '#94a3b8', fontSize: '14px', fontWeight: '600' }}>RAG Used</th>
+                      <th style={{ padding: '12px', textAlign: 'center', color: '#94a3b8', fontSize: '14px', fontWeight: '600' }}>Confidence</th>
+                      <th style={{ padding: '12px', textAlign: 'center', color: '#94a3b8', fontSize: '14px', fontWeight: '600' }}>Best Score</th>
+                      <th style={{ padding: '12px', textAlign: 'left', color: '#94a3b8', fontSize: '14px', fontWeight: '600' }}>References</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {analytics.recentLogs.map((log, index) => (
+                      <tr key={index} style={{ 
+                        borderBottom: index < analytics.recentLogs.length - 1 ? '1px solid #334155' : 'none',
+                        transition: 'background-color 0.2s'
+                      }}>
+                        <td style={{ padding: '12px', color: '#cbd5e1', fontSize: '13px', whiteSpace: 'nowrap' }}>
+                          {new Date(log.timestamp).toLocaleString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </td>
+                        <td style={{ padding: '12px', color: '#f1f5f9', fontSize: '14px', maxWidth: '300px' }}>
+                          {log.question}
+                        </td>
+                        <td style={{ padding: '12px', textAlign: 'center' }}>
+                          {log.decision === 'USE_RAG' ? (
+                            <span style={{ 
+                              padding: '4px 8px', 
+                              backgroundColor: '#22c55e20', 
+                              color: '#22c55e',
+                              borderRadius: '4px',
+                              fontSize: '12px',
+                              fontWeight: '600'
+                            }}>
+                              ✅ Yes
+                            </span>
+                          ) : (
+                            <span style={{ 
+                              padding: '4px 8px', 
+                              backgroundColor: '#f59e0b20', 
+                              color: '#f59e0b',
+                              borderRadius: '4px',
+                              fontSize: '12px',
+                              fontWeight: '600'
+                            }}>
+                              ❌ No
+                            </span>
+                          )}
+                        </td>
+                        <td style={{ padding: '12px', textAlign: 'center' }}>
+                          <span style={{ 
+                            padding: '4px 8px',
+                            backgroundColor: 
+                              log.confidenceLevel === 'high' ? '#22c55e20' :
+                              log.confidenceLevel === 'medium' ? '#60a5fa20' :
+                              log.confidenceLevel === 'low' ? '#f59e0b20' : '#64748b20',
+                            color: 
+                              log.confidenceLevel === 'high' ? '#22c55e' :
+                              log.confidenceLevel === 'medium' ? '#60a5fa' :
+                              log.confidenceLevel === 'low' ? '#f59e0b' : '#94a3b8',
+                            borderRadius: '4px',
+                            fontSize: '12px',
+                            fontWeight: '600',
+                            textTransform: 'uppercase'
+                          }}>
+                            {log.confidenceLevel === 'n/a' ? 'N/A' : log.confidenceLevel}
+                          </span>
+                        </td>
+                        <td style={{ padding: '12px', textAlign: 'center', color: '#cbd5e1', fontSize: '13px', fontWeight: '600' }}>
+                          {log.bestScore > 0 ? log.bestScore.toFixed(3) : '—'}
+                        </td>
+                        <td style={{ padding: '12px', color: '#cbd5e1', fontSize: '12px' }}>
+                          {log.topDocuments && log.topDocuments.length > 0 ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                              {log.topDocuments.slice(0, 3).map((doc, docIndex) => (
+                                <div key={docIndex} style={{ 
+                                  display: 'flex', 
+                                  justifyContent: 'space-between',
+                                  alignItems: 'center',
+                                  padding: '4px 8px',
+                                  backgroundColor: '#0f172a',
+                                  borderRadius: '4px'
+                                }}>
+                                  <span style={{ 
+                                    color: '#94a3b8',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap',
+                                    maxWidth: '200px'
+                                  }}>
+                                    {doc.filename}
+                                  </span>
+                                  <span style={{ 
+                                    color: doc.score >= 0.7 ? '#22c55e' : doc.score >= 0.5 ? '#60a5fa' : '#f59e0b',
+                                    fontWeight: '600',
+                                    marginLeft: '8px'
+                                  }}>
+                                    {doc.score.toFixed(3)}
+                                  </span>
+                                </div>
+                              ))}
+                              {log.topDocuments.length > 3 && (
+                                <span style={{ color: '#64748b', fontSize: '11px', fontStyle: 'italic' }}>
+                                  +{log.topDocuments.length - 3} more
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <span style={{ color: '#64748b', fontStyle: 'italic' }}>No references</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className={styles.emptyMessage}>
+                No query logs available yet. Logs will appear as users interact with the chatbot.
               </div>
             )}
           </section>
