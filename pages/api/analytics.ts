@@ -73,9 +73,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   console.log(`📊 Analytics request from: ${userEmail}`);
 
   try {
+    // Create dummy query vector with at least one non-zero value (Pinecone requirement)
+    const dummyVector = new Array(1024).fill(0);
+    dummyVector[0] = 0.0001; // Small non-zero value to satisfy Pinecone
+
     // Query Pinecone for all query logs
     const queryResult = await index.query({
-      vector: new Array(1024).fill(0), // Zero vector to get metadata-only records
+      vector: dummyVector,
       topK: 10000, // Get a large number of logs
       includeMetadata: true,
       filter: {

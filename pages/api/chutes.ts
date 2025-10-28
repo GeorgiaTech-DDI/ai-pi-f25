@@ -1148,9 +1148,13 @@ async function ragQuery(
         confidenceLevel: ragPerformanceLog.confidenceLevel
       };
 
+      // Create dummy vector with at least one non-zero value (Pinecone requirement)
+      const dummyVector = new Array(1024).fill(0);
+      dummyVector[0] = 0.0001; // Small non-zero value to satisfy Pinecone
+
       await index.upsert([{
         id: `query-log-${Date.now()}-${Math.random().toString(36).substring(7)}`,
-        values: new Array(1024).fill(0), // Zero vector for metadata-only record
+        values: dummyVector,
         metadata: metadataForPinecone
       }]);
       console.log('✅ Query log stored in Pinecone for admin analytics');
