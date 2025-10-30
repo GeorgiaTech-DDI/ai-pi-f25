@@ -490,6 +490,12 @@
   transform: none;
 }
 
+.fileInputNote {
+  font-size: 12px;
+  color: #64748b;
+  margin-top: 4px;
+}
+
 .textInput {
   padding: 12px 16px;
   border: 2px solid #26262f;
