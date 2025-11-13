@@ -19,6 +19,49 @@ interface PineconeFile {
   metadata: FileMetadata;
 }
 
+interface DocumentationGap {
+  question: string;
+  frequency: number;
+  bestScore: number;
+  topDocument: string;
+  lastAsked: string;
+}
+
+interface DocumentPerformance {
+  filename: string;
+  queryCount: number;
+  averageScore: number;
+  highScoreCount: number;
+  status: 'excellent' | 'good' | 'needs_improvement';
+}
+
+interface QueryLog {
+  timestamp: string;
+  question: string;
+  bestScore: number;
+  totalMatches: number;
+  relevantMatches: number;
+  matchesAbove06: number;
+  matchesAbove05: number;
+  matchesAbove04: number;
+  topDocuments: { filename: string; score: number }[];
+  decision: 'USE_RAG' | 'USE_GENERAL';
+  confidenceLevel: 'high' | 'medium' | 'low' | 'n/a';
+}
+
+interface AnalyticsData {
+  summary: {
+    totalQueries: number;
+    ragSuccessCount: number;
+    generalFallbackCount: number;
+    ragSuccessRate: number;
+    avgBestScore: number;
+  };
+  documentationGaps: DocumentationGap[];
+  documentPerformance: DocumentPerformance[];
+  recentLogs: QueryLog[];
+}
+
 export default function AdminDashboard() {
   const router = useRouter();
   const { user, loading } = useAuth();
@@ -36,13 +79,20 @@ export default function AdminDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  // Load files on component mount
-  useEffect(() => {
-    loadFiles();
-  }, []);
+  // Analytics state
+  const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
+  const [loadingAnalytics, setLoadingAnalytics] = useState(false);
+  const [analyticsError, setAnalyticsError] = useState<string | null>(null);
+  const [expandedReferences, setExpandedReferences] = useState<number | null>(null);
 
   // File management functions
   const loadFiles = async () => {
+    // Don't attempt to load if user is not authenticated yet
+    if (!user?.email) {
+      console.log('⏳ Waiting for user authentication before loading files...');
+      return;
+    }
+    
     setLoadingFiles(true);
     setError(null);
     try {
@@ -75,6 +125,44 @@ export default function AdminDashboard() {
     }
   };
 
+  const loadAnalytics = async () => {
+    // Don't attempt to load if user is not authenticated yet
+    if (!user?.email) {
+      console.log('⏳ Waiting for user authentication before loading analytics...');
+      return;
+    }
+
+    setLoadingAnalytics(true);
+    setAnalyticsError(null);
+    try {
+      const response = await fetch('/api/analytics', {
+        headers: {
+          'x-user-email': user?.email || '',
+          'x-user-name': user?.displayName || ''
+        }
+      });
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorMessage = 'Failed to load analytics';
+        try {
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData.error || errorMessage;
+        } catch {
+          errorMessage = errorText || `HTTP ${response.status}: ${response.statusText}`;
+        }
+        throw new Error(errorMessage);
+      }
+      const data = await response.json();
+      setAnalytics(data);
+      console.log('✅ Analytics loaded:', data);
+    } catch (err: any) {
+      console.error('Error loading analytics:', err);
+      setAnalyticsError(err.message);
+    } finally {
+      setLoadingAnalytics(false);
+    }
+  };
+
   const handleFileUpload = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!uploadFile) return;
@@ -84,7 +172,51 @@ export default function AdminDashboard() {
     setSuccess(null);
 
     try {
-      const content = await uploadFile.text();
+      // CLIENT-SIDE VALIDATION: Check file size before upload
+      const MAX_FILE_SIZE_MB = 4;
+      const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+      
+      // Handle different file types
+      let content: string;
+      const isPDF = uploadFile.name.toLowerCase().endsWith('.pdf');
+      
+      // For PDFs, account for base64 encoding overhead (~33%)
+      // For text files, no encoding overhead (sent as plain text in JSON)
+      const estimatedUploadSize = isPDF 
+        ? uploadFile.size * 1.33  // PDF with base64 encoding
+        : uploadFile.size;         // Text files (.txt, .md)
+      
+      if (estimatedUploadSize > MAX_FILE_SIZE_BYTES) {
+        const fileSizeMB = (uploadFile.size / (1024 * 1024)).toFixed(2);
+        const encodedSizeMB = (estimatedUploadSize / (1024 * 1024)).toFixed(2);
+        
+        if (isPDF) {
+          throw new Error(
+            `PDF file too large: ${fileSizeMB}MB original → ${encodedSizeMB}MB encoded. ` +
+            `Maximum allowed encoded size is ${MAX_FILE_SIZE_MB}MB (original file must be ≤ ~3MB due to base64 encoding overhead). ` +
+            `Please compress the PDF, split it into smaller documents, or convert to Markdown/text format.`
+          );
+        } else {
+          throw new Error(
+            `File too large: ${fileSizeMB}MB. Maximum allowed size is ${MAX_FILE_SIZE_MB}MB. ` +
+            `Please compress the file, split it into smaller parts, or convert to a more compact format.`
+          );
+        }
+      }
+      
+      if (isPDF) {
+        // For PDF files, read as base64
+        const reader = new FileReader();
+        content = await new Promise((resolve, reject) => {
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(uploadFile);
+        });
+      } else {
+        // For text files (.txt, .md), read as text
+        content = await uploadFile.text();
+      }
+      
       const response = await fetch('/api/files', {
         method: 'POST',
         headers: {
@@ -181,6 +313,34 @@ export default function AdminDashboard() {
     return new Date(dateString).toLocaleString();
   };
 
+  // Helper function to aggregate PDF scores by filename
+  const aggregatePDFScores = (topDocuments: { filename: string; score: number }[]) => {
+    const pdfScores: { [key: string]: { scores: number[]; count: number } } = {};
+    
+    // Group scores by filename
+    topDocuments.forEach(doc => {
+      if (!pdfScores[doc.filename]) {
+        pdfScores[doc.filename] = { scores: [], count: 0 };
+      }
+      pdfScores[doc.filename].scores.push(doc.score);
+      pdfScores[doc.filename].count++;
+    });
+    
+    // Calculate average for each PDF
+    return Object.entries(pdfScores).map(([filename, data]) => ({
+      filename,
+      averageScore: data.scores.reduce((sum, score) => sum + score, 0) / data.scores.length,
+      chunkCount: data.count
+    })).sort((a, b) => b.averageScore - a.averageScore); // Sort by average score descending
+  };
+
+  // Helper function to calculate overall average score
+  const calculateAverageScore = (topDocuments: { filename: string; score: number }[]) => {
+    if (!topDocuments || topDocuments.length === 0) return 0;
+    const sum = topDocuments.reduce((acc, doc) => acc + doc.score, 0);
+    return sum / topDocuments.length;
+  };
+
   // Authentication is now handled by ProtectedRoute component
 
   const handleLogout = async () => {
@@ -203,6 +363,52 @@ export default function AdminDashboard() {
   const navigateToMainApp = () => {
     router.push('/');
   };
+
+  // Load files and analytics when user is authenticated
+  useEffect(() => {
+    // Wait for auth to complete and user to be available
+    if (!loading && user?.email) {
+      console.log('🔐 User authenticated, loading dashboard data...');
+      loadFiles();
+      loadAnalytics();
+    }
+  }, [user, loading]); // Run when user or loading state changes
+
+  // Auto-refresh files every 30 seconds for real-time updates
+  useEffect(() => {
+    // Only set up auto-refresh if user is authenticated
+    if (!user?.email) return;
+
+    console.log('🔄 Setting up auto-refresh for file list (every 30 seconds)');
+    const refreshInterval = setInterval(() => {
+      console.log('🔄 Auto-refreshing file list...');
+      loadFiles();
+    }, 30000); // 30 seconds
+
+    // Cleanup interval on unmount
+    return () => {
+      console.log('🔄 Cleaning up file list auto-refresh interval');
+      clearInterval(refreshInterval);
+    };
+  }, [user?.email]); // Re-setup if user changes
+
+  // Auto-refresh analytics every 30 seconds for real-time updates
+  useEffect(() => {
+    // Only set up auto-refresh if user is authenticated
+    if (!user?.email) return;
+
+    console.log('🔄 Setting up auto-refresh for analytics (every 30 seconds)');
+    const analyticsInterval = setInterval(() => {
+      console.log('🔄 Auto-refreshing analytics...');
+      loadAnalytics();
+    }, 30000); // 30 seconds
+
+    // Cleanup interval on unmount
+    return () => {
+      console.log('🔄 Cleaning up analytics auto-refresh interval');
+      clearInterval(analyticsInterval);
+    };
+  }, [user?.email]); // Re-setup if user changes
 
   return (
     <ProtectedRoute>
@@ -265,14 +471,69 @@ export default function AdminDashboard() {
                       <input
                         type="file"
                         onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
-                        accept=".txt,.md"
+                        accept=".txt,.md,.pdf"
                         className={styles.fileInput}
                         disabled={uploading}
                       />
                     </label>
-                    <p className={styles.fileInputNote}>
-                      Accepted formats: .txt, .md (max 4MB)
+                <p style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>
+                      Accepted formats: .txt, .md (max 4MB), .pdf (max ~3MB due to encoding overhead)
                     </p>
+                    <p style={{ fontSize: '11px', color: '#64748b', marginTop: '4px', fontStyle: 'italic' }}>
+                      ℹ️ PDF files require base64 encoding (+33% size) for upload
+                    </p>
+                    {uploadFile && (
+                      <div style={{ 
+                        marginTop: '8px', 
+                        padding: '8px 12px', 
+                        backgroundColor: '#1e293b',
+                        borderRadius: '6px',
+                        fontSize: '13px'
+                      }}>
+                        <div style={{ color: '#94a3b8', marginBottom: '4px' }}>
+                          <strong>Selected:</strong> {uploadFile.name}
+                        </div>
+                        {(() => {
+                          const isPDF = uploadFile.name.toLowerCase().endsWith('.pdf');
+                          const estimatedSize = isPDF ? uploadFile.size * 1.33 : uploadFile.size;
+                          const maxSize = 4 * 1024 * 1024;
+                          const isTooBig = estimatedSize > maxSize;
+                          
+                          return (
+                            <>
+                              <div style={{ 
+                                color: isTooBig ? '#ef4444' : '#22c55e',
+                                fontWeight: '600'
+                              }}>
+                                {isPDF ? (
+                                  <>
+                                    Original: {formatFileSize(uploadFile.size)} → Encoded: {formatFileSize(estimatedSize)}
+                                    {isTooBig ? ' ⚠️ Too large!' : ' ✓'}
+                                  </>
+                                ) : (
+                                  <>
+                                    Size: {formatFileSize(uploadFile.size)}
+                                    {isTooBig ? ' ⚠️ Too large!' : ' ✓'}
+                                  </>
+                                )}
+                              </div>
+                              {isPDF && (
+                                <div style={{ 
+                                  color: isTooBig ? '#ef4444' : '#94a3b8',
+                                  fontSize: '11px',
+                                  marginTop: '4px',
+                                  fontStyle: 'italic'
+                                }}>
+                                  {isTooBig 
+                                    ? '⚠️ Encoded size exceeds 4MB limit' 
+                                    : 'ℹ️ PDFs are base64 encoded (+33% size)'}
+                                </div>
+                              )}
+                            </>
+                          );
+                        })()}
+                      </div>
+                    )}
                   </div>
                   <div className={styles.formGroup}>
                     <label className={styles.label}>
@@ -358,6 +619,345 @@ export default function AdminDashboard() {
                 )}
               </div>
             </div>
+          </section>
+
+          {/* Documentation Quality Analytics */}
+          <section className={styles.fileManagement}>
+            <div className={styles.fileListHeader}>
+              <h2 className={styles.sectionTitle}>📊 Documentation Quality</h2>
+              <button
+                onClick={loadAnalytics}
+                disabled={loadingAnalytics}
+                className={`${styles.button} ${styles.buttonSecondary} ${styles.smallButton}`}
+              >
+                {loadingAnalytics ? 'Refreshing...' : 'Refresh'}
+              </button>
+            </div>
+
+            {analyticsError && (
+              <div className={styles.errorMessage}>
+                Error loading analytics: {analyticsError}
+              </div>
+            )}
+
+            {loadingAnalytics ? (
+              <div className={styles.loadingMessage}>Loading analytics...</div>
+            ) : analytics ? (
+              <>
+                {/* Summary Stats */}
+                <div className={styles.fileManagementGrid} style={{ marginBottom: '24px' }}>
+                  <div className={styles.fileManagementSection}>
+                    <h3 className={styles.subsectionTitle}>RAG Performance Summary</h3>
+                    <div style={{ padding: '16px', backgroundColor: '#1e293b', borderRadius: '8px' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px' }}>
+                        <div>
+                          <p style={{ fontSize: '14px', color: '#94a3b8', marginBottom: '4px' }}>Total Queries</p>
+                          <p style={{ fontSize: '24px', fontWeight: 'bold', color: '#f1f5f9' }}>
+                            {analytics.summary.totalQueries}
+                          </p>
+                        </div>
+                        <div>
+                          <p style={{ fontSize: '14px', color: '#94a3b8', marginBottom: '4px' }}>RAG Success Rate</p>
+                          <p style={{ fontSize: '24px', fontWeight: 'bold', color: analytics.summary.ragSuccessRate >= 70 ? '#22c55e' : analytics.summary.ragSuccessRate >= 50 ? '#f59e0b' : '#ef4444' }}>
+                            {analytics.summary.ragSuccessRate.toFixed(1)}%
+                          </p>
+                        </div>
+                        <div>
+                          <p style={{ fontSize: '14px', color: '#94a3b8', marginBottom: '4px' }}>RAG Success</p>
+                          <p style={{ fontSize: '20px', fontWeight: 'bold', color: '#22c55e' }}>
+                            {analytics.summary.ragSuccessCount} queries
+                          </p>
+                        </div>
+                        <div>
+                          <p style={{ fontSize: '14px', color: '#94a3b8', marginBottom: '4px' }}>General Fallback</p>
+                          <p style={{ fontSize: '20px', fontWeight: 'bold', color: '#f59e0b' }}>
+                            {analytics.summary.generalFallbackCount} queries
+                          </p>
+                        </div>
+                      </div>
+                      <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid #334155' }}>
+                        <p style={{ fontSize: '14px', color: '#94a3b8', marginBottom: '4px' }}>Average Best Score</p>
+                        <p style={{ fontSize: '20px', fontWeight: 'bold', color: '#60a5fa' }}>
+                          {analytics.summary.avgBestScore.toFixed(3)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Documentation Gaps */}
+                <div className={styles.fileManagementGrid}>
+                  <div className={styles.fileManagementSection}>
+                    <h3 className={styles.subsectionTitle}>⚠️ Documentation Gaps</h3>
+                    <p style={{ fontSize: '14px', color: '#94a3b8', marginBottom: '16px' }}>
+                      Questions that failed to find good documentation (confidence &lt; 0.6)
+                    </p>
+                    {analytics.documentationGaps.length === 0 ? (
+                      <div className={styles.emptyMessage}>
+                        ✅ No documentation gaps found! All queries are finding good matches.
+                      </div>
+                    ) : (
+                      <div className={styles.fileList}>
+                        {analytics.documentationGaps.map((gap, index) => (
+                          <div key={index} className={styles.fileItem}>
+                            <div className={styles.fileInfo}>
+                              <div className={styles.fileName}>
+                                {index + 1}. {gap.question}
+                              </div>
+                              <div className={styles.fileDetails}>
+                                <span>Asked {gap.frequency} times</span>
+                                <span>Best score: {gap.bestScore.toFixed(3)}</span>
+                                <span>Top doc: {gap.topDocument}</span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Document Performance */}
+                  <div className={styles.fileManagementSection}>
+                    <h3 className={styles.subsectionTitle}>📄 Document Performance</h3>
+                    <p style={{ fontSize: '14px', color: '#94a3b8', marginBottom: '16px' }}>
+                      How well each document matches user queries
+                    </p>
+                    {analytics.documentPerformance.length === 0 ? (
+                      <div className={styles.emptyMessage}>
+                        No document performance data available yet.
+                      </div>
+                    ) : (
+                      <div className={styles.fileList}>
+                        {analytics.documentPerformance.map((doc, index) => (
+                          <div key={index} className={styles.fileItem}>
+                            <div className={styles.fileInfo}>
+                              <div className={styles.fileName}>
+                                {doc.status === 'excellent' && '⭐ '}
+                                {doc.status === 'good' && '✅ '}
+                                {doc.status === 'needs_improvement' && '⚠️ '}
+                                {doc.filename}
+                              </div>
+                              <div className={styles.fileDetails}>
+                                <span>Used in {doc.queryCount} queries</span>
+                                <span>Avg score: {doc.averageScore.toFixed(3)}</span>
+                                <span>High scores: {doc.highScoreCount}</span>
+                                <span style={{ 
+                                  color: doc.status === 'excellent' ? '#22c55e' : doc.status === 'good' ? '#60a5fa' : '#f59e0b',
+                                  fontWeight: 'bold'
+                                }}>
+                                  {doc.status === 'excellent' ? 'Excellent' : doc.status === 'good' ? 'Good' : 'Needs Improvement'}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className={styles.emptyMessage}>
+                No analytics data available yet. The system will start collecting data as users interact with the chatbot.
+              </div>
+            )}
+          </section>
+
+          {/* Recent Query Logs */}
+          <section className={styles.fileManagement}>
+            <div className={styles.fileListHeader}>
+              <h2 className={styles.sectionTitle}>📋 Recent Query Logs</h2>
+              <button
+                onClick={loadAnalytics}
+                disabled={loadingAnalytics}
+                className={`${styles.button} ${styles.buttonSecondary} ${styles.smallButton}`}
+              >
+                {loadingAnalytics ? 'Refreshing...' : 'Refresh'}
+              </button>
+            </div>
+            <p style={{ fontSize: '14px', color: '#94a3b8', marginBottom: '16px' }}>
+              All queries from users, updated in real-time (auto-refreshes every 30 seconds)
+            </p>
+
+            {loadingAnalytics ? (
+              <div className={styles.loadingMessage}>Loading query logs...</div>
+            ) : analytics && analytics.recentLogs && analytics.recentLogs.length > 0 ? (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ 
+                  width: '100%', 
+                  borderCollapse: 'collapse',
+                  backgroundColor: '#1e293b',
+                  borderRadius: '8px',
+                  overflow: 'hidden'
+                }}>
+                  <thead>
+                    <tr style={{ backgroundColor: '#0f172a' }}>
+                      <th style={{ padding: '12px', textAlign: 'left', color: '#94a3b8', fontSize: '14px', fontWeight: '600' }}>Timestamp</th>
+                      <th style={{ padding: '12px', textAlign: 'left', color: '#94a3b8', fontSize: '14px', fontWeight: '600' }}>Query</th>
+                      <th style={{ padding: '12px', textAlign: 'center', color: '#94a3b8', fontSize: '14px', fontWeight: '600' }}>RAG Used</th>
+                      <th style={{ padding: '12px', textAlign: 'center', color: '#94a3b8', fontSize: '14px', fontWeight: '600' }}>Confidence</th>
+                      <th style={{ padding: '12px', textAlign: 'center', color: '#94a3b8', fontSize: '14px', fontWeight: '600' }}>Avg Score</th>
+                      <th style={{ padding: '12px', textAlign: 'left', color: '#94a3b8', fontSize: '14px', fontWeight: '600' }}>References (Click to Expand)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {analytics.recentLogs.map((log, index) => (
+                      <tr key={index} style={{ 
+                        borderBottom: index < analytics.recentLogs.length - 1 ? '1px solid #334155' : 'none',
+                        transition: 'background-color 0.2s'
+                      }}>
+                        <td style={{ padding: '12px', color: '#cbd5e1', fontSize: '13px', whiteSpace: 'nowrap' }}>
+                          {new Date(log.timestamp).toLocaleString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </td>
+                        <td style={{ padding: '12px', color: '#f1f5f9', fontSize: '14px', maxWidth: '300px' }}>
+                          {log.question}
+                        </td>
+                        <td style={{ padding: '12px', textAlign: 'center' }}>
+                          {log.decision === 'USE_RAG' ? (
+                            <span style={{ 
+                              padding: '4px 8px', 
+                              backgroundColor: '#22c55e20', 
+                              color: '#22c55e',
+                              borderRadius: '4px',
+                              fontSize: '12px',
+                              fontWeight: '600'
+                            }}>
+                              ✅ Yes
+                            </span>
+                          ) : (
+                            <span style={{ 
+                              padding: '4px 8px', 
+                              backgroundColor: '#f59e0b20', 
+                              color: '#f59e0b',
+                              borderRadius: '4px',
+                              fontSize: '12px',
+                              fontWeight: '600'
+                            }}>
+                              ❌ No
+                            </span>
+                          )}
+                        </td>
+                        <td style={{ padding: '12px', textAlign: 'center' }}>
+                          <span style={{ 
+                            padding: '4px 8px',
+                            backgroundColor: 
+                              log.confidenceLevel === 'high' ? '#22c55e20' :
+                              log.confidenceLevel === 'medium' ? '#60a5fa20' :
+                              log.confidenceLevel === 'low' ? '#f59e0b20' : '#64748b20',
+                            color: 
+                              log.confidenceLevel === 'high' ? '#22c55e' :
+                              log.confidenceLevel === 'medium' ? '#60a5fa' :
+                              log.confidenceLevel === 'low' ? '#f59e0b' : '#94a3b8',
+                            borderRadius: '4px',
+                            fontSize: '12px',
+                            fontWeight: '600',
+                            textTransform: 'uppercase'
+                          }}>
+                            {log.confidenceLevel === 'n/a' ? 'N/A' : log.confidenceLevel}
+                          </span>
+                        </td>
+                        <td style={{ padding: '12px', textAlign: 'center', color: '#cbd5e1', fontSize: '13px', fontWeight: '600' }}>
+                          {log.topDocuments && log.topDocuments.length > 0
+                            ? calculateAverageScore(log.topDocuments).toFixed(3)
+                            : '—'}
+                        </td>
+                        <td style={{ padding: '12px', color: '#cbd5e1', fontSize: '12px' }}>
+                          {log.topDocuments && log.topDocuments.length > 0 ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                              {(() => {
+                                const aggregated = aggregatePDFScores(log.topDocuments);
+                                const isExpanded = expandedReferences === index;
+                                const displayedPDFs = isExpanded ? aggregated : aggregated.slice(0, 3);
+                                
+                                return (
+                                  <>
+                                    {displayedPDFs.map((pdf, pdfIndex) => (
+                                      <div key={pdfIndex} style={{ 
+                                        display: 'flex', 
+                                        justifyContent: 'space-between',
+                                        alignItems: 'center',
+                                        padding: '4px 8px',
+                                        backgroundColor: '#0f172a',
+                                        borderRadius: '4px'
+                                      }}>
+                                        <span style={{ 
+                                          color: '#94a3b8',
+                                          overflow: 'hidden',
+                                          textOverflow: 'ellipsis',
+                                          whiteSpace: 'nowrap',
+                                          maxWidth: '200px'
+                                        }}>
+                                          {pdf.filename}
+                                          {pdf.chunkCount > 1 && (
+                                            <span style={{ 
+                                              color: '#64748b', 
+                                              fontSize: '10px', 
+                                              marginLeft: '4px' 
+                                            }}>
+                                              ({pdf.chunkCount} chunks)
+                                            </span>
+                                          )}
+                                        </span>
+                                        <span style={{ 
+                                          color: pdf.averageScore >= 0.7 ? '#22c55e' : pdf.averageScore >= 0.5 ? '#60a5fa' : '#f59e0b',
+                                          fontWeight: '600',
+                                          marginLeft: '8px'
+                                        }}>
+                                          {pdf.averageScore.toFixed(3)}
+                                        </span>
+                                      </div>
+                                    ))}
+                                    {aggregated.length > 3 && (
+                                      <button
+                                        onClick={() => setExpandedReferences(isExpanded ? null : index)}
+                                        style={{ 
+                                          color: '#60a5fa', 
+                                          fontSize: '11px', 
+                                          fontStyle: 'italic',
+                                          background: 'none',
+                                          border: 'none',
+                                          cursor: 'pointer',
+                                          textDecoration: 'underline',
+                                          padding: '4px',
+                                          textAlign: 'left'
+                                        }}
+                                      >
+                                        {isExpanded 
+                                          ? '▼ Show less' 
+                                          : `▶ Show ${aggregated.length - 3} more PDFs`}
+                                      </button>
+                                    )}
+                                    <div style={{ 
+                                      color: '#64748b', 
+                                      fontSize: '10px', 
+                                      marginTop: '4px',
+                                      fontStyle: 'italic'
+                                    }}>
+                                      {log.topDocuments.length} total chunks from {aggregated.length} {aggregated.length === 1 ? 'document' : 'documents'}
+                                    </div>
+                                  </>
+                                );
+                              })()}
+                            </div>
+                          ) : (
+                            <span style={{ color: '#64748b', fontStyle: 'italic' }}>No references</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className={styles.emptyMessage}>
+                No query logs available yet. Logs will appear as users interact with the chatbot.
+              </div>
+            )}
           </section>
         </main>
       </div>

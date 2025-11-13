@@ -35,6 +35,8 @@ const MessageItem: React.FC<MessageItemProps> = ({
   }
 
   // Assistant message
+  const showDisclaimer = !isStreaming && message.usedRAG === false;
+
   return (
     <div className={`${styles.messageContainer} ${styles.assistantMessageContainer}`}>
       <div className={`${styles.message} ${styles.assistantMessage}`}>
@@ -47,6 +49,13 @@ const MessageItem: React.FC<MessageItemProps> = ({
               <span className={styles.dot}></span>
               <span className={styles.dot}></span>
               <span className={styles.dot}></span>
+            </div>
+          )}
+
+          {/* Show disclaimer when no RAG was used */}
+          {showDisclaimer && (
+            <div className={styles.disclaimer}>
+              ℹ️ This response is based on the model's general knowledge and may not reflect specific Invention Studio policies or procedures.
             </div>
           )}
         </div>

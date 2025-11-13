@@ -600,6 +600,103 @@ ${contextStr}`,
 
 // --- RAG Query Function with Chutes API ---
 /**
+ * Classify user query to determine if RAG is needed
+ * Returns: { needsRAG: boolean, reasoning?: string }
+ */
+async function classifyQuery(question: string): Promise<{ needsRAG: boolean; reasoning?: string }> {
+  try {
+    const classificationPrompt = `You are a query classifier for an Invention Studio chatbot at Georgia Tech.
+
+The Invention Studio is a makerspace with equipment like 3D printers, laser cutters, CNC machines, etc.
+
+Classify this query as GENERAL or RAG:
+- GENERAL: Simple greetings, farewells, gratitude, general knowledge questions, conversational responses
+- RAG: Questions about Invention Studio equipment, policies, procedures, hours, training, materials, or anything requiring studio-specific information
+
+Examples:
+"hi" → GENERAL
+"What are the laser cutter hours?" → RAG
+"thanks" → GENERAL
+"Can I use wood in the CNC?" → RAG (needs studio material policies)
+"What is 3D printing?" → GENERAL (general knowledge)
+"How do I book the 3D printer?" → RAG (studio-specific procedure)
+
+Question: "${question}"
+
+Respond ONLY with valid JSON in this exact format:
+{"classification": "GENERAL", "reasoning": "brief explanation"}
+OR
+{"classification": "RAG", "reasoning": "brief explanation"}`;
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.OPENROUTER_API_KEY || ""}`,
+        "HTTP-Referer": process.env.PUBLIC_SITE_URL || "https://matrixlab.gatech.edu",
+        "X-Title": "Matrix Lab AI",
+        "Content-Type": "application/json",
+      },
+      signal: controller.signal,
+      body: JSON.stringify({
+        model: "google/gemma-3n-e4b-it:free",
+        messages: [
+          {
+            role: "user",
+            content: classificationPrompt,
+          },
+        ],
+        max_tokens: 100,
+        temperature: 0.1, // Low temperature for consistent classification
+        stream: false,
+      }),
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      console.warn(`Classification API error: ${response.status}, defaulting to RAG`);
+      return { needsRAG: true, reasoning: "Classification failed, defaulting to RAG for safety" };
+    }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content?.trim();
+
+    if (!content) {
+      console.warn("Empty classification response, defaulting to RAG");
+      return { needsRAG: true, reasoning: "Empty response, defaulting to RAG" };
+    }
+
+    // Try to parse JSON response
+    let classification: { classification: string; reasoning: string };
+    try {
+      // Remove markdown code blocks if present
+      const cleanContent = content.replace(/```json\s*|\s*```/g, "").trim();
+      classification = JSON.parse(cleanContent);
+    } catch (parseError) {
+      console.warn("Failed to parse classification JSON, defaulting to RAG:", content);
+      return { needsRAG: true, reasoning: "JSON parse failed, defaulting to RAG" };
+    }
+
+    const needsRAG = classification.classification === "RAG";
+    console.log(
+      `Query classified as ${classification.classification}: "${question}" - ${classification.reasoning}`,
+    );
+
+    return {
+      needsRAG,
+      reasoning: classification.reasoning,
+    };
+  } catch (error) {
+    console.warn("Classification error:", error, "- defaulting to RAG");
+    // Default to RAG on error (safer to have unnecessary references than miss important info)
+    return { needsRAG: true, reasoning: "Classification error, defaulting to RAG for safety" };
+  }
+}
+
+/**
  * Use LLM to extract up to 10 tokens as keyword for DuckDuckGo search
  */
 async function extractKeywordForDuckDuckGo(question: string): Promise<string> {
@@ -818,6 +915,83 @@ async function fetchDuckDuckGoContext(keyword: string): Promise<{
   }
 }
 
+/**
+ * Generate response for general queries without RAG
+ * Returns a streaming response for conversational queries
+ */
+async function generateGeneralResponse(
+  question: string,
+  conversationHistory: string = "",
+): Promise<ReadableStream<Uint8Array>> {
+  try {
+    const messages: Array<{ role: string; content: string }> = [];
+
+    // System message for general conversational responses
+    const systemMessage = `You are AI PI, a helpful assistant for the Invention Studio at Georgia Tech, created by the MATRIX Lab team.
+
+Guidelines:
+- Answer questions naturally and conversationally using your general knowledge
+- Be friendly and helpful
+- If asked about specific Invention Studio details (equipment, policies, hours), politely mention you need more specific information
+- Don't make up specific studio policies or details
+- Keep responses concise and helpful
+- Don't announce your name or creator unless specifically asked
+
+Respond naturally to the user's question.`;
+
+    messages.push({
+      role: "system",
+      content: systemMessage,
+    });
+
+    // Add conversation history if it exists
+    if (conversationHistory && conversationHistory.trim() !== "") {
+      messages.push({
+        role: "user",
+        content: conversationHistory,
+      });
+    }
+
+    // Add the current question
+    messages.push({
+      role: "user",
+      content: question,
+    });
+
+    // Call the OpenRouter API with streaming
+    const openRouterResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.OPENROUTER_API_KEY || ""}`,
+        "HTTP-Referer": process.env.PUBLIC_SITE_URL || "https://matrixlab.gatech.edu",
+        "X-Title": "Matrix Lab AI",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        messages,
+        model: "google/gemma-3-27b-it:free",
+        stream: true,
+        max_tokens: 500,
+        temperature: 0.75,
+        provider: {
+          order: ["Chutes"],
+        },
+      }),
+    });
+
+    if (!openRouterResponse.ok) {
+      const errorText = await openRouterResponse.text();
+      throw new Error(`OpenRouter API error: ${openRouterResponse.status} - ${errorText}`);
+    }
+
+    console.log(`General response stream started (no RAG)`);
+    return openRouterResponse.body as ReadableStream<Uint8Array>;
+  } catch (error) {
+    console.error("Error in generateGeneralResponse:", error);
+    throw error;
+  }
+}
+
 async function ragQuery(
   question: string,
   conversationHistory: string = "",
@@ -925,6 +1099,85 @@ async function ragQuery(
       if (!match.metadata?.text) return false;
       return true;
     });
+
+    // ========================================
+    // OPTION 2: SMART FALLBACK - CONFIDENCE THRESHOLD CHECK
+    // ========================================
+    const CONFIDENCE_THRESHOLD = 0.6;
+    const bestScore = relevantContexts.length > 0 
+      ? Math.max(...relevantContexts.map(match => match.score || 0))
+      : 0;
+
+    console.log(`RAG Quality Check: Best match score = ${bestScore.toFixed(3)}, Threshold = ${CONFIDENCE_THRESHOLD}`);
+
+    // Log RAG performance for admin analytics
+    const ragPerformanceLog = {
+      timestamp: new Date().toISOString(),
+      question: question,
+      bestScore: bestScore,
+      totalMatches: contexts.length,
+      relevantMatches: relevantContexts.length,
+      matchesAbove06: relevantContexts.filter(m => (m.score || 0) >= 0.6).length,
+      matchesAbove05: relevantContexts.filter(m => (m.score || 0) >= 0.5).length,
+      matchesAbove04: relevantContexts.filter(m => (m.score || 0) >= 0.4).length,
+      topDocuments: relevantContexts.slice(0, 3).map(m => ({
+        filename: m.metadata?.filename || 'unknown',
+        score: m.score || 0
+      })),
+      decision: bestScore >= CONFIDENCE_THRESHOLD ? 'USE_RAG' : 'USE_GENERAL',
+      confidenceLevel: bestScore >= 0.7 ? 'high' : bestScore >= 0.5 ? 'medium' : 'low'
+    };
+
+    console.log('📊 RAG Performance:', JSON.stringify(ragPerformanceLog, null, 2));
+
+    // Store log in Pinecone for admin analytics
+    try {
+      // Serialize topDocuments array to JSON string for Pinecone metadata
+      const metadataForPinecone = {
+        type: 'query_log',
+        timestamp: ragPerformanceLog.timestamp,
+        question: ragPerformanceLog.question,
+        bestScore: ragPerformanceLog.bestScore,
+        totalMatches: ragPerformanceLog.totalMatches,
+        relevantMatches: ragPerformanceLog.relevantMatches,
+        matchesAbove06: ragPerformanceLog.matchesAbove06,
+        matchesAbove05: ragPerformanceLog.matchesAbove05,
+        matchesAbove04: ragPerformanceLog.matchesAbove04,
+        topDocuments: JSON.stringify(ragPerformanceLog.topDocuments), // Serialize to string
+        decision: ragPerformanceLog.decision,
+        confidenceLevel: ragPerformanceLog.confidenceLevel
+      };
+
+      // Create dummy vector with at least one non-zero value (Pinecone requirement)
+      const dummyVector = new Array(1024).fill(0);
+      dummyVector[0] = 0.0001; // Small non-zero value to satisfy Pinecone
+
+      await index.upsert([{
+        id: `query-log-${Date.now()}-${Math.random().toString(36).substring(7)}`,
+        values: dummyVector,
+        metadata: metadataForPinecone
+      }]);
+      console.log('✅ Query log stored in Pinecone for admin analytics');
+    } catch (logError) {
+      console.warn('⚠️ Failed to store query log:', logError);
+      // Don't throw - logging failure shouldn't break the query
+    }
+
+    // If best match score is below confidence threshold, abandon RAG
+    if (bestScore < CONFIDENCE_THRESHOLD) {
+      console.log(
+        `⚠️ RAG ABANDONED: Best score (${bestScore.toFixed(3)}) below confidence threshold (${CONFIDENCE_THRESHOLD}). ` +
+        `Using general knowledge instead.`
+      );
+      
+      // Return empty contexts to signal general knowledge should be used
+      return [
+        await generateGeneralResponse(question, conversationHistory),
+        [] // Empty contexts array - no references to show
+      ];
+    }
+
+    console.log(`✅ RAG APPROVED: Best score (${bestScore.toFixed(3)}) meets confidence threshold. Proceeding with RAG.`);
 
     // Create array of objects with text and filename, including DuckDuckGo context
     const contextObjects = relevantContexts
@@ -1072,24 +1325,102 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     res.setHeader("Cache-Control", "no-cache");
     res.setHeader("Connection", "keep-alive");
 
-    // Emit web search loading event
-    res.write(
-      `data: ${JSON.stringify({ type: "web_search_loading", message: "Searching web for additional context..." })}\n\n`,
+    // Classify the query first
+    console.log(`Classifying query: "${question}"`);
+    const classification = await classifyQuery(question);
+    console.log(
+      `Classification result: ${classification.needsRAG ? "RAG" : "GENERAL"} - ${classification.reasoning}`,
     );
 
-    // Pass both the current question and conversation history to ragQuery
-    const [streamOrString, contexts] = await ragQuery(question, conversationHistory, res);
+    let streamOrString: string | ReadableStream<Uint8Array>;
+    let contexts: any[] = [];
+    let usedRAG = false;
+
+    if (classification.needsRAG) {
+      // Query needs RAG - perform web search and vector search
+      usedRAG = true;
+
+      // Emit web search loading event
+      res.write(
+        `data: ${JSON.stringify({ type: "web_search_loading", message: "Searching web for additional context..." })}\n\n`,
+      );
+
+      // Pass both the current question and conversation history to ragQuery
+      const [stream, ragContexts] = await ragQuery(question, conversationHistory, res);
+      streamOrString = stream;
+      contexts = ragContexts;
+    } else {
+      // Query is general - skip RAG and respond directly
+      usedRAG = false;
+
+      // Emit event indicating no RAG is being used
+      res.write(
+        `data: ${JSON.stringify({ type: "classification", usedRAG: false, reasoning: classification.reasoning })}\n\n`,
+      );
+
+      // Log GENERAL classified query for analytics
+      try {
+        const generalQueryLog = {
+          timestamp: new Date().toISOString(),
+          question: question,
+          bestScore: 0, // No RAG search performed
+          totalMatches: 0,
+          relevantMatches: 0,
+          matchesAbove06: 0,
+          matchesAbove05: 0,
+          matchesAbove04: 0,
+          topDocuments: [],
+          decision: 'USE_GENERAL',
+          confidenceLevel: 'n/a' // Not applicable for GENERAL queries
+        };
+
+        console.log('📊 GENERAL Query:', JSON.stringify(generalQueryLog, null, 2));
+
+        // Store log in Pinecone
+        const dummyVector = new Array(1024).fill(0);
+        dummyVector[0] = 0.0001;
+
+        await index.upsert([{
+          id: `query-log-${Date.now()}-${Math.random().toString(36).substring(7)}`,
+          values: dummyVector,
+          metadata: {
+            type: 'query_log',
+            timestamp: generalQueryLog.timestamp,
+            question: generalQueryLog.question,
+            bestScore: generalQueryLog.bestScore,
+            totalMatches: generalQueryLog.totalMatches,
+            relevantMatches: generalQueryLog.relevantMatches,
+            matchesAbove06: generalQueryLog.matchesAbove06,
+            matchesAbove05: generalQueryLog.matchesAbove05,
+            matchesAbove04: generalQueryLog.matchesAbove04,
+            topDocuments: JSON.stringify(generalQueryLog.topDocuments),
+            decision: generalQueryLog.decision,
+            confidenceLevel: generalQueryLog.confidenceLevel
+          }
+        }]);
+        console.log('✅ GENERAL query log stored in Pinecone for admin analytics');
+      } catch (logError) {
+        console.warn('⚠️ Failed to store GENERAL query log:', logError);
+        // Don't throw - logging failure shouldn't break the query
+      }
+
+      // Generate response without RAG
+      streamOrString = await generateGeneralResponse(question, conversationHistory);
+      contexts = []; // No contexts for general queries
+    }
 
     // If we got a stream back, pipe it to the client
     if (streamOrString instanceof ReadableStream) {
       console.log("Starting stream response");
 
       // Send contexts data and metrics as the first events
-      console.log(`Sending ${contexts.length} contexts to frontend:`);
-      console.log(
-        `Context breakdown: ${contexts.filter((ctx) => ctx.id?.startsWith("ddg-")).length} DuckDuckGo, ${contexts.filter((ctx) => !ctx.id?.startsWith("ddg-")).length} RAG`,
-      );
-      res.write(`data: ${JSON.stringify({ type: "contexts", contexts })}\n\n`);
+      console.log(`Sending ${contexts.length} contexts to frontend (usedRAG: ${usedRAG}):`);
+      if (usedRAG) {
+        console.log(
+          `Context breakdown: ${contexts.filter((ctx) => ctx.id?.startsWith("ddg-")).length} DuckDuckGo, ${contexts.filter((ctx) => !ctx.id?.startsWith("ddg-")).length} RAG`,
+        );
+      }
+      res.write(`data: ${JSON.stringify({ type: "contexts", contexts, usedRAG })}\n\n`);
       res.write(`data: ${JSON.stringify({ type: "metrics", metrics })}\n\n`);
 
       // Use ReadableStream Web API directly instead of Node.js streams
