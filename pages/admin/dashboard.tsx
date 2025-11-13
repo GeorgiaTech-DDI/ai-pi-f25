@@ -476,7 +476,7 @@ export default function AdminDashboard() {
                         disabled={uploading}
                       />
                     </label>
-                    <p style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>
+                <p style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>
                       Accepted formats: .txt, .md (max 4MB), .pdf (max ~3MB due to encoding overhead)
                     </p>
                     <p style={{ fontSize: '11px', color: '#64748b', marginTop: '4px', fontStyle: 'italic' }}>
