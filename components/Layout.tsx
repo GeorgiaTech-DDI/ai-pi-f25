@@ -59,6 +59,12 @@ const Layout: React.FC<LayoutProps> = ({
         </Link>
       </header>
 
+      <div className={styles.disclaimerContainer}>
+        <p className={styles.disclaimer}>
+          This chatbot is designed to provide assistance for the Georgia Tech Invention Studio or General Makerspaces. It's capabilites are limited in other use cases.
+        </p>
+      </div>
+
       {children}
 
       <div className={styles.disclaimerContainer}>
