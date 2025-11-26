@@ -472,6 +472,53 @@ If you fork this repository, you get:
 4. **Extensible Architecture** - Easy to add new admin features
 5. **Clean Codebase** - Well-documented, TypeScript-based React application
 
+## 📚 Documentation Index
+
+All technical documentation is organized in the `/docs` folder. Below is a categorized index:
+
+### **📋 Core Documentation**
+- **[AI_PI_V2_REPORT.md](./AI_PI_V2_REPORT.md)** - Comprehensive system overview, architecture, and implementation summary
+- **[IMPLEMENTATION_SUMMARY.md](./IMPLEMENTATION_SUMMARY.md)** - High-level implementation details
+- **[QUICK_REFERENCE.md](./QUICK_REFERENCE.md)** - Quick reference guide for developers
+
+### **🔐 Authentication & Security**
+- **[AZURE_OAUTH_SETUP.md](./AZURE_OAUTH_SETUP.md)** - Step-by-step Azure AD OAuth configuration guide
+- **[AUTHENTICATION_ROADMAP.md](./AUTHENTICATION_ROADMAP.md)** - Authentication system migration history and roadmap
+- **[SECURITY_ENHANCEMENTS.md](./SECURITY_ENHANCEMENTS.md)** - Security best practices and enhancements
+
+### **🐛 Bug Fixes & Troubleshooting**
+- **[API_ROUTES_LOCATION_FIX.md](./API_ROUTES_LOCATION_FIX.md)** - API routes configuration fixes
+- **[BETTER_ERROR_MESSAGES_FIX.md](./BETTER_ERROR_MESSAGES_FIX.md)** - Error message improvements
+- **[DEBUG_AUTH_LOOP.md](./DEBUG_AUTH_LOOP.md)** - Debugging authentication redirect loops
+- **[FILES_API_ERROR_FIX.md](./FILES_API_ERROR_FIX.md)** - File API error resolutions
+- **[LOGIN_POPUP_FIX.md](./LOGIN_POPUP_FIX.md)** - Login popup behavior fixes
+- **[LOGIN_REDIRECT_LOOP_FIX.md](./LOGIN_REDIRECT_LOOP_FIX.md)** - Authentication redirect loop solutions
+- **[MISSING_AUTH_MODULE_FIX.md](./MISSING_AUTH_MODULE_FIX.md)** - Authentication module configuration
+- **[RESPONSE_BODY_ALREADY_READ_FIX.md](./RESPONSE_BODY_ALREADY_READ_FIX.md)** - Response handling fixes
+
+### **🗄️ Database & Storage**
+- **[PINECONE_SETUP_GUIDE.md](./PINECONE_SETUP_GUIDE.md)** - Pinecone vector database setup instructions
+- **[PINECONE_ZERO_VECTOR_FIX.md](./PINECONE_ZERO_VECTOR_FIX.md)** - Zero vector handling in Pinecone
+- **[LAZY_PINECONE_INITIALIZATION_FIX.md](./LAZY_PINECONE_INITIALIZATION_FIX.md)** - Lazy loading optimization for Pinecone
+
+### **📊 Analytics & Monitoring**
+- **[ANALYTICS_ZERO_VECTOR_FIX.md](./ANALYTICS_ZERO_VECTOR_FIX.md)** - Analytics system zero vector handling
+- **[QUERY_LOG_TABLE_FEATURE.md](./QUERY_LOG_TABLE_FEATURE.md)** - Query logging system implementation
+- **[QUERY_LOG_TABLE_ENHANCEMENTS.md](./QUERY_LOG_TABLE_ENHANCEMENTS.md)** - Query log improvements and features
+
+### **🚀 Feature Documentation**
+- **[QUERY_CLASSIFICATION_FEATURE.md](./QUERY_CLASSIFICATION_FEATURE.md)** - Query classification system
+- **[SMART_FALLBACK_IMPLEMENTATION.md](./SMART_FALLBACK_IMPLEMENTATION.md)** - Smart fallback mechanism for RAG
+- **[GENERAL_FALLBACK_LOGGING_FIX.md](./GENERAL_FALLBACK_LOGGING_FIX.md)** - General knowledge fallback logging
+- **[PDF_SUPPORT_FEATURE.md](./PDF_SUPPORT_FEATURE.md)** - PDF upload and processing feature
+- **[PDF_UPLOAD_FIX_SUMMARY.md](./PDF_UPLOAD_FIX_SUMMARY.md)** - PDF upload bug fixes
+- **[LARGE_FILE_UPLOAD_SOLUTIONS.md](./LARGE_FILE_UPLOAD_SOLUTIONS.md)** - Handling large file uploads
+
+### **🧪 Testing**
+- **[TESTING_FILE_MANAGEMENT.md](./TESTING_FILE_MANAGEMENT.md)** - File management testing procedures
+
+---
+
 ## Legal Notices
 
 *   **Gemma 3 Model:** This application utilizes the `google/gemma-3-27b-it` model accessed via OpenRouter. Use of Gemma models is subject to Google's official terms. Please review the [Gemma Terms of Use](https://ai.google.dev/gemma/terms). Key aspects include:
