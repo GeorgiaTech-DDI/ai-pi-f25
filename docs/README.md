@@ -134,8 +134,8 @@ The application follows a modern web architecture with two main systems:
 
 1.  Clone the repository:
     ```bash
-    git clone https://github.com/chenastn/matrix-labs-rag.git
-    cd matrix-labs-rag
+    git clone https://github.com/GeorgiaTech-DDI/ai-pi-f25.git
+    cd ai-pi-f25.git
     ```
 2.  Install dependencies:
     ```bash
