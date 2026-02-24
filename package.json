@@ -5,16 +5,17 @@
     "@azure/msal-browser": "^4.24.1",
     "@azure/msal-react": "^3.0.20",
     "@pinecone-database/pinecone": "^5.0.0",
+    "@types/react-dom": "^19.2.3",
     "@vercel/analytics": "^1.5.0",
     "@vercel/blob": "^1.1.1",
     "@vercel/speed-insights": "^1.2.0",
     "deepinfra": "^2.0.2",
     "dotenv": "^17.2.2",
     "file-saver": "^2.0.5",
-    "next": "^15.1.7",
+    "next": "^16.1.6",
     "pdf-parse": "^1.1.1",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
   },
   "devDependencies": {
     "@types/file-saver": "^2.0.7",
