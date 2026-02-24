@@ -90,10 +90,7 @@ const ReferencesDialog: React.FC<ReferencesDialogProps> = ({
                   className={styles.contextAccordion}
                   data-external={filename.startsWith("🌐")}
                 >
-                  <summary
-                    onClick={handleSummaryClick}
-                    data-external={filename.startsWith("🌐")}
-                  >
+                  <summary onClick={handleSummaryClick}>
                     {filename}
                     {filename.startsWith("🌐") && (
                       <span className={styles.externalContextBadge}>
