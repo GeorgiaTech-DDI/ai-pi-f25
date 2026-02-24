@@ -1,415 +1,445 @@
 .dialogOverlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: rgba(0, 0, 0, 0.6);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 1000;
-    padding: 20px;
-    transition: opacity 0.5s ease;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  padding: 20px;
+  transition: opacity 0.5s ease;
 }
 
 .dialogContent {
-    background-color: #000000;
-    border-radius: 6px;
-    max-width: 600px;
-    width: 100%;
-    max-height: 80vh;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
-    transition:
-        transform 0.5s ease,
-        opacity 0.5s ease;
+  background-color: #000000;
+  border-radius: 6px;
+  max-width: 600px;
+  width: 100%;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
+  transition:
+    transform 0.5s ease,
+    opacity 0.5s ease;
 }
 
 /* Animation state classes */
 .hidden {
-    opacity: 0 !important;
-    pointer-events: none !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
 }
 
 .entering {
-    opacity: 0;
+  opacity: 0;
 }
 
 .entering .dialogContent {
-    transform: translateY(20px);
+  transform: translateY(20px);
 }
 
 .visible {
-    opacity: 1;
+  opacity: 1;
 }
 
 .visible .dialogContent {
-    transform: translateY(0);
+  transform: translateY(0);
 }
 
 .exiting {
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.5s ease;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.5s ease;
 }
 
 .exiting .dialogContent {
-    transform: translateY(20px);
-    transition: transform 0.5s ease;
+  transform: translateY(20px);
+  transition: transform 0.5s ease;
 }
 
 /* Rest of the dialog styles */
 .dialogTitle {
-    padding: 16px 24px;
-    margin: 0;
-    background-color: #000000;
-    border-bottom: 1px solid #26262f;
+  padding: 16px 24px;
+  margin: 0;
+  background-color: #000000;
+  border-bottom: 1px solid #26262f;
 }
 
 .dialogBody {
-    padding: 20px 24px;
-    overflow-y: auto;
-    flex-grow: 1;
+  padding: 20px 24px;
+  overflow-y: auto;
+  flex-grow: 1;
 }
 
 .dialogBody p {
-    padding-bottom: 6px;
-    margin-bottom: 0px;
-    line-height: 1.5;
+  padding-bottom: 6px;
+  margin-bottom: 0px;
+  line-height: 1.5;
 }
 
 .dialogBody h3 {
-    margin-top: 0;
+  margin-top: 0;
 }
 
 .dialogBody h4 {
-    margin-bottom: 8px;
-    margin-top: 20px;
+  margin-bottom: 8px;
+  margin-top: 20px;
 }
 
 .dialogBody ul {
-    margin-bottom: 16px;
-    padding-left: 20px;
+  margin-bottom: 16px;
+  padding-left: 20px;
 }
 
 .dialogBody li {
-    margin-bottom: 6px;
+  margin-bottom: 6px;
 }
 
 .dialogActions {
-    display: flex;
-    justify-content: flex-end;
-    padding: 16px 24px;
-    border-top: 1px solid #26262f;
-    gap: 12px;
+  display: flex;
+  justify-content: flex-end;
+  padding: 16px 24px;
+  border-top: 1px solid #26262f;
+  gap: 12px;
 }
 
 .primaryButton {
-    background-color: rgb(118, 120, 255);
-    border-radius: 6px;
-    padding: 12px 24px;
-    border: none;
-    color: white;
-    cursor: pointer;
-    transition: background-color 0.3s;
-    font-size: 1rem;
-    font-weight: 500;
+  background-color: rgb(118, 120, 255);
+  border-radius: 6px;
+  padding: 12px 24px;
+  border: none;
+  color: white;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  font-size: 1rem;
+  font-weight: 500;
 }
 
 .primaryButton:hover {
-    background-color: rgb(95, 98, 240);
+  background-color: rgb(95, 98, 240);
 }
 
 .primaryButton:disabled {
-    background-color: #3a3a45 !important;
-    color: #8a8a95;
-    cursor: not-allowed;
-    opacity: 0.7;
-    border: 1px solid #444450 !important;
+  background-color: #3a3a45 !important;
+  color: #8a8a95;
+  cursor: not-allowed;
+  opacity: 0.7;
+  border: 1px solid #444450 !important;
 }
 
 .secondaryButton {
-    background-color: transparent;
-    color: #f0f0f9;
-    border-radius: 6px;
-    border: 1px solid #ccc;
-    padding: 12px 24px;
-    cursor: pointer;
-    transition: background-color 0.3s;
-    font-size: 1rem;
+  background-color: transparent;
+  color: #f0f0f9;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  padding: 12px 24px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  font-size: 1rem;
 }
 
 .secondaryButton:hover {
-    background-color: #26262f;
+  background-color: #26262f;
 }
 
 .scrollIndicator {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background: linear-gradient(
-        to bottom,
-        rgba(10, 10, 10, 0) 00%,
-        rgba(10, 10, 10, 0.4) 25%,
-        rgba(10, 10, 10, 0.8) 50%,
-        rgba(10, 10, 10, 1) 100%
-    );
-    padding: 30px 0 10px 0;
-    margin-bottom: 70px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    animation: pulse 2s infinite;
-    opacity: 1;
-    transition: opacity 0.5s ease;
-    pointer-events: none;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(10, 10, 10, 0) 00%,
+    rgba(10, 10, 10, 0.4) 25%,
+    rgba(10, 10, 10, 0.8) 50%,
+    rgba(10, 10, 10, 1) 100%
+  );
+  padding: 30px 0 10px 0;
+  margin-bottom: 70px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  animation: pulse 2s infinite;
+  opacity: 1;
+  transition: opacity 0.5s ease;
+  pointer-events: none;
 }
 
 .scrollIndicatorHidden {
-    background: transparent !important;
-    opacity: 0 !important;
+  background: transparent !important;
+  opacity: 0 !important;
 }
 
 .scrollIndicatorHidden * {
-    opacity: 0 !important;
+  opacity: 0 !important;
 }
 
 .scrollIcon {
-    margin-bottom: 4px;
-    background: transparent;
-    animation: bounce 2s infinite;
+  margin-bottom: 4px;
+  background: transparent;
+  animation: bounce 2s infinite;
 }
 
 .scrollIcon svg {
-    background: transparent;
+  background: transparent;
 }
 
 .scrollIndicator p {
-    margin: 0;
-    font-size: 0.8rem;
-    color: #999;
+  margin: 0;
+  font-size: 0.8rem;
+  color: #999;
 }
 
 /* References dialog specific styles */
 .referencesDialog {
-    width: 90%;
-    max-width: 800px;
+  width: 90%;
+  max-width: 800px;
 }
 
 .contextAccordion {
-    margin-bottom: 10px;
-    border: 1px solid rgb(45, 45, 66);
-    border-radius: 6px;
-    overflow: hidden;
+  margin-bottom: 10px;
+  border: 1px solid rgb(45, 45, 66);
+  border-radius: 6px;
+  overflow: hidden;
 }
 
 .contextAccordion summary {
-    padding: 10px;
-    background-color: #26262f;
-    cursor: pointer;
-    font-weight: bold;
-    position: relative;
-    transition: background-color 0.2s ease;
-    list-style: none;
+  padding: 10px;
+  background-color: #26262f;
+  cursor: pointer;
+  font-weight: bold;
+  position: relative;
+  transition: background-color 0.2s ease;
+  list-style: none;
 }
 
 .contextAccordion summary:hover {
-    background-color: #303045;
+  background-color: #303045;
 }
 
 .contextAccordion summary::-webkit-details-marker {
-    display: none;
+  display: none;
 }
 
 .contextAccordion summary::before {
-    content: "▶";
-    margin-right: 8px;
-    transition: transform 0.2s;
+  content: "▶";
+  margin-right: 8px;
+  transition: transform 0.2s;
 }
 
 .contextAccordion[open] summary::before {
-    transform: rotate(90deg);
+  transform: rotate(90deg);
 }
 
 /* External context styling */
-.contextAccordion summary:has-text("🌐") {
-    background: linear-gradient(135deg, #1a1a3a 0%, #2a2a4a 100%);
-    border-left: 4px solid #4a9eff;
+.contextAccordion summary[data-external="true"] {
+  background: linear-gradient(135deg, #1a1a3a 0%, #2a2a4a 100%);
+  border-left: 4px solid #4a9eff;
 }
 
-.contextAccordion summary:has-text("🌐"):hover {
-    background: linear-gradient(135deg, #2a2a4a 0%, #3a3a5a 100%);
+.contextAccordion summary[data-external="true"]:hover {
+  background: linear-gradient(135deg, #2a2a4a 0%, #3a3a5a 100%);
 }
 
 .externalContextSource {
-    background: linear-gradient(135deg, #0d1b0d 0%, #1a3a1a 100%);
-    border: 1px solid #2a5a2a;
-    border-radius: 4px;
-    padding: 8px;
-    font-size: 0.85rem;
-    color: #88cc88;
+  background: linear-gradient(135deg, #0d1b0d 0%, #1a3a1a 100%);
+  border: 1px solid #2a5a2a;
+  border-radius: 4px;
+  padding: 8px;
+  font-size: 0.85rem;
+  color: #88cc88;
 }
 
 .externalContextBadge {
-    background: #1a4a9e;
-    color: #ffffff;
-    padding: 2px 6px;
-    border-radius: 12px;
-    font-size: 0.7rem;
-    margin-left: 8px;
-    font-weight: 500;
+  background: #1a4a9e;
+  color: #ffffff;
+  padding: 2px 6px;
+  border-radius: 12px;
+  font-size: 0.7rem;
+  margin-left: 8px;
+  font-weight: 500;
 }
 
 .contextContent {
-    padding: 10px;
-    background-color: #26262f;
-    max-height: 300px;
-    overflow-y: auto;
-    will-change: max-height, opacity;
+  padding: 10px;
+  background-color: #26262f;
+  max-height: 300px;
+  overflow-y: auto;
+  will-change: max-height, opacity;
 }
 
 .contextContent p {
-    background-color: #26262f;
+  background-color: #26262f;
 }
 
 /* Animation for opening - this is what was missing */
 .contextAccordion[open] .contextContent {
-    animation-name: accordionEnter;
-    animation-duration: 0.3s;
-    animation-timing-function: ease-out;
-    animation-fill-mode: forwards;
+  animation-name: accordionEnter;
+  animation-duration: 0.3s;
+  animation-timing-function: ease-out;
+  animation-fill-mode: forwards;
 }
 
 /* For the exit animation */
 .exitAnimation {
-    animation: accordionExit 0.3s ease-out forwards;
+  animation: accordionExit 0.3s ease-out forwards;
 }
 
 /* Custom scrollbar styling */
 .dialogBody::-webkit-scrollbar,
 .contextContent::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+  width: 8px;
+  height: 8px;
 }
 
 .dialogBody::-webkit-scrollbar-track,
 .contextContent::-webkit-scrollbar-track {
-    background: #000000;
-    border-radius: 4px;
+  background: #000000;
+  border-radius: 4px;
 }
 
 .dialogBody::-webkit-scrollbar-thumb,
 .contextContent::-webkit-scrollbar-thumb {
-    background: #333340;
-    border-radius: 4px;
+  background: #333340;
+  border-radius: 4px;
 }
 
 .dialogBody::-webkit-scrollbar-thumb:hover,
 .contextContent::-webkit-scrollbar-thumb:hover {
-    background: #444452;
+  background: #444452;
 }
 
 /* Feedback dialog specific styles */
 .feedbackContent {
-    display: flex;
-    flex-direction: column;
+  display: flex;
+  flex-direction: column;
 }
 
 .feedbackContent textarea {
-    width: calc(100% - 28px); /* Adjust width if padding/border changes */
-    border: 1px solid #333333;
-    border-radius: 6px;
-    padding: 12px;
-    margin: 0 0 16px 0;
-    font-size: 1rem;
-    font-family: inherit;
-    resize: vertical;
-    background-color: #1a1a1a; /* Darker background for textarea */
-    color: #f0f0f9; /* Light text color */
+  width: calc(100% - 28px); /* Adjust width if padding/border changes */
+  border: 1px solid #333333;
+  border-radius: 6px;
+  padding: 12px;
+  margin: 0 0 16px 0;
+  font-size: 1rem;
+  font-family: inherit;
+  resize: vertical;
+  background-color: #1a1a1a; /* Darker background for textarea */
+  color: #f0f0f9; /* Light text color */
 }
 
 .feedbackContent textarea::placeholder {
-    color: #888; /* Placeholder text color */
+  color: #888; /* Placeholder text color */
 }
 
 .feedbackRating {
-    display: flex;
-    gap: 8px; /* Reduced gap for more compact stars */
-    margin-bottom: 8px;
-    flex-wrap: wrap; /* Allow buttons to wrap on smaller screens */
+  display: flex;
+  gap: 8px; /* Reduced gap for more compact stars */
+  margin-bottom: 8px;
+  flex-wrap: wrap; /* Allow buttons to wrap on smaller screens */
 }
 
 .ratingButton {
-    flex-grow: 1; /* Allow buttons to grow and fill space */
-    min-width: 80px; /* Minimum width for each button */
-    padding: 8px 12px; /* Adjusted padding */
-    border-radius: 6px;
-    border: 1px solid #333333;
-    background-color: #000000;
-    color: #f0f0f9; /* Light text color for buttons */
-    cursor: pointer;
-    transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px; /* Gap between emoji and text */
-    font-size: 0.9rem; /* Slightly smaller font size */
+  flex-grow: 1; /* Allow buttons to grow and fill space */
+  min-width: 80px; /* Minimum width for each button */
+  padding: 8px 12px; /* Adjusted padding */
+  border-radius: 6px;
+  border: 1px solid #333333;
+  background-color: #000000;
+  color: #f0f0f9; /* Light text color for buttons */
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px; /* Gap between emoji and text */
+  font-size: 0.9rem; /* Slightly smaller font size */
 }
 
 .ratingButton:hover:not(.selectedGreen):not(.selectedYellow):not(.selectedRed) {
-    background-color: #2a2a3a; /* Hover background color */
-    border-color: #555565; /* Hover border color */
+  background-color: #2a2a3a; /* Hover background color */
+  border-color: #555565; /* Hover border color */
 }
 
 .selectedGreenBlue {
-    border-color: #059688 !important; /* Green border */
-    background-color: rgba(5, 150, 136, 0.15) !important; /* Light green background */
-    color: #059688 !important; /* Green text/emoji */
+  border-color: #059688 !important; /* Green border */
+  background-color: rgba(
+    5,
+    150,
+    136,
+    0.15
+  ) !important; /* Light green background */
+  color: #059688 !important; /* Green text/emoji */
 }
 
 .selectedGreen {
-    border-color: #059640 !important; /* Green border */
-    background-color: rgba(5, 150, 64, 0.15) !important; /* Light green background */
-    color: #059640 !important; /* Green text/emoji */
+  border-color: #059640 !important; /* Green border */
+  background-color: rgba(
+    5,
+    150,
+    64,
+    0.15
+  ) !important; /* Light green background */
+  color: #059640 !important; /* Green text/emoji */
 }
 
 .selectedYellowGreen {
-    border-color: #759a3a !important; /* Green border */
-    background-color: rgba(75, 154, 58, 0.15) !important; /* Light green background */
-    color: #759a3a !important; /* Green text/emoji */
+  border-color: #759a3a !important; /* Green border */
+  background-color: rgba(
+    75,
+    154,
+    58,
+    0.15
+  ) !important; /* Light green background */
+  color: #759a3a !important; /* Green text/emoji */
 }
 
 .selectedYellow {
-    border-color: #f59e0b !important; /* Yellow border */
-    background-color: rgba(245, 158, 11, 0.15) !important; /* Light yellow background */
-    color: #f59e0b !important; /* Yellow text/emoji */
+  border-color: #f59e0b !important; /* Yellow border */
+  background-color: rgba(
+    245,
+    158,
+    11,
+    0.15
+  ) !important; /* Light yellow background */
+  color: #f59e0b !important; /* Yellow text/emoji */
 }
 
 .selectedRedYellow {
-    border-color: #e85a1a !important; /* Red border */
-    background-color: rgba(232, 90, 26, 0.15) !important; /* Light red background */
-    color: #e85a1a !important; /* Red text/emoji */
+  border-color: #e85a1a !important; /* Red border */
+  background-color: rgba(
+    232,
+    90,
+    26,
+    0.15
+  ) !important; /* Light red background */
+  color: #e85a1a !important; /* Red text/emoji */
 }
 
 .selectedRed {
-    border-color: #dc2626 !important; /* Red border */
-    background-color: rgba(220, 38, 38, 0.15) !important; /* Light red background */
-    color: #dc2626 !important; /* Red text/emoji */
+  border-color: #dc2626 !important; /* Red border */
+  background-color: rgba(
+    220,
+    38,
+    38,
+    0.15
+  ) !important; /* Light red background */
+  color: #dc2626 !important; /* Red text/emoji */
 }
 
 /* Optional: if you want to hide the text label on smaller screens for a more compact look */
 @media (max-width: 480px) {
-    .ratingButton {
-        min-width: 40px; /* Adjust for emoji only */
-        padding: 8px;
-    }
-    .ratingButton span:not([role="img"]) {
-        /* Hide text label, keep emoji */
-        display: none;
-    }
+  .ratingButton {
+    min-width: 40px; /* Adjust for emoji only */
+    padding: 8px;
+  }
+  .ratingButton span:not([role="img"]) {
+    /* Hide text label, keep emoji */
+    display: none;
+  }
 }

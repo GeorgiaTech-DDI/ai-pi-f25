@@ -17,23 +17,30 @@ const ReferencesDialog: React.FC<ReferencesDialogProps> = ({
   if (fadeState === "hidden") return null;
 
   // Group references by filename
-  const groupedReferences = references.reduce<Record<string, Context[]>>((acc, context) => {
-    const filename = context.metadata?.filename || `Reference ${Object.keys(acc).length + 1}`;
-    if (!acc[filename]) {
-      acc[filename] = [];
-    }
-    acc[filename].push(context);
-    return acc;
-  }, {});
+  const groupedReferences = references.reduce<Record<string, Context[]>>(
+    (acc, context) => {
+      const filename =
+        context.metadata?.filename ||
+        `Reference ${Object.keys(acc).length + 1}`;
+      if (!acc[filename]) {
+        acc[filename] = [];
+      }
+      acc[filename].push(context);
+      return acc;
+    },
+    {},
+  );
 
   // Sort groups to put DuckDuckGo contexts first
-  const sortedGroups = Object.entries(groupedReferences).sort(([filenameA], [filenameB]) => {
-    const isAExternal = filenameA.startsWith("🌐");
-    const isBExternal = filenameB.startsWith("🌐");
-    if (isAExternal && !isBExternal) return -1;
-    if (!isAExternal && isBExternal) return 1;
-    return 0;
-  });
+  const sortedGroups = Object.entries(groupedReferences).sort(
+    ([filenameA], [filenameB]) => {
+      const isAExternal = filenameA.startsWith("🌐");
+      const isBExternal = filenameB.startsWith("🌐");
+      if (isAExternal && !isBExternal) return -1;
+      if (!isAExternal && isBExternal) return 1;
+      return 0;
+    },
+  );
 
   const handleSummaryClick = (e: React.MouseEvent<HTMLElement>) => {
     e.preventDefault();
@@ -41,7 +48,9 @@ const ReferencesDialog: React.FC<ReferencesDialogProps> = ({
 
     if (details.hasAttribute("open")) {
       // If it's open, start closing animation
-      const content = details.querySelector(`.${styles.contextContent}`) as HTMLElement;
+      const content = details.querySelector(
+        `.${styles.contextContent}`,
+      ) as HTMLElement;
       if (content) {
         content.style.animation = "accordionExit 0.3s ease-out forwards";
 
@@ -54,7 +63,9 @@ const ReferencesDialog: React.FC<ReferencesDialogProps> = ({
       }
     } else {
       // If it's closed, start opening animation
-      const content = details.querySelector(`.${styles.contextContent}`) as HTMLElement;
+      const content = details.querySelector(
+        `.${styles.contextContent}`,
+      ) as HTMLElement;
       if (content) {
         content.style.animation = "accordionEnter 0.3s ease-in forwards";
       }
@@ -74,17 +85,28 @@ const ReferencesDialog: React.FC<ReferencesDialogProps> = ({
           {references.length > 0 ? (
             <>
               {sortedGroups.map(([filename, fileContexts], index) => (
-                <details key={index} className={styles.contextAccordion}>
-                  <summary onClick={handleSummaryClick}>
+                <details
+                  key={index}
+                  className={styles.contextAccordion}
+                  data-external={filename.startsWith("🌐")}
+                >
+                  <summary
+                    onClick={handleSummaryClick}
+                    data-external={filename.startsWith("🌐")}
+                  >
                     {filename}
                     {filename.startsWith("🌐") && (
-                      <span className={styles.externalContextBadge}>External Source</span>
+                      <span className={styles.externalContextBadge}>
+                        External Source
+                      </span>
                     )}
                   </summary>
                   <div className={styles.contextContent}>
                     {fileContexts.map((context, contextIndex) => (
                       <div key={contextIndex}>
-                        <p>{context.metadata.text || JSON.stringify(context)}</p>
+                        <p>
+                          {context.metadata.text || JSON.stringify(context)}
+                        </p>
                         {context.metadata.source && (
                           <div className={styles.externalContextSource}>
                             Source: {context.metadata.source}
@@ -102,7 +124,11 @@ const ReferencesDialog: React.FC<ReferencesDialogProps> = ({
         </div>
 
         <div className={styles.dialogActions}>
-          <button onClick={onClose} className={styles.primaryButton} type="button">
+          <button
+            onClick={onClose}
+            className={styles.primaryButton}
+            type="button"
+          >
             Close
           </button>
         </div>
