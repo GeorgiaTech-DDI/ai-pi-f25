@@ -2,6 +2,7 @@
 
 import { useState, ChangeEvent, FormEvent } from "react";
 import styles from "../styles/Upload.module.css";
+import posthog from "posthog-js";
 
 interface FormData {
   overallRating: string;
@@ -107,8 +108,18 @@ export default function UploadPage() {
 
       const blob = await response.json();
       setBlobUrl(blob.url);
+      posthog.capture("feedback_form_submitted", {
+        overall_rating: formData.overallRating,
+        experience_duration: formData.experienceDuration,
+        would_recommend: formData.wouldRecommend,
+        has_technical_issues: formData.technicalIssues.trim().length > 0,
+      });
     } catch (err: any) {
       setError(err.message);
+      posthog.capture("feedback_upload_error", {
+        error_message: err.message,
+      });
+      posthog.captureException(err);
     } finally {
       setUploading(false);
     }

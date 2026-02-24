@@ -4,6 +4,7 @@ import Head from 'next/head';
 import { useMsal } from '@azure/msal-react';
 import { loginRequest, validateGatechEmail } from '../../lib/msal';
 import styles from '../../styles/Login.module.css';
+import posthog from 'posthog-js';
 
 export default function AdminLogin() {
   const router = useRouter();
@@ -16,6 +17,16 @@ export default function AdminLogin() {
     const account = accounts[0];
     if (account && validateGatechEmail(account.username)) {
       console.log('🔐 User already authenticated, redirecting to dashboard...');
+      // Identify the admin in PostHog
+      posthog.identify(account.username, {
+        email: account.username,
+        name: account.name,
+        role: 'admin',
+      });
+      posthog.capture('admin_logged_in', {
+        email: account.username,
+        auth_provider: 'azure_ad',
+      });
       router.push('/admin/dashboard');
     }
   }, [accounts, router]);
@@ -51,6 +62,11 @@ export default function AdminLogin() {
         errorMessage = err.message;
       }
       
+      posthog.capture('admin_login_error', {
+        error_code: err.errorCode || 'unknown',
+        error_message: errorMessage,
+      });
+      posthog.captureException(err);
       setError(errorMessage);
       setIsLoading(false);
     }

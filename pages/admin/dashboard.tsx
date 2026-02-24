@@ -5,6 +5,7 @@ import { useMsal } from '@azure/msal-react';
 import { useAuth } from '../../context/AuthContext';
 import ProtectedRoute from '../../components/ProtectedRoute';
 import styles from '../../styles/Dashboard.module.css';
+import posthog from 'posthog-js';
 
 interface FileMetadata {
   filename: string;
@@ -251,6 +252,12 @@ export default function AdminDashboard() {
       }
 
       setSuccess('File uploaded successfully!');
+      posthog.capture('admin_file_uploaded', {
+        filename: uploadFile.name,
+        file_size: uploadFile.size,
+        file_type: uploadFile.name.toLowerCase().endsWith('.pdf') ? 'pdf' : 'text',
+        uploader_email: user?.email,
+      });
       setUploadFile(null);
       setUploadDescription('');
       // Clear the file input
@@ -259,6 +266,7 @@ export default function AdminDashboard() {
       loadFiles(); // Refresh file list
     } catch (err: any) {
       setError(err.message);
+      posthog.captureException(err);
     } finally {
       setUploading(false);
     }
@@ -292,10 +300,15 @@ export default function AdminDashboard() {
       }
 
       setSuccess('File deleted successfully!');
+      posthog.capture('admin_file_deleted', {
+        filename: filename,
+        deleter_email: user?.email,
+      });
       setShowDeleteConfirm(null);
       loadFiles(); // Refresh file list
     } catch (err: any) {
       setError(err.message);
+      posthog.captureException(err);
     } finally {
       setDeleting(null);
     }
@@ -345,7 +358,12 @@ export default function AdminDashboard() {
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
-    
+
+    posthog.capture('admin_logged_out', {
+      email: user?.email,
+    });
+    posthog.reset();
+
     try {
       await instance.logoutRedirect({
         postLogoutRedirectUri: window.location.origin + '/admin/login'

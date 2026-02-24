@@ -9,6 +9,8 @@ import { validateGatechEmail } from "../lib/msal";
 import SessionWarning from "../components/SessionWarning";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
+import posthog from "posthog-js";
+import { PostHogProvider } from "posthog-js/react";
 
 // Inner component that can use AuthContext
 function AppContent({ Component, pageProps }) {
@@ -29,7 +31,31 @@ function AppContent({ Component, pageProps }) {
 function MyApp({ Component, pageProps }) {
   const router = useRouter();
   const [isRedirectHandled, setIsRedirectHandled] = useState(false);
-  
+
+  useEffect(() => {
+    // Initialize PostHog client-side
+    if (typeof window !== "undefined") {
+      posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY, {
+        api_host: "/ingest",
+        ui_host: "https://us.posthog.com",
+        defaults: "2026-01-30",
+        capture_exceptions: true,
+        debug: process.env.NODE_ENV === "development",
+        loaded: (ph) => {
+          if (process.env.NODE_ENV === "development") ph.debug();
+        },
+      });
+    }
+
+    // Capture pageview on route change
+    const handleRouteChange = () => posthog.capture("$pageview");
+    router.events.on("routeChangeComplete", handleRouteChange);
+    return () => {
+      router.events.off("routeChangeComplete", handleRouteChange);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     // Handle redirect response from Azure AD BEFORE rendering app
     const handleRedirect = async () => {
@@ -110,11 +136,13 @@ function MyApp({ Component, pageProps }) {
   }
   
   return (
-    <MsalProvider instance={msalInstance}>
-      <AuthProvider>
-        <AppContent Component={Component} pageProps={pageProps} />
-      </AuthProvider>
-    </MsalProvider>
+    <PostHogProvider client={posthog}>
+      <MsalProvider instance={msalInstance}>
+        <AuthProvider>
+          <AppContent Component={Component} pageProps={pageProps} />
+        </AuthProvider>
+      </MsalProvider>
+    </PostHogProvider>
   );
 }
 

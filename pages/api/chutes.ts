@@ -1,6 +1,7 @@
 import { Pinecone } from "@pinecone-database/pinecone";
 import type { NextApiRequest, NextApiResponse } from "next";
 import { Embeddings } from "deepinfra";
+import { getPostHogClient } from "../../lib/posthog-server";
 
 // Types for conversation history management
 interface ConversationMessage {
@@ -1273,6 +1274,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!question) {
     return res.status(400).json({ message: "Question is required" });
   }
+
+  // Capture server-side chat request event
+  const distinctId =
+    (req.headers["x-posthog-distinct-id"] as string) ||
+    (req.headers["x-forwarded-for"] as string) ||
+    req.socket.remoteAddress ||
+    "anonymous";
+  const phServer = getPostHogClient();
+  phServer.capture({
+    distinctId,
+    event: "server_chat_request",
+    properties: {
+      question_length: question.length,
+      history_length: Array.isArray(history) ? history.length : 0,
+    },
+  });
 
   try {
     // Initialize metrics for conversation tracking

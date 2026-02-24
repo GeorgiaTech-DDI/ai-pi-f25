@@ -6,6 +6,7 @@ import FeedbackDialog from "../components/Dialogs/FeedbackDialog";
 import ReferencesDialog from "../components/Dialogs/ReferencesDialog";
 import { Message, Context, DialogFadeState } from "../components/types";
 import { saveChatAsText } from "../utils/chatUtils";
+import posthog from "posthog-js";
 
 export default function Home() {
   const [loading, setLoading] = useState<boolean>(false);
@@ -62,6 +63,12 @@ export default function Home() {
     setWebSearchLoading(false);
     setWebSearchStatus("");
     setError("");
+
+    // Track chat message submission
+    posthog.capture("chat_message_submitted", {
+      message_length: message.length,
+      conversation_length: messages.length,
+    });
 
     // Add user message to chat
     const userMessage: Message = { role: "user", content: message };
@@ -313,6 +320,10 @@ export default function Home() {
                         };
                         return newMessages;
                       });
+                      posthog.capture("chat_response_received", {
+                        response_length: accumulatedContent.length,
+                        conversation_length: updatedMessages.length,
+                      });
                     }
                   } catch (e) {
                     console.error("Error parsing stream event:", e, line);
@@ -343,6 +354,11 @@ export default function Home() {
 
       setError("Failed to get answer. Please try again.");
       console.error("Frontend error:", e);
+      posthog.capture("chat_error", {
+        error_message: e instanceof Error ? e.message : String(e),
+        conversation_length: messages.length,
+      });
+      posthog.captureException(e);
       setLoading(false);
     }
   };
@@ -370,6 +386,11 @@ export default function Home() {
   // Function to submit feedback
   const submitFeedback = (feedbackText: string): void => {
     if (feedbackMessageIndex === null) return;
+
+    posthog.capture("feedback_submitted", {
+      feedback_length: feedbackText.length,
+      message_index: feedbackMessageIndex,
+    });
 
     // Create a copy of messages
     const updatedMessages = [...messages];
@@ -418,7 +439,9 @@ export default function Home() {
   const acceptTerms = (): void => {
     // Save acceptance to localStorage
     localStorage.setItem('tosAccepted', 'true');
-    
+
+    posthog.capture("tos_accepted");
+
     setTosFadeState("exiting");
     setTimeout(() => {
       setShowTosDialog(false);
@@ -440,6 +463,10 @@ export default function Home() {
         "Are you sure you want to restart? Your current conversation will be automatically saved.",
       )
     ) {
+      posthog.capture("chat_restarted", {
+        conversation_length: messages.length,
+      });
+
       // Auto-save chat before clearing
       saveChatAsText(messages);
       setHasSaved(true);
@@ -481,6 +508,9 @@ export default function Home() {
           onSaveChatAsText={() => {
             saveChatAsText(messages);
             setHasSaved(true);
+            posthog.capture("chat_saved", {
+              conversation_length: messages.length,
+            });
           }}
           onRestartChat={restartChat}
           hasMessages={messages.length > 0}

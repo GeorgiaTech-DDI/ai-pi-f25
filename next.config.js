@@ -34,7 +34,7 @@ const nextConfig = {
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: https:",
               "font-src 'self' data:",
-              "connect-src 'self' https://login.microsoftonline.com https://graph.microsoft.com",
+              "connect-src 'self' https://login.microsoftonline.com https://graph.microsoft.com https://us.i.posthog.com https://us-assets.i.posthog.com",
               "frame-src 'self' https://login.microsoftonline.com",
               "object-src 'none'",
               "base-uri 'self'",
@@ -62,6 +62,23 @@ const nextConfig = {
   
   // Security: Don't expose source maps in production
   productionBrowserSourceMaps: false,
+
+  // PostHog reverse proxy to improve reliability and avoid ad-blockers
+  async rewrites() {
+    return [
+      {
+        source: '/ingest/static/:path*',
+        destination: 'https://us-assets.i.posthog.com/static/:path*',
+      },
+      {
+        source: '/ingest/:path*',
+        destination: 'https://us.i.posthog.com/:path*',
+      },
+    ];
+  },
+
+  // Required to support PostHog trailing slash API requests
+  skipTrailingSlashRedirect: true,
 }
 
 export default nextConfig;
