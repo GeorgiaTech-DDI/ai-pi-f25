@@ -4,10 +4,20 @@ let posthogClient: PostHog | null = null;
 
 export function getPostHogClient(): PostHog {
   if (!posthogClient) {
+    const posthogKey = process.env.NEXT_PUBLIC_POSTHOG_KEY;
+    if (!posthogKey) {
+      throw new Error('NEXT_PUBLIC_POSTHOG_KEY is not defined');
+    }
+
+    const posthogHost = process.env.NEXT_PUBLIC_POSTHOG_HOST;
+    if (!posthogHost) {
+      throw new Error('NEXT_PUBLIC_POSTHOG_HOST is not defined');
+    }
+
     posthogClient = new PostHog(
-      process.env.NEXT_PUBLIC_POSTHOG_KEY!,
+      posthogKey,
       {
-        host: process.env.NEXT_PUBLIC_POSTHOG_HOST,
+        host: posthogHost,
         flushAt: 1,
         flushInterval: 0,
       }

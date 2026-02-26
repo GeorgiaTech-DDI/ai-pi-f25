@@ -17,7 +17,7 @@ export default function AdminLogin() {
     const account = accounts[0];
     if (account && validateGatechEmail(account.username)) {
       console.log('🔐 User already authenticated, redirecting to dashboard...');
-      // Identify the admin in PostHog
+      // Identify the admin in PostHog, tracking email may be a privacy issue
       posthog.identify(account.username, {
         email: account.username,
         name: account.name,
