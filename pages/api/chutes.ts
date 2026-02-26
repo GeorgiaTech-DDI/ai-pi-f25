@@ -1,4 +1,6 @@
 import { Pinecone } from "@pinecone-database/pinecone";
+import { OpenAI } from "@posthog/ai";
+import { PostHog } from "posthog-node";
 import type { NextApiRequest, NextApiResponse } from "next";
 import { Embeddings } from "deepinfra";
 import { getPostHogClient } from "../../lib/posthog-server";
@@ -40,14 +42,36 @@ interface ConversationMetrics {
 const pinecone = new Pinecone({
   apiKey: process.env.PINECONE_API_KEY || "",
 });
-const index = pinecone.index(process.env.PINECONE_INDEX_NAME || "rag-embeddings");
+const index = pinecone.index(
+  process.env.PINECONE_INDEX_NAME || "rag-embeddings",
+);
+
+if (!process.env.NEXT_PUBLIC_POSTHOG_KEY) {
+  throw new Error("NEXT_PUBLIC_POSTHOG_KEY is not defined");
+}
+const phClient = new PostHog(process.env.NEXT_PUBLIC_POSTHOG_KEY, {
+  host: "https://us.i.posthog.com",
+});
+
+if (!process.env.OPENROUTER_API_KEY) {
+  throw new Error("OPENROUTER_API_KEY is not defined");
+}
+
+const aiClient = new OpenAI({
+  baseURL: "https://openrouter.ai/api/v1",
+  apiKey: process.env.OPENROUTER_API_KEY,
+  posthog: phClient,
+});
 
 // --- Conversation History Management Functions ---
 
 /**
  * Calculate relevance score between a message and the current question
  */
-function calculateRelevance(message: ConversationMessage, question: string): number {
+function calculateRelevance(
+  message: ConversationMessage,
+  question: string,
+): number {
   const messageWords = message.content.toLowerCase().split(/\s+/);
   const questionWords = question.toLowerCase().split(/\s+/);
 
@@ -91,12 +115,18 @@ function calculateConversationMetrics(
   originalMessages: ConversationMessage[],
   prunedHistory: PrunedHistory,
 ): ConversationMetrics {
-  const originalChars = originalMessages.reduce((sum, msg) => sum + msg.content.length, 0);
-  const compressionRatio = originalChars > 0 ? prunedHistory.totalChars / originalChars : 1;
+  const originalChars = originalMessages.reduce(
+    (sum, msg) => sum + msg.content.length,
+    0,
+  );
+  const compressionRatio =
+    originalChars > 0 ? prunedHistory.totalChars / originalChars : 1;
 
   // Suggest restart if conversation is getting too long or heavily compressed
   const shouldSuggestRestart =
-    originalMessages.length > 30 || compressionRatio < 0.3 || originalChars > 8000;
+    originalMessages.length > 30 ||
+    compressionRatio < 0.3 ||
+    originalChars > 8000;
 
   return {
     originalMessageCount: originalMessages.length,
@@ -124,7 +154,10 @@ function pruneConversationHistory(
   const recentMessages = messages.slice(-HISTORY_CONFIG.MAX_RECENT_MESSAGES);
 
   // If we're under the character limit, return as is
-  let totalChars = recentMessages.reduce((sum, msg) => sum + msg.content.length, 0);
+  let totalChars = recentMessages.reduce(
+    (sum, msg) => sum + msg.content.length,
+    0,
+  );
 
   if (
     totalChars <= HISTORY_CONFIG.MAX_TOTAL_CHARS &&
@@ -143,7 +176,10 @@ function pruneConversationHistory(
   }
 
   // If still over character limit, trim from the beginning of recent messages
-  while (totalChars > HISTORY_CONFIG.MAX_TOTAL_CHARS && finalMessages.length > 2) {
+  while (
+    totalChars > HISTORY_CONFIG.MAX_TOTAL_CHARS &&
+    finalMessages.length > 2
+  ) {
     const removed = finalMessages.shift();
     if (removed) {
       totalChars -= removed.content.length;
@@ -188,9 +224,15 @@ function formatHistoryForModel(prunedHistory: PrunedHistory): string {
         let content = msg.content;
 
         // Remove context sections that might have been stored from previous responses
-        content = content.replace(/CONTEXT FOR CURRENT QUESTION:[\s\S]*?(?=\n\n|$)/g, "").trim();
-        content = content.replace(/Previous conversation:[\s\S]*?Current question:/g, "").trim();
-        content = content.replace(/INVENTION STUDIO CONTEXT:[\s\S]*?(?=\n\n|$)/g, "").trim();
+        content = content
+          .replace(/CONTEXT FOR CURRENT QUESTION:[\s\S]*?(?=\n\n|$)/g, "")
+          .trim();
+        content = content
+          .replace(/Previous conversation:[\s\S]*?Current question:/g, "")
+          .trim();
+        content = content
+          .replace(/INVENTION STUDIO CONTEXT:[\s\S]*?(?=\n\n|$)/g, "")
+          .trim();
 
         return `${msg.role === "user" ? "User" : "Assistant"}: ${content}`;
       })
@@ -205,7 +247,10 @@ function formatHistoryForModel(prunedHistory: PrunedHistory): string {
 /**
  * Extract key terms and context from conversation for better embeddings
  */
-function extractEmbeddingContext(conversationHistory: string, currentQuestion: string): string {
+function extractEmbeddingContext(
+  conversationHistory: string,
+  currentQuestion: string,
+): string {
   if (!conversationHistory) return currentQuestion;
 
   // Extract technical terms and important concepts
@@ -219,7 +264,8 @@ function extractEmbeddingContext(conversationHistory: string, currentQuestion: s
 
   // Extract key terms (words longer than 4 chars, technical terms)
   const keyTerms = new Set<string>();
-  const technicalPattern = /\b[A-Z][a-z]*(?:[A-Z][a-z]*)*\b|\b\w*(?:ing|tion|ment|ness|ity)\b/g;
+  const technicalPattern =
+    /\b[A-Z][a-z]*(?:[A-Z][a-z]*)*\b|\b\w*(?:ing|tion|ment|ness|ity)\b/g;
 
   recentQuestions.forEach((question) => {
     // Add technical terms
@@ -234,7 +280,17 @@ function extractEmbeddingContext(conversationHistory: string, currentQuestion: s
       const cleaned = word.replace(/[^\w]/g, "").toLowerCase();
       if (
         cleaned.length > 4 &&
-        !["that", "this", "with", "from", "they", "them", "were", "have", "been"].includes(cleaned)
+        ![
+          "that",
+          "this",
+          "with",
+          "from",
+          "they",
+          "them",
+          "were",
+          "have",
+          "been",
+        ].includes(cleaned)
       ) {
         keyTerms.add(cleaned);
       }
@@ -298,8 +354,14 @@ async function performBackgroundOptimization(
     );
 
     // Log optimization results
-    const originalChars = originalMessages.reduce((sum, msg) => sum + msg.content.length, 0);
-    const optimizedChars = optimizedHistory.reduce((sum, msg) => sum + msg.content.length, 0);
+    const originalChars = originalMessages.reduce(
+      (sum, msg) => sum + msg.content.length,
+      0,
+    );
+    const optimizedChars = optimizedHistory.reduce(
+      (sum, msg) => sum + msg.content.length,
+      0,
+    );
 
     console.log(
       `Background optimization completed: ${originalMessages.length} -> ${optimizedHistory.length} messages, ` +
@@ -441,10 +503,14 @@ async function embedDocs(docs: string[]): Promise<number[][]> {
       });
 
       if (embeddings.length !== docs.length) {
-        throw new Error("Mismatch between number of documents and embeddings from Ollama.");
+        throw new Error(
+          "Mismatch between number of documents and embeddings from Ollama.",
+        );
       }
 
-      console.log(`Successfully generated ${embeddings.length} embeddings using Ollama.`);
+      console.log(
+        `Successfully generated ${embeddings.length} embeddings using Ollama.`,
+      );
       return embeddings;
     } else if (process.env.DEEPINFRA_API_KEY) {
       console.log("Ollama not available. Using DeepInfra API for embeddings.");
@@ -457,14 +523,20 @@ async function embedDocs(docs: string[]): Promise<number[][]> {
       const output = await client.generate(body);
       const embeddings = output.embeddings;
       if (embeddings.length !== docs.length) {
-        throw new Error("Mismatch between number of documents and embeddings from Ollama.");
+        throw new Error(
+          "Mismatch between number of documents and embeddings from Ollama.",
+        );
       }
       return embeddings;
     } else {
-      console.log("Ollama/Together not available. Using Hugging Face API for embeddings.");
+      console.log(
+        "Ollama/Together not available. Using Hugging Face API for embeddings.",
+      );
 
       if (!hfApiUrl || !hfApiKey) {
-        throw new Error("Ollama is unavailable and Hugging Face API URL or Key is not configured.");
+        throw new Error(
+          "Ollama is unavailable and Hugging Face API URL or Key is not configured.",
+        );
       }
 
       const headers = {
@@ -485,14 +557,19 @@ async function embedDocs(docs: string[]): Promise<number[][]> {
 
         if (!response.ok) {
           const errorText = await response.text();
-          throw new Error(`Hugging Face API error: ${response.status} - ${errorText}`);
+          throw new Error(
+            `Hugging Face API error: ${response.status} - ${errorText}`,
+          );
         }
 
         const result = await response.json();
 
         // The expected format from the provided Python code should be a vector
         if (!Array.isArray(result)) {
-          console.error("Unexpected embedding format from Hugging Face:", result);
+          console.error(
+            "Unexpected embedding format from Hugging Face:",
+            result,
+          );
           throw new Error("Unexpected embedding format from Hugging Face.");
         }
 
@@ -531,7 +608,11 @@ function constructContext(
 }
 
 // --- Create Payload Function for Chutes API ---
-function createPayload(question: string, contextStr: string, conversationHistory: string = "") {
+function createPayload(
+  question: string,
+  contextStr: string,
+  conversationHistory: string = "",
+) {
   const messages: Array<{ role: string; content: string }> = [];
 
   // System message without embedding context directly
@@ -604,7 +685,10 @@ ${contextStr}`,
  * Classify user query to determine if RAG is needed
  * Returns: { needsRAG: boolean, reasoning?: string }
  */
-async function classifyQuery(question: string): Promise<{ needsRAG: boolean; reasoning?: string }> {
+async function classifyQuery(
+  question: string,
+  distinctId: string,
+): Promise<{ needsRAG: boolean; reasoning?: string }> {
   try {
     const classificationPrompt = `You are a query classifier for an Invention Studio chatbot at Georgia Tech.
 
@@ -632,38 +716,42 @@ OR
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
 
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${process.env.OPENROUTER_API_KEY || ""}`,
-        "HTTP-Referer": process.env.PUBLIC_SITE_URL || "https://matrixlab.gatech.edu",
-        "X-Title": "Matrix Lab AI",
-        "Content-Type": "application/json",
-      },
-      signal: controller.signal,
-      body: JSON.stringify({
-        model: "google/gemma-3n-e4b-it:free",
-        messages: [
-          {
-            role: "user",
-            content: classificationPrompt,
+    let content: string | undefined;
+    try {
+      const response = await aiClient.chat.completions.create(
+        {
+          model: "google/gemma-3n-e4b-it:free",
+          messages: [
+            {
+              role: "user",
+              content: classificationPrompt,
+            },
+          ] as any,
+          max_tokens: 100,
+          temperature: 0.1, // Low temperature for consistent classification
+          stream: false,
+          posthogDistinctId: distinctId,
+        } as any,
+        {
+          headers: {
+            "HTTP-Referer":
+              process.env.PUBLIC_SITE_URL || "https://matrixlab.gatech.edu",
+            "X-Title": "Matrix Lab AI",
           },
-        ],
-        max_tokens: 100,
-        temperature: 0.1, // Low temperature for consistent classification
-        stream: false,
-      }),
-    });
+          signal: controller.signal,
+        } as any,
+      );
 
-    clearTimeout(timeoutId);
-
-    if (!response.ok) {
-      console.warn(`Classification API error: ${response.status}, defaulting to RAG`);
-      return { needsRAG: true, reasoning: "Classification failed, defaulting to RAG for safety" };
+      clearTimeout(timeoutId);
+      content = response.choices?.[0]?.message?.content?.trim() || "";
+    } catch (apiError) {
+      clearTimeout(timeoutId);
+      console.warn(`Classification API error: ${apiError}, defaulting to RAG`);
+      return {
+        needsRAG: true,
+        reasoning: "Classification failed, defaulting to RAG for safety",
+      };
     }
-
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content?.trim();
 
     if (!content) {
       console.warn("Empty classification response, defaulting to RAG");
@@ -677,8 +765,14 @@ OR
       const cleanContent = content.replace(/```json\s*|\s*```/g, "").trim();
       classification = JSON.parse(cleanContent);
     } catch (parseError) {
-      console.warn("Failed to parse classification JSON, defaulting to RAG:", content);
-      return { needsRAG: true, reasoning: "JSON parse failed, defaulting to RAG" };
+      console.warn(
+        "Failed to parse classification JSON, defaulting to RAG:",
+        content,
+      );
+      return {
+        needsRAG: true,
+        reasoning: "JSON parse failed, defaulting to RAG",
+      };
     }
 
     const needsRAG = classification.classification === "RAG";
@@ -693,14 +787,20 @@ OR
   } catch (error) {
     console.warn("Classification error:", error, "- defaulting to RAG");
     // Default to RAG on error (safer to have unnecessary references than miss important info)
-    return { needsRAG: true, reasoning: "Classification error, defaulting to RAG for safety" };
+    return {
+      needsRAG: true,
+      reasoning: "Classification error, defaulting to RAG for safety",
+    };
   }
 }
 
 /**
  * Use LLM to extract up to 10 tokens as keyword for DuckDuckGo search
  */
-async function extractKeywordForDuckDuckGo(question: string): Promise<string> {
+async function extractKeywordForDuckDuckGo(
+  question: string,
+  distinctId: string,
+): Promise<string> {
   try {
     const keywordExtractionPrompt = `Extract the most important search keywords from this question for finding general information on DuckDuckGo. You can provide multiple keyword variations separated by commas, with the most important first.
 
@@ -727,37 +827,33 @@ Return only the keywords as comma-separated phrases, no explanation:`;
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout for keyword extraction
 
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${process.env.OPENROUTER_API_KEY || ""}`,
-        "HTTP-Referer": process.env.PUBLIC_SITE_URL || "https://matrixlab.gatech.edu",
-        "X-Title": "Matrix Lab AI",
-        "Content-Type": "application/json",
-      },
-      signal: controller.signal,
-      body: JSON.stringify({
+    const response = await aiClient.chat.completions.create(
+      {
         model: "google/gemma-3n-e4b-it:free",
         messages: [
           {
             role: "user",
             content: keywordExtractionPrompt,
           },
-        ],
+        ] as any,
         max_tokens: 20,
         temperature: 0.1,
         stream: false,
-      }),
-    });
+        posthogDistinctId: distinctId,
+      } as any,
+      {
+        headers: {
+          "HTTP-Referer":
+            process.env.PUBLIC_SITE_URL || "https://matrixlab.gatech.edu",
+          "X-Title": "Matrix Lab AI",
+        },
+        signal: controller.signal,
+      } as any,
+    );
 
     clearTimeout(timeoutId);
 
-    if (!response.ok) {
-      throw new Error(`LLM API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const keywords = data.choices?.[0]?.message?.content?.trim();
+    const keywords = response.choices?.[0]?.message?.content?.trim();
 
     if (!keywords || keywords.length < 2) {
       throw new Error("No valid keywords extracted");
@@ -773,7 +869,9 @@ Return only the keywords as comma-separated phrases, no explanation:`;
       primaryKeyword = tokens.slice(0, 10).join(" ");
     }
 
-    console.log(`LLM extracted keywords: "${keywords}" -> using primary: "${primaryKeyword}"`);
+    console.log(
+      `LLM extracted keywords: "${keywords}" -> using primary: "${primaryKeyword}"`,
+    );
     return primaryKeyword;
   } catch (error) {
     console.warn("LLM keyword extraction failed:", error);
@@ -826,13 +924,15 @@ async function fetchDuckDuckGoContext(keyword: string): Promise<{
       hasAnswer: !!data.Answer,
       answerLength: data.Answer?.length || 0,
       relatedTopicsCount: data.RelatedTopics?.length || 0,
-      relatedTopicsStructure: data.RelatedTopics?.slice(0, 2).map((topic: any) => ({
-        hasText: !!topic.Text,
-        textLength: topic.Text?.length || 0,
-        hasName: !!topic.Name,
-        hasTopics: !!topic.Topics,
-        topicsCount: topic.Topics?.length || 0,
-      })),
+      relatedTopicsStructure: data.RelatedTopics?.slice(0, 2).map(
+        (topic: any) => ({
+          hasText: !!topic.Text,
+          textLength: topic.Text?.length || 0,
+          hasName: !!topic.Name,
+          hasTopics: !!topic.Topics,
+          topicsCount: topic.Topics?.length || 0,
+        }),
+      ),
     });
 
     // Extract useful information from the response
@@ -847,11 +947,15 @@ async function fetchDuckDuckGoContext(keyword: string): Promise<{
     } else if (data.AbstractText && data.AbstractText.trim()) {
       contextText = data.AbstractText;
       source = data.AbstractSource || "DuckDuckGo Abstract";
-      console.log(`Using AbstractText from ${source}: ${contextText.length} chars`);
+      console.log(
+        `Using AbstractText from ${source}: ${contextText.length} chars`,
+      );
     } else if (data.Definition && data.Definition.trim()) {
       contextText = data.Definition;
       source = data.DefinitionSource || "DuckDuckGo Definition";
-      console.log(`Using Definition from ${source}: ${contextText.length} chars`);
+      console.log(
+        `Using Definition from ${source}: ${contextText.length} chars`,
+      );
     } else if (data.Answer && data.Answer.trim()) {
       contextText = data.Answer;
       source = "DuckDuckGo Answer";
@@ -872,7 +976,9 @@ async function fetchDuckDuckGoContext(keyword: string): Promise<{
         for (const topicGroup of data.RelatedTopics) {
           if (topicGroup.Topics && topicGroup.Topics.length > 0) {
             // Find the most relevant subtopic
-            const subtopic = topicGroup.Topics.find((sub: any) => sub.Text && sub.Text.length > 20);
+            const subtopic = topicGroup.Topics.find(
+              (sub: any) => sub.Text && sub.Text.length > 20,
+            );
             if (subtopic) {
               contextText = subtopic.Text;
               source = `DuckDuckGo ${topicGroup.Name || "Related Topics"}`;
@@ -889,12 +995,16 @@ async function fetchDuckDuckGoContext(keyword: string): Promise<{
       if (!contextText && data.RelatedTopics[0]?.Text) {
         contextText = data.RelatedTopics[0].Text;
         source = "DuckDuckGo Related Topics";
-        console.log(`Using fallback Related Topic: ${contextText.length} chars`);
+        console.log(
+          `Using fallback Related Topic: ${contextText.length} chars`,
+        );
       }
     }
 
     if (!contextText || contextText.trim().length < 10) {
-      console.log(`No useful context found in DuckDuckGo response for "${keyword}"`);
+      console.log(
+        `No useful context found in DuckDuckGo response for "${keyword}"`,
+      );
       return null;
     }
 
@@ -903,7 +1013,9 @@ async function fetchDuckDuckGoContext(keyword: string): Promise<{
       contextText = contextText.substring(0, 497) + "...";
     }
 
-    console.log(`DuckDuckGo context found: ${contextText.length} chars from ${source}`);
+    console.log(
+      `DuckDuckGo context found: ${contextText.length} chars from ${source}`,
+    );
 
     return {
       text: contextText,
@@ -923,6 +1035,7 @@ async function fetchDuckDuckGoContext(keyword: string): Promise<{
 async function generateGeneralResponse(
   question: string,
   conversationHistory: string = "",
+  distinctId: string,
 ): Promise<ReadableStream<Uint8Array>> {
   try {
     const messages: Array<{ role: string; content: string }> = [];
@@ -960,33 +1073,45 @@ Respond naturally to the user's question.`;
     });
 
     // Call the OpenRouter API with streaming
-    const openRouterResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${process.env.OPENROUTER_API_KEY || ""}`,
-        "HTTP-Referer": process.env.PUBLIC_SITE_URL || "https://matrixlab.gatech.edu",
-        "X-Title": "Matrix Lab AI",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        messages,
+    const stream = await aiClient.chat.completions.create(
+      {
+        messages: messages as any,
         model: "google/gemma-3-27b-it:free",
         stream: true,
         max_tokens: 500,
         temperature: 0.75,
+        posthogDistinctId: distinctId,
         provider: {
           order: ["Chutes"],
         },
-      }),
-    });
-
-    if (!openRouterResponse.ok) {
-      const errorText = await openRouterResponse.text();
-      throw new Error(`OpenRouter API error: ${openRouterResponse.status} - ${errorText}`);
-    }
+      } as any,
+      {
+        headers: {
+          "HTTP-Referer":
+            process.env.PUBLIC_SITE_URL || "https://matrixlab.gatech.edu",
+          "X-Title": "Matrix Lab AI",
+        },
+      } as any,
+    );
 
     console.log(`General response stream started (no RAG)`);
-    return openRouterResponse.body as ReadableStream<Uint8Array>;
+
+    const encoder = new TextEncoder();
+    return new ReadableStream({
+      async start(controller) {
+        try {
+          for await (const chunk of stream as any) {
+            controller.enqueue(
+              encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`),
+            );
+          }
+          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+          controller.close();
+        } catch (e) {
+          controller.error(e);
+        }
+      },
+    });
   } catch (error) {
     console.error("Error in generateGeneralResponse:", error);
     throw error;
@@ -996,11 +1121,15 @@ Respond naturally to the user's question.`;
 async function ragQuery(
   question: string,
   conversationHistory: string = "",
+  distinctId: string,
   res?: NextApiResponse,
 ): Promise<[string | ReadableStream<Uint8Array>, any[]]> {
   try {
     // Use intelligent context extraction for better embeddings
-    let textForEmbedding = extractEmbeddingContext(conversationHistory, question);
+    let textForEmbedding = extractEmbeddingContext(
+      conversationHistory,
+      question,
+    );
 
     // Define a maximum character length for the text to be embedded.
     // The model itself truncates to 512 tokens.
@@ -1012,13 +1141,17 @@ async function ragQuery(
         `Truncating textForEmbedding from ${textForEmbedding.length} to ${MAX_CHARS_FOR_EMBEDDING_CONTENT} chars.`,
       );
       // Truncate from the beginning, preserving the most recent text (including the question).
-      textForEmbedding = textForEmbedding.slice(-MAX_CHARS_FOR_EMBEDDING_CONTENT);
+      textForEmbedding = textForEmbedding.slice(
+        -MAX_CHARS_FOR_EMBEDDING_CONTENT,
+      );
     }
 
     // Focus primarily on the current question for better relevance
     const questionVecEmbeddings = await embedDocs([question]);
     const queryVecEmbeddings =
-      textForEmbedding !== question ? await embedDocs([textForEmbedding]) : questionVecEmbeddings; // Use same embeddings if no conversation context
+      textForEmbedding !== question
+        ? await embedDocs([textForEmbedding])
+        : questionVecEmbeddings; // Use same embeddings if no conversation context
 
     if (
       !queryVecEmbeddings ||
@@ -1044,13 +1177,16 @@ async function ragQuery(
     }
 
     // Get DuckDuckGo context first (with error handling)
-    const keyword = await extractKeywordForDuckDuckGo(question);
+    const keyword = await extractKeywordForDuckDuckGo(question, distinctId);
     console.log(`Extracted keyword for DuckDuckGo: "${keyword}"`);
     let duckDuckGoContext = null;
     try {
       duckDuckGoContext = await fetchDuckDuckGoContext(keyword);
     } catch (ddgError) {
-      console.warn(`DuckDuckGo integration failed for keyword "${keyword}":`, ddgError);
+      console.warn(
+        `DuckDuckGo integration failed for keyword "${keyword}":`,
+        ddgError,
+      );
     } finally {
       // Always emit web search complete event regardless of success/failure
       if (res) {
@@ -1105,11 +1241,14 @@ async function ragQuery(
     // OPTION 2: SMART FALLBACK - CONFIDENCE THRESHOLD CHECK
     // ========================================
     const CONFIDENCE_THRESHOLD = 0.6;
-    const bestScore = relevantContexts.length > 0 
-      ? Math.max(...relevantContexts.map(match => match.score || 0))
-      : 0;
+    const bestScore =
+      relevantContexts.length > 0
+        ? Math.max(...relevantContexts.map((match) => match.score || 0))
+        : 0;
 
-    console.log(`RAG Quality Check: Best match score = ${bestScore.toFixed(3)}, Threshold = ${CONFIDENCE_THRESHOLD}`);
+    console.log(
+      `RAG Quality Check: Best match score = ${bestScore.toFixed(3)}, Threshold = ${CONFIDENCE_THRESHOLD}`,
+    );
 
     // Log RAG performance for admin analytics
     const ragPerformanceLog = {
@@ -1118,24 +1257,31 @@ async function ragQuery(
       bestScore: bestScore,
       totalMatches: contexts.length,
       relevantMatches: relevantContexts.length,
-      matchesAbove06: relevantContexts.filter(m => (m.score || 0) >= 0.6).length,
-      matchesAbove05: relevantContexts.filter(m => (m.score || 0) >= 0.5).length,
-      matchesAbove04: relevantContexts.filter(m => (m.score || 0) >= 0.4).length,
-      topDocuments: relevantContexts.slice(0, 3).map(m => ({
-        filename: m.metadata?.filename || 'unknown',
-        score: m.score || 0
+      matchesAbove06: relevantContexts.filter((m) => (m.score || 0) >= 0.6)
+        .length,
+      matchesAbove05: relevantContexts.filter((m) => (m.score || 0) >= 0.5)
+        .length,
+      matchesAbove04: relevantContexts.filter((m) => (m.score || 0) >= 0.4)
+        .length,
+      topDocuments: relevantContexts.slice(0, 3).map((m) => ({
+        filename: m.metadata?.filename || "unknown",
+        score: m.score || 0,
       })),
-      decision: bestScore >= CONFIDENCE_THRESHOLD ? 'USE_RAG' : 'USE_GENERAL',
-      confidenceLevel: bestScore >= 0.7 ? 'high' : bestScore >= 0.5 ? 'medium' : 'low'
+      decision: bestScore >= CONFIDENCE_THRESHOLD ? "USE_RAG" : "USE_GENERAL",
+      confidenceLevel:
+        bestScore >= 0.7 ? "high" : bestScore >= 0.5 ? "medium" : "low",
     };
 
-    console.log('📊 RAG Performance:', JSON.stringify(ragPerformanceLog, null, 2));
+    console.log(
+      "📊 RAG Performance:",
+      JSON.stringify(ragPerformanceLog, null, 2),
+    );
 
     // Store log in Pinecone for admin analytics
     try {
       // Serialize topDocuments array to JSON string for Pinecone metadata
       const metadataForPinecone = {
-        type: 'query_log',
+        type: "query_log",
         timestamp: ragPerformanceLog.timestamp,
         question: ragPerformanceLog.question,
         bestScore: ragPerformanceLog.bestScore,
@@ -1146,21 +1292,23 @@ async function ragQuery(
         matchesAbove04: ragPerformanceLog.matchesAbove04,
         topDocuments: JSON.stringify(ragPerformanceLog.topDocuments), // Serialize to string
         decision: ragPerformanceLog.decision,
-        confidenceLevel: ragPerformanceLog.confidenceLevel
+        confidenceLevel: ragPerformanceLog.confidenceLevel,
       };
 
       // Create dummy vector with at least one non-zero value (Pinecone requirement)
       const dummyVector = new Array(1024).fill(0);
       dummyVector[0] = 0.0001; // Small non-zero value to satisfy Pinecone
 
-      await index.upsert([{
-        id: `query-log-${Date.now()}-${Math.random().toString(36).substring(7)}`,
-        values: dummyVector,
-        metadata: metadataForPinecone
-      }]);
-      console.log('✅ Query log stored in Pinecone for admin analytics');
+      await index.upsert([
+        {
+          id: `query-log-${Date.now()}-${Math.random().toString(36).substring(7)}`,
+          values: dummyVector,
+          metadata: metadataForPinecone,
+        },
+      ]);
+      console.log("✅ Query log stored in Pinecone for admin analytics");
     } catch (logError) {
-      console.warn('⚠️ Failed to store query log:', logError);
+      console.warn("⚠️ Failed to store query log:", logError);
       // Don't throw - logging failure shouldn't break the query
     }
 
@@ -1168,17 +1316,23 @@ async function ragQuery(
     if (bestScore < CONFIDENCE_THRESHOLD) {
       console.log(
         `⚠️ RAG ABANDONED: Best score (${bestScore.toFixed(3)}) below confidence threshold (${CONFIDENCE_THRESHOLD}). ` +
-        `Using general knowledge instead.`
+          `Using general knowledge instead.`,
       );
-      
+
       // Return empty contexts to signal general knowledge should be used
       return [
-        await generateGeneralResponse(question, conversationHistory),
-        [] // Empty contexts array - no references to show
+        await generateGeneralResponse(
+          question,
+          conversationHistory,
+          distinctId,
+        ),
+        [], // Empty contexts array - no references to show
       ];
     }
 
-    console.log(`✅ RAG APPROVED: Best score (${bestScore.toFixed(3)}) meets confidence threshold. Proceeding with RAG.`);
+    console.log(
+      `✅ RAG APPROVED: Best score (${bestScore.toFixed(3)}) meets confidence threshold. Proceeding with RAG.`,
+    );
 
     // Create array of objects with text and filename, including DuckDuckGo context
     const contextObjects = relevantContexts
@@ -1191,7 +1345,9 @@ async function ragQuery(
         }
         return null;
       })
-      .filter((item): item is { text: string; filename: string } => item !== null);
+      .filter(
+        (item): item is { text: string; filename: string } => item !== null,
+      );
 
     // Add DuckDuckGo context if available
     if (duckDuckGoContext) {
@@ -1212,28 +1368,25 @@ async function ragQuery(
     const payload = createPayload(question, contextStr, conversationHistory);
 
     // Call the OpenRouter API
-    const openRouterResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${process.env.OPENROUTER_API_KEY || ""}`,
-        "HTTP-Referer": process.env.PUBLIC_SITE_URL || "https://matrixlab.gatech.edu",
-        "X-Title": "Matrix Lab AI",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
+    const stream = await aiClient.chat.completions.create(
+      {
         ...payload,
         model: "google/gemma-3-27b-it:free",
         stream: true, // Enable streaming
+        posthogDistinctId: distinctId,
         provider: {
           order: ["Chutes"],
         },
-      }),
-    });
+      } as any,
+      {
+        headers: {
+          "HTTP-Referer":
+            process.env.PUBLIC_SITE_URL || "https://matrixlab.gatech.edu",
+          "X-Title": "Matrix Lab AI",
+        },
+      } as any,
+    );
 
-    if (!openRouterResponse.ok) {
-      const errorText = await openRouterResponse.text();
-      throw new Error(`OpenRouter API error: ${openRouterResponse.status} - ${errorText}`);
-    }
     console.log(`OpenRouter response received!`);
 
     // Create enhanced contexts array that includes DuckDuckGo info
@@ -1252,11 +1405,30 @@ async function ragQuery(
         },
       };
       enhancedContexts = [duckDuckGoMatch, ...contexts];
-      console.log(`Enhanced contexts array created with DuckDuckGo context at position 0`);
+      console.log(
+        `Enhanced contexts array created with DuckDuckGo context at position 0`,
+      );
     }
 
+    const encoder = new TextEncoder();
+    const readableStream = new ReadableStream({
+      async start(controller) {
+        try {
+          for await (const chunk of stream as any) {
+            controller.enqueue(
+              encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`),
+            );
+          }
+          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+          controller.close();
+        } catch (e) {
+          controller.error(e);
+        }
+      },
+    });
+
     // For streaming responses, return the stream directly
-    return [openRouterResponse.body as ReadableStream<Uint8Array>, enhancedContexts];
+    return [readableStream, enhancedContexts];
   } catch (error) {
     console.error("Error in ragQuery:", error);
     throw error;
@@ -1264,7 +1436,10 @@ async function ragQuery(
 }
 
 // --- API Endpoint Handler ---
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse,
+) {
   if (req.method !== "POST") {
     return res.status(405).json({ message: "Method Not Allowed" });
   }
@@ -1344,7 +1519,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // Classify the query first
     console.log(`Classifying query: "${question}"`);
-    const classification = await classifyQuery(question);
+    const classification = await classifyQuery(question, distinctId);
     console.log(
       `Classification result: ${classification.needsRAG ? "RAG" : "GENERAL"} - ${classification.reasoning}`,
     );
@@ -1363,7 +1538,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       );
 
       // Pass both the current question and conversation history to ragQuery
-      const [stream, ragContexts] = await ragQuery(question, conversationHistory, res);
+      const [stream, ragContexts] = await ragQuery(
+        question,
+        conversationHistory,
+        distinctId,
+        res,
+      );
       streamOrString = stream;
       contexts = ragContexts;
     } else {
@@ -1387,42 +1567,53 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           matchesAbove05: 0,
           matchesAbove04: 0,
           topDocuments: [],
-          decision: 'USE_GENERAL',
-          confidenceLevel: 'n/a' // Not applicable for GENERAL queries
+          decision: "USE_GENERAL",
+          confidenceLevel: "n/a", // Not applicable for GENERAL queries
         };
 
-        console.log('📊 GENERAL Query:', JSON.stringify(generalQueryLog, null, 2));
+        console.log(
+          "📊 GENERAL Query:",
+          JSON.stringify(generalQueryLog, null, 2),
+        );
 
         // Store log in Pinecone
         const dummyVector = new Array(1024).fill(0);
         dummyVector[0] = 0.0001;
 
-        await index.upsert([{
-          id: `query-log-${Date.now()}-${Math.random().toString(36).substring(7)}`,
-          values: dummyVector,
-          metadata: {
-            type: 'query_log',
-            timestamp: generalQueryLog.timestamp,
-            question: generalQueryLog.question,
-            bestScore: generalQueryLog.bestScore,
-            totalMatches: generalQueryLog.totalMatches,
-            relevantMatches: generalQueryLog.relevantMatches,
-            matchesAbove06: generalQueryLog.matchesAbove06,
-            matchesAbove05: generalQueryLog.matchesAbove05,
-            matchesAbove04: generalQueryLog.matchesAbove04,
-            topDocuments: JSON.stringify(generalQueryLog.topDocuments),
-            decision: generalQueryLog.decision,
-            confidenceLevel: generalQueryLog.confidenceLevel
-          }
-        }]);
-        console.log('✅ GENERAL query log stored in Pinecone for admin analytics');
+        await index.upsert([
+          {
+            id: `query-log-${Date.now()}-${Math.random().toString(36).substring(7)}`,
+            values: dummyVector,
+            metadata: {
+              type: "query_log",
+              timestamp: generalQueryLog.timestamp,
+              question: generalQueryLog.question,
+              bestScore: generalQueryLog.bestScore,
+              totalMatches: generalQueryLog.totalMatches,
+              relevantMatches: generalQueryLog.relevantMatches,
+              matchesAbove06: generalQueryLog.matchesAbove06,
+              matchesAbove05: generalQueryLog.matchesAbove05,
+              matchesAbove04: generalQueryLog.matchesAbove04,
+              topDocuments: JSON.stringify(generalQueryLog.topDocuments),
+              decision: generalQueryLog.decision,
+              confidenceLevel: generalQueryLog.confidenceLevel,
+            },
+          },
+        ]);
+        console.log(
+          "✅ GENERAL query log stored in Pinecone for admin analytics",
+        );
       } catch (logError) {
-        console.warn('⚠️ Failed to store GENERAL query log:', logError);
+        console.warn("⚠️ Failed to store GENERAL query log:", logError);
         // Don't throw - logging failure shouldn't break the query
       }
 
       // Generate response without RAG
-      streamOrString = await generateGeneralResponse(question, conversationHistory);
+      streamOrString = await generateGeneralResponse(
+        question,
+        conversationHistory,
+        distinctId,
+      );
       contexts = []; // No contexts for general queries
     }
 
@@ -1431,13 +1622,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       console.log("Starting stream response");
 
       // Send contexts data and metrics as the first events
-      console.log(`Sending ${contexts.length} contexts to frontend (usedRAG: ${usedRAG}):`);
+      console.log(
+        `Sending ${contexts.length} contexts to frontend (usedRAG: ${usedRAG}):`,
+      );
       if (usedRAG) {
         console.log(
           `Context breakdown: ${contexts.filter((ctx) => ctx.id?.startsWith("ddg-")).length} DuckDuckGo, ${contexts.filter((ctx) => !ctx.id?.startsWith("ddg-")).length} RAG`,
         );
       }
-      res.write(`data: ${JSON.stringify({ type: "contexts", contexts, usedRAG })}\n\n`);
+      res.write(
+        `data: ${JSON.stringify({ type: "contexts", contexts, usedRAG })}\n\n`,
+      );
       res.write(`data: ${JSON.stringify({ type: "metrics", metrics })}\n\n`);
 
       // Use ReadableStream Web API directly instead of Node.js streams
@@ -1505,7 +1700,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
                 try {
                   const parsed = JSON.parse(data);
-                  console.log("Parsed data:", JSON.stringify(parsed).substring(0, 400) + "...");
+                  console.log(
+                    "Parsed data:",
+                    JSON.stringify(parsed).substring(0, 400) + "...",
+                  );
 
                   // Handle different streaming formats
                   let content = "";
@@ -1513,13 +1711,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                   // OpenRouter format
                   if (parsed.choices && parsed.choices.length > 0) {
                     // Different models might use different response formats
-                    if (parsed.choices[0].delta && parsed.choices[0].delta.content) {
+                    if (
+                      parsed.choices[0].delta &&
+                      parsed.choices[0].delta.content
+                    ) {
                       content = parsed.choices[0].delta.content;
                     } else if (parsed.choices[0].content) {
                       content = parsed.choices[0].content;
                     } else if (parsed.choices[0].text) {
                       content = parsed.choices[0].text;
-                    } else if (parsed.choices[0].message && parsed.choices[0].message.content) {
+                    } else if (
+                      parsed.choices[0].message &&
+                      parsed.choices[0].message.content
+                    ) {
                       content = parsed.choices[0].message.content;
                     }
                   }
@@ -1532,12 +1736,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                   if (content) {
                     tokensReceived++;
                     if (!responseEnded && !res.writableEnded) {
-                      console.log(`Sending token ${tokensReceived}: ${content}`);
-                      res.write(`data: ${JSON.stringify({ type: "token", content })}\n\n`);
+                      console.log(
+                        `Sending token ${tokensReceived}: ${content}`,
+                      );
+                      res.write(
+                        `data: ${JSON.stringify({ type: "token", content })}\n\n`,
+                      );
                     }
                   }
                 } catch (e) {
-                  console.error("Error parsing stream data:", e, "Raw data:", data);
+                  console.error(
+                    "Error parsing stream data:",
+                    e,
+                    "Raw data:",
+                    data,
+                  );
                   // Just log the error but continue processing
                 }
               }
@@ -1546,7 +1759,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         } catch (err) {
           console.error("Stream processing error:", err);
           if (!responseEnded && !res.writableEnded) {
-            res.write(`data: ${JSON.stringify({ type: "error", error: String(err) })}\n\n`);
+            res.write(
+              `data: ${JSON.stringify({ type: "error", error: String(err) })}\n\n`,
+            );
             res.end();
           }
         } finally {
@@ -1561,7 +1776,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             );
 
             // Run optimization in background (don't await)
-            performBackgroundOptimization(messages, question, "", contexts).catch(console.error);
+            performBackgroundOptimization(
+              messages,
+              question,
+              "",
+              contexts,
+            ).catch(console.error);
           }
         }
       };
@@ -1570,7 +1790,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       processStream().catch((err) => {
         console.error("Unhandled error in stream processing:", err);
         if (!responseEnded && !res.writableEnded) {
-          res.write(`data: ${JSON.stringify({ type: "error", error: String(err) })}\n\n`);
+          res.write(
+            `data: ${JSON.stringify({ type: "error", error: String(err) })}\n\n`,
+          );
           res.end();
         }
       });
@@ -1578,15 +1800,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return;
     } else {
       // If not streaming (fallback), send the complete response
-      return res.status(200).json({ answer: streamOrString, contexts, metrics });
+      return res
+        .status(200)
+        .json({ answer: streamOrString, contexts, metrics });
     }
   } catch (error: unknown) {
     console.error("Error in API:", error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error occurred";
 
     // Only send an error response if headers haven't been sent already
     if (!res.headersSent) {
-      return res.status(500).json({ message: "Internal server error", error: errorMessage });
+      return res
+        .status(500)
+        .json({ message: "Internal server error", error: errorMessage });
     }
+  } finally {
+    phClient.shutdown();
   }
 }
