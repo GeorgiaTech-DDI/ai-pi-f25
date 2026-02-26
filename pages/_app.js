@@ -35,16 +35,29 @@ function MyApp({ Component, pageProps }) {
   useEffect(() => {
     // Initialize PostHog client-side
     if (typeof window !== "undefined") {
-      posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY, {
-        api_host: "/ingest",
-        ui_host: "https://us.posthog.com",
-        defaults: "2026-01-30",
-        capture_exceptions: true,
-        debug: process.env.NODE_ENV === "development",
-        loaded: (ph) => {
-          if (process.env.NODE_ENV === "development") ph.debug();
-        },
-      });
+      // NOTE: This is a public PostHog project key and is exposed client-side by design.
+      // It must be set in the environment (e.g. NEXT_PUBLIC_POSTHOG_KEY in .env/.env.example),
+      // and the PostHog project should be configured to only accept events from approved domains.
+      const posthogKey = process.env.NEXT_PUBLIC_POSTHOG_KEY;
+
+      if (!posthogKey) {
+        // Fail fast in development/misconfiguration scenarios rather than silently misbehaving.
+        console.error(
+          "PostHog initialization skipped: NEXT_PUBLIC_POSTHOG_KEY is not set. " +
+            "Ensure this environment variable is documented and configured."
+        );
+      } else {
+        posthog.init(posthogKey, {
+          api_host: "/ingest",
+          ui_host: "https://us.posthog.com",
+          defaults: "2026-01-30",
+          capture_exceptions: true,
+          debug: process.env.NODE_ENV === "development",
+          loaded: (ph) => {
+            if (process.env.NODE_ENV === "development") ph.debug();
+          },
+        });
+      }
     }
 
     // Capture pageview on route change

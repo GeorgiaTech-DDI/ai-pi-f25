@@ -21,3 +21,34 @@ export async function shutdownPostHog(): Promise<void> {
     await posthogClient.shutdown();
   }
 }
+
+export function registerPostHogShutdownHooks(): void {
+  if (typeof process === 'undefined' || typeof process.on !== 'function') {
+    return;
+  }
+
+  // Flush events when the event loop is about to become empty
+  process.once('beforeExit', () => {
+    void shutdownPostHog();
+  });
+
+  const handleSignal = async () => {
+    try {
+      await shutdownPostHog();
+    } finally {
+      // Ensure the process actually terminates after flushing events
+      process.exit(0);
+    }
+  };
+
+  process.once('SIGINT', () => {
+    void handleSignal();
+  });
+
+  process.once('SIGTERM', () => {
+    void handleSignal();
+  });
+}
+
+// Register shutdown hooks as soon as this module is loaded
+registerPostHogShutdownHooks();
