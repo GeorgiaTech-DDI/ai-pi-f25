@@ -1,7 +1,12 @@
 import { Pinecone } from "@pinecone-database/pinecone";
 import { NextRequest } from "next/server";
 import { Embeddings } from "deepinfra";
-import { getPostHogClient } from "../../../lib/posthog-server";
+import type { Stream } from "openai/streaming";
+import type {
+  ChatCompletionChunk,
+  ChatCompletionMessageParam,
+} from "openai/resources/chat/completions";
+import { getOpenRouterClient } from "../../../lib/openrouter";
 
 export const maxDuration = 60;
 
@@ -274,8 +279,12 @@ function createPayload(
   question: string,
   contextStr: string,
   conversationHistory: string = "",
-) {
-  const messages: Array<{ role: string; content: string }> = [];
+): {
+  messages: ChatCompletionMessageParam[];
+  max_tokens: number;
+  temperature: number;
+} {
+  const messages: ChatCompletionMessageParam[] = [];
   messages.push({
     role: "system",
     content: `You are AI PI, a helpful assistant for the Invention Studio at Georgia Tech, created by the MATRIX Lab team.\n\nGuidelines:\n- Answer questions naturally and conversationally\n- Use the provided context when relevant to the user's question\n- If context doesn't contain the answer, say "I don't know" or give your best guess with "I think that..."\n- Don't repeat yourself or use template responses\n- Don't announce your name or creator unless specifically asked\n- Focus on being helpful and direct\n- If the user's question is unclear or off-topic, ask for clarification\n\nRespond naturally to the conversation flow and the user's current question.`,
@@ -309,39 +318,25 @@ function createPayload(
 // ──────────────────────────────────────────────
 async function classifyQuery(
   question: string,
+  posthogDistinctId = "anonymous",
 ): Promise<{ needsRAG: boolean; reasoning?: string }> {
   try {
-    const controller = new AbortController();
-    setTimeout(() => controller.abort(), 5000);
-    const response = await fetch(
-      "https://openrouter.ai/api/v1/chat/completions",
+    const openai = getOpenRouterClient();
+    const response = await openai.chat.completions.create(
       {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${process.env.OPENROUTER_API_KEY || ""}`,
-          "HTTP-Referer":
-            process.env.PUBLIC_SITE_URL || "https://matrixlab.gatech.edu",
-          "X-Title": "Matrix Lab AI",
-          "Content-Type": "application/json",
-        },
-        signal: controller.signal,
-        body: JSON.stringify({
-          model: process.env.OPENROUTER_MODEL,
-          messages: [
-            {
-              role: "user",
-              content: `You are a query classifier for an Invention Studio chatbot at Georgia Tech.\n\nThe Invention Studio is a makerspace with equipment like 3D printers, laser cutters, CNC machines, etc.\n\nClassify this query as GENERAL or RAG:\n- GENERAL: Simple greetings, farewells, gratitude, general knowledge questions, conversational responses\n- RAG: Questions about Invention Studio equipment, policies, procedures, hours, training, materials, or anything requiring studio-specific information\n\nQuestion: "${question}"\n\nRespond ONLY with valid JSON:\n{"classification": "GENERAL", "reasoning": "brief explanation"}\nOR\n{"classification": "RAG", "reasoning": "brief explanation"}`,
-            },
-          ],
-          max_tokens: 100,
-          temperature: 0.1,
-          stream: false,
-        }),
+        model: process.env.OPENROUTER_MODEL!,
+        messages: [
+          {
+            role: "user",
+            content: `You are a query classifier for an Invention Studio chatbot at Georgia Tech.\n\nThe Invention Studio is a makerspace with equipment like 3D printers, laser cutters, CNC machines, etc.\n\nClassify this query as GENERAL or RAG:\n- GENERAL: Simple greetings, farewells, gratitude, general knowledge questions, conversational responses\n- RAG: Questions about Invention Studio equipment, policies, procedures, hours, training, materials, or anything requiring studio-specific information\n\nQuestion: "${question}"\n\nRespond ONLY with valid JSON:\n{"classification": "GENERAL", "reasoning": "brief explanation"}\nOR\n{"classification": "RAG", "reasoning": "brief explanation"}`,
+          },
+        ],
+        max_tokens: 100,
+        temperature: 0.1,
       },
+      { posthogDistinctId },
     );
-    if (!response.ok) return { needsRAG: true };
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content?.trim();
+    const content = response.choices?.[0]?.message?.content?.trim();
     if (!content) return { needsRAG: true };
     const parsed = JSON.parse(content.replace(/```json\s*|\s*```/g, "").trim());
     return {
@@ -359,47 +354,29 @@ async function classifyQuery(
 // ──────────────────────────────────────────────
 // DuckDuckGo
 // ──────────────────────────────────────────────
-async function extractKeywordForDuckDuckGo(question: string): Promise<string> {
+async function extractKeywordForDuckDuckGo(
+  question: string,
+  posthogDistinctId = "anonymous",
+): Promise<string> {
   try {
-    const controller = new AbortController();
-    setTimeout(() => controller.abort(), 3000);
-    const response = await fetch(
-      "https://openrouter.ai/api/v1/chat/completions",
+    const openai = getOpenRouterClient();
+    const response = await openai.chat.completions.create(
       {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${process.env.OPENROUTER_API_KEY || ""}`,
-          "HTTP-Referer":
-            process.env.PUBLIC_SITE_URL || "https://matrixlab.gatech.edu",
-          "X-Title": "Matrix Lab AI",
-          "Content-Type": "application/json",
-        },
-        signal: controller.signal,
-        body: JSON.stringify({
-          model: process.env.OPENROUTER_MODEL,
-          messages: [
-            {
-              role: "user",
-              content: `Extract the most important search keywords from this question for DuckDuckGo. Return only comma-separated phrases, no explanation:\n\nQuestion: "${question}"`,
-            },
-          ],
-          max_tokens: 20,
-          temperature: 0.1,
-          stream: false,
-        }),
+        model: process.env.OPENROUTER_MODEL!,
+        messages: [
+          {
+            role: "user",
+            content: `Extract the most important search keywords from this question for DuckDuckGo. Return only comma-separated phrases, no explanation:\n\nQuestion: "${question}"`,
+          },
+        ],
+        max_tokens: 20,
+        temperature: 0.1,
       },
+      { posthogDistinctId },
     );
-    if (!response.ok) return "";
-    const data = await response.json();
-    const keywords = data.choices?.[0]?.message?.content?.trim() || "";
+    const keywords = response.choices?.[0]?.message?.content?.trim() || "";
     if (keywords.length < 2) return "";
-    const primary = keywords
-      .split(",")[0]
-      .trim()
-      .split(/\s+/)
-      .slice(0, 10)
-      .join(" ");
-    return primary;
+    return keywords.split(",")[0].trim().split(/\s+/).slice(0, 10).join(" ");
   } catch {
     return "";
   }
@@ -460,39 +437,38 @@ async function fetchDuckDuckGoContext(
 async function generateGeneralResponse(
   question: string,
   conversationHistory: string = "",
-): Promise<ReadableStream<Uint8Array>> {
-  const messages: Array<{ role: string; content: string }> = [];
-  messages.push({
-    role: "system",
-    content:
-      "You are AI PI, a helpful assistant for the Invention Studio at Georgia Tech, created by the MATRIX Lab team.\n\nGuidelines:\n- Answer questions naturally and conversationally using your general knowledge\n- Be friendly and helpful\n- If asked about specific Invention Studio details (equipment, policies, hours), politely mention you need more specific information\n- Don't make up specific studio policies or details\n- Keep responses concise and helpful\n- Don't announce your name or creator unless specifically asked",
-  });
+  posthogDistinctId = "anonymous",
+): Promise<Stream<ChatCompletionChunk>> {
+  const messages: ChatCompletionMessageParam[] = [
+    {
+      role: "system",
+      content:
+        "You are AI PI, a helpful assistant for the Invention Studio at Georgia Tech, created by the MATRIX Lab team.\n\nGuidelines:\n- Answer questions naturally and conversationally using your general knowledge\n- Be friendly and helpful\n- If asked about specific Invention Studio details (equipment, policies, hours), politely mention you need more specific information\n- Don't make up specific studio policies or details\n- Keep responses concise and helpful\n- Don't announce your name or creator unless specifically asked",
+    },
+  ];
   if (conversationHistory?.trim())
     messages.push({ role: "user", content: conversationHistory });
   messages.push({ role: "user", content: question });
-  const response = await fetch(
-    "https://openrouter.ai/api/v1/chat/completions",
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${process.env.OPENROUTER_API_KEY || ""}`,
-        "HTTP-Referer":
-          process.env.PUBLIC_SITE_URL || "https://matrixlab.gatech.edu",
-        "X-Title": "Matrix Lab AI",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
+  const openai = getOpenRouterClient();
+  console.debug(
+    "[generateGeneralResponse] model:",
+    process.env.OPENROUTER_MODEL,
+  );
+  try {
+    return await openai.chat.completions.create(
+      {
+        model: process.env.OPENROUTER_MODEL!,
         messages,
-        model: process.env.OPENROUTER_MODEL,
-        stream: true,
+        stream: true as const,
         max_tokens: 500,
         temperature: 0.75,
-        provider: { order: ["Chutes"] },
-      }),
-    },
-  );
-  if (!response.ok) throw new Error(`OpenRouter API error: ${response.status}`);
-  return response.body as ReadableStream<Uint8Array>;
+      },
+      { posthogDistinctId, extra_body: { provider: { order: ["Chutes"] } } },
+    );
+  } catch (err) {
+    console.error("[generateGeneralResponse] OpenRouter SDK error:", err);
+    throw err;
+  }
 }
 
 // ──────────────────────────────────────────────
@@ -502,7 +478,8 @@ async function ragQuery(
   question: string,
   conversationHistory: string = "",
   emit: (data: object) => void,
-): Promise<[ReadableStream<Uint8Array>, any[]]> {
+  posthogDistinctId = "anonymous",
+): Promise<[Stream<ChatCompletionChunk>, any[]]> {
   let textForEmbedding = extractEmbeddingContext(conversationHistory, question);
   const MAX_CHARS = 350;
   if (textForEmbedding.length > MAX_CHARS)
@@ -523,7 +500,10 @@ async function ragQuery(
   )
     throw new Error("Unexpected embedding structure.");
 
-  const keyword = await extractKeywordForDuckDuckGo(question);
+  const keyword = await extractKeywordForDuckDuckGo(
+    question,
+    posthogDistinctId,
+  );
   let duckDuckGoContext = null;
   try {
     duckDuckGoContext = await fetchDuckDuckGoContext(keyword);
@@ -626,27 +606,32 @@ async function ragQuery(
 
   const contextStr = constructContext(contextObjects);
   const payload = createPayload(question, contextStr, conversationHistory);
-  const openRouterResponse = await fetch(
-    "https://openrouter.ai/api/v1/chat/completions",
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${process.env.OPENROUTER_API_KEY || ""}`,
-        "HTTP-Referer":
-          process.env.PUBLIC_SITE_URL || "https://matrixlab.gatech.edu",
-        "X-Title": "Matrix Lab AI",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        ...payload,
-        model: process.env.OPENROUTER_MODEL,
-        stream: true,
-        provider: { order: ["Chutes"] },
-      }),
-    },
+  const openai = getOpenRouterClient();
+  console.debug(
+    "[ragQuery] model:",
+    process.env.OPENROUTER_MODEL,
+    "messages:",
+    payload.messages.length,
   );
-  if (!openRouterResponse.ok)
-    throw new Error(`OpenRouter API error: ${openRouterResponse.status}`);
+  let ragStream: Stream<ChatCompletionChunk>;
+  try {
+    ragStream = await openai.chat.completions.create(
+      {
+        model: process.env.OPENROUTER_MODEL!,
+        messages: payload.messages,
+        stream: true as const,
+        max_tokens: payload.max_tokens,
+        temperature: payload.temperature,
+      },
+      {
+        posthogDistinctId,
+        extra_body: { provider: { order: ["Chutes"] } },
+      },
+    );
+  } catch (err) {
+    console.error("[ragQuery] OpenRouter SDK error:", err);
+    throw err;
+  }
 
   let enhancedContexts = contexts;
   if (duckDuckGoContext) {
@@ -665,10 +650,7 @@ async function ragQuery(
       ...contexts,
     ];
   }
-  return [
-    openRouterResponse.body as ReadableStream<Uint8Array>,
-    enhancedContexts,
-  ];
+  return [ragStream, enhancedContexts];
 }
 
 // ──────────────────────────────────────────────
@@ -720,9 +702,13 @@ export async function POST(req: NextRequest) {
         conversationHistory = formatHistoryForModel(prunedHistory);
       }
 
+      // Extract posthog distinct ID from request headers
+      const posthogDistinctId =
+        req.headers.get("x-posthog-distinct-id") || "anonymous";
+
       // Classify query
-      const classification = await classifyQuery(question);
-      let streamOrString: ReadableStream<Uint8Array>;
+      const classification = await classifyQuery(question, posthogDistinctId);
+      let chunkStream: Stream<ChatCompletionChunk>;
       let contexts: any[] = [];
       let usedRAG = false;
 
@@ -736,8 +722,9 @@ export async function POST(req: NextRequest) {
           question,
           conversationHistory,
           sendSSE,
+          posthogDistinctId,
         );
-        streamOrString = stream;
+        chunkStream = stream;
         contexts = ragContexts;
       } else {
         usedRAG = false;
@@ -775,75 +762,26 @@ export async function POST(req: NextRequest) {
         } catch {
           /* non-fatal */
         }
-        streamOrString = await generateGeneralResponse(
+        chunkStream = await generateGeneralResponse(
           question,
           conversationHistory,
+          posthogDistinctId,
         );
         contexts = [];
       }
 
-      // Emit contexts + metrics
+      // Emit contexts + metrics before streaming tokens
       sendSSE({ type: "contexts", contexts, usedRAG });
       sendSSE({ type: "metrics", metrics });
 
-      // Track query completion with PostHog (server-side)
-      try {
-        const distinctId =
-          req.headers.get("x-posthog-distinct-id") || "anonymous";
-        const posthogClient = getPostHogClient();
-        posthogClient.capture({
-          distinctId,
-          event: "ai_query_completed",
-          properties: {
-            used_rag: usedRAG,
-            history_message_count: history.length,
-            should_suggest_restart: metrics.shouldSuggestRestart,
-          },
-        });
-        await posthogClient.shutdown();
-      } catch {
-        /* non-fatal */
-      }
-
-      // Pipe the upstream SSE stream → parse tokens → re-emit as our SSE events
-      const reader = streamOrString.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || "";
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            const data = line.substring(6).trim();
-            if (data === "[DONE]") {
-              sendSSE({ type: "done" });
-              continue;
-            }
-            try {
-              const parsed = JSON.parse(data);
-              let content = "";
-              if (parsed.choices?.[0]?.delta?.content)
-                content = parsed.choices[0].delta.content;
-              else if (parsed.choices?.[0]?.content)
-                content = parsed.choices[0].content;
-              else if (parsed.choices?.[0]?.text)
-                content = parsed.choices[0].text;
-              else if (parsed.choices?.[0]?.message?.content)
-                content = parsed.choices[0].message.content;
-              else if (parsed.completion) content = parsed.completion;
-              if (content) sendSSE({ type: "token", content });
-            } catch {
-              /* skip malformed lines */
-            }
-          }
-        }
+      // Iterate typed chunks — no SSE byte parsing needed
+      for await (const chunk of chunkStream) {
+        const content = chunk.choices[0]?.delta?.content;
+        if (content) sendSSE({ type: "token", content });
       }
       sendSSE({ type: "done" });
     } catch (err) {
+      console.error("[POST /api/chutes] unhandled error:", err);
       sendSSE({ type: "error", error: String(err) });
     } finally {
       await writer.close();
