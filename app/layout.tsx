@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import "../styles/globals.css";
 import { inter } from "../utils/fonts";
 import Providers from "./providers/Providers";
-import SessionWarning from "../components/SessionWarning";
 
 export const metadata: Metadata = {
   title: "AI PI",
@@ -18,10 +17,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <Providers>
-          {children}
-          <SessionWarning />
-        </Providers>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );
