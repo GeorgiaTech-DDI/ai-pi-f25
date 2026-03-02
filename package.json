@@ -2,8 +2,6 @@
   "dependencies": {
     "@aws-sdk/client-sagemaker-runtime": "^3.1000.0",
     "@aws-sdk/credential-providers": "^3.1000.0",
-    "@azure/msal-browser": "^5.3.0",
-    "@azure/msal-react": "^5.0.5",
     "@pinecone-database/pinecone": "^7.1.0",
     "@posthog/ai": "^7.9.3",
     "@vercel/analytics": "^1.6.1",
