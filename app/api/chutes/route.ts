@@ -325,7 +325,7 @@ async function classifyQuery(
         },
         signal: controller.signal,
         body: JSON.stringify({
-          model: "google/gemma-3n-e4b-it:free",
+          model: process.env.MODEL,
           messages: [
             {
               role: "user",
@@ -375,7 +375,7 @@ async function extractKeywordForDuckDuckGo(question: string): Promise<string> {
         },
         signal: controller.signal,
         body: JSON.stringify({
-          model: "google/gemma-3n-e4b-it:free",
+          model: process.env.MODEL,
           messages: [
             {
               role: "user",
@@ -482,7 +482,7 @@ async function generateGeneralResponse(
       },
       body: JSON.stringify({
         messages,
-        model: "google/gemma-3-27b-it:free",
+        model: process.env.MODEL,
         stream: true,
         max_tokens: 500,
         temperature: 0.75,
@@ -638,7 +638,7 @@ async function ragQuery(
       },
       body: JSON.stringify({
         ...payload,
-        model: "google/gemma-3-27b-it:free",
+        model: process.env.MODEL,
         stream: true,
         provider: { order: ["Chutes"] },
       }),
