@@ -8,7 +8,8 @@
 
 "use client";
 
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useState, useEffect, useRef } from "react";
+import posthog from "posthog-js";
 import { useMsal } from "@azure/msal-react";
 import { InteractionStatus } from "@azure/msal-browser";
 import { validateGatechEmail } from "../lib/msal";
@@ -55,6 +56,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [lastActivity, setLastActivity] = useState<number>(Date.now());
   const { instance, accounts, inProgress } = useMsal();
+  const identifiedRef = useRef<string | null>(null);
 
   // Session timeout check — logs out after 30 minutes of inactivity
   useEffect(() => {
@@ -122,6 +124,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log(
           "✅ AuthContext: @gatech.edu user authenticated successfully",
         );
+        // Identify authenticated admin user in PostHog (only once per session)
+        if (identifiedRef.current !== account.homeAccountId) {
+          identifiedRef.current = account.homeAccountId;
+          posthog.identify(account.homeAccountId, {
+            email: account.username,
+            name: account.name || account.username,
+            role: "admin",
+          });
+          posthog.capture("admin_logged_in", {
+            email: account.username,
+            display_name: account.name || account.username,
+          });
+        }
       } else {
         console.log(
           "❌ AuthContext: Non-@gatech.edu user detected, logging out...",

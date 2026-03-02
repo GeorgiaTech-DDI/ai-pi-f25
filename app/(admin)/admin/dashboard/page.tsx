@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import posthog from "posthog-js";
 import { useRouter } from "next/navigation";
 import { useMsal } from "@azure/msal-react";
 import { useAuth } from "../../../../context/AuthContext";
@@ -208,6 +209,12 @@ export default function AdminDashboard() {
         throw new Error(errorMessage);
       }
       setSuccess("File uploaded successfully!");
+      posthog.capture("admin_file_uploaded", {
+        filename: uploadFile.name,
+        file_size: uploadFile.size,
+        is_pdf: uploadFile.name.toLowerCase().endsWith(".pdf"),
+        has_description: !!uploadDescription,
+      });
       setUploadFile(null);
       setUploadDescription("");
       const fileInput = document.querySelector(
@@ -248,6 +255,9 @@ export default function AdminDashboard() {
         throw new Error(errorMessage);
       }
       setSuccess("File deleted successfully!");
+      posthog.capture("admin_file_deleted", {
+        filename,
+      });
       setShowDeleteConfirm(null);
       loadFiles();
     } catch (err: any) {
@@ -302,6 +312,10 @@ export default function AdminDashboard() {
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
+    posthog.capture("admin_logged_out", {
+      email: user?.email,
+    });
+    posthog.reset();
     try {
       await instance.logoutRedirect({
         postLogoutRedirectUri: window.location.origin + "/admin/login",

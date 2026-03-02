@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, ChangeEvent, FormEvent } from "react";
+import posthog from "posthog-js";
 import styles from "../../styles/Upload.module.css";
 
 interface FormData {
@@ -104,8 +105,17 @@ export default function UploadPage() {
 
       const blob = await response.json();
       setBlobUrl(blob.url);
+      posthog.capture("feedback_form_submitted", {
+        overall_rating: formData.overallRating,
+        experience_duration: formData.experienceDuration,
+        would_recommend: formData.wouldRecommend,
+        has_most_helpful_feature: !!formData.mostHelpfulFeature,
+        has_technical_issues: !!formData.technicalIssues,
+        has_improvement_suggestions: !!formData.improvementSuggestions,
+      });
     } catch (err: any) {
       setError(err.message);
+      posthog.captureException(err);
     } finally {
       setUploading(false);
     }

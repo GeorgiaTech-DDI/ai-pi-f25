@@ -1,6 +1,7 @@
 import { Pinecone } from "@pinecone-database/pinecone";
 import { NextRequest } from "next/server";
 import { Embeddings } from "deepinfra";
+import { getPostHogClient } from "../../../lib/posthog-server";
 
 export const maxDuration = 60;
 
@@ -784,6 +785,25 @@ export async function POST(req: NextRequest) {
       // Emit contexts + metrics
       sendSSE({ type: "contexts", contexts, usedRAG });
       sendSSE({ type: "metrics", metrics });
+
+      // Track query completion with PostHog (server-side)
+      try {
+        const distinctId =
+          req.headers.get("x-posthog-distinct-id") || "anonymous";
+        const posthogClient = getPostHogClient();
+        posthogClient.capture({
+          distinctId,
+          event: "ai_query_completed",
+          properties: {
+            used_rag: usedRAG,
+            history_message_count: history.length,
+            should_suggest_restart: metrics.shouldSuggestRestart,
+          },
+        });
+        await posthogClient.shutdown();
+      } catch {
+        /* non-fatal */
+      }
 
       // Pipe the upstream SSE stream → parse tokens → re-emit as our SSE events
       const reader = streamOrString.getReader();

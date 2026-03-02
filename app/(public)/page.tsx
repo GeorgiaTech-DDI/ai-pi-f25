@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import posthog from "posthog-js";
 import Layout from "../../components/Layout";
 import ChatContainer from "../../components/Chat/ChatContainer";
 import TermsOfServiceDialog from "../../components/Dialogs/TermsOfServiceDialog";
@@ -69,6 +70,11 @@ export default function Home() {
     setWebSearchLoading(false);
     setWebSearchStatus("");
     setError("");
+
+    posthog.capture("chat_message_submitted", {
+      message_length: message.length,
+      conversation_turn: messages.filter((m) => m.role === "user").length + 1,
+    });
 
     const userMessage: Message = { role: "user", content: message };
     const updatedMessages = [...messages, userMessage];
@@ -159,7 +165,10 @@ export default function Home() {
         // Production API call
         const response = await fetch("/api/chutes", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "x-posthog-distinct-id": posthog.get_distinct_id() || "anonymous",
+          },
           body: JSON.stringify({
             question: message,
             history: updatedMessages.slice(0, -1).map((msg) => ({
@@ -239,6 +248,12 @@ export default function Home() {
                         };
                         return m;
                       });
+                      posthog.capture("chat_response_received", {
+                        response_length: accumulatedContent.length,
+                        conversation_turn: updatedMessages.filter(
+                          (msg) => msg.role === "user",
+                        ).length,
+                      });
                     }
                   } catch (e) {
                     console.error("Error parsing stream event:", e, line);
@@ -264,6 +279,10 @@ export default function Home() {
       });
       setError("Failed to get answer. Please try again.");
       console.error("Frontend error:", e);
+      posthog.capture("chat_error_occurred", {
+        error_message: e instanceof Error ? e.message : String(e),
+      });
+      posthog.captureException(e);
       setLoading(false);
     }
   };
@@ -296,6 +315,10 @@ export default function Home() {
         "Feedback added to chat history. Press download and then upload your chat history to send feedback. Thank you!",
       isNotification: true,
     });
+    posthog.capture("feedback_submitted", {
+      message_index: feedbackMessageIndex,
+      feedback_length: feedbackText.length,
+    });
     setFeedbackFadeState("exiting");
     setTimeout(() => {
       setShowFeedbackDialog(false);
@@ -326,6 +349,7 @@ export default function Home() {
 
   const acceptTerms = (): void => {
     localStorage.setItem("tosAccepted", "true");
+    posthog.capture("terms_accepted");
     setTosFadeState("exiting");
     setTimeout(() => {
       setShowTosDialog(false);
@@ -345,6 +369,9 @@ export default function Home() {
         "Are you sure you want to restart? Your current conversation will be automatically saved.",
       )
     ) {
+      posthog.capture("chat_restarted", {
+        message_count: messages.length,
+      });
       saveChatAsText(messages);
       setHasSaved(true);
       setMessages([]);
@@ -378,6 +405,9 @@ export default function Home() {
       {(!showTosDialog || tosAccepted) && (
         <Layout
           onSaveChatAsText={() => {
+            posthog.capture("chat_saved", {
+              message_count: messages.length,
+            });
             saveChatAsText(messages);
             setHasSaved(true);
           }}
