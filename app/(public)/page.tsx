@@ -1,11 +1,14 @@
+"use client";
+
 import { useState, useEffect } from "react";
-import Layout from "../components/Layout";
-import ChatContainer from "../components/Chat/ChatContainer";
-import TermsOfServiceDialog from "../components/Dialogs/TermsOfServiceDialog";
-import FeedbackDialog from "../components/Dialogs/FeedbackDialog";
-import ReferencesDialog from "../components/Dialogs/ReferencesDialog";
-import { Message, Context, DialogFadeState } from "../components/types";
-import { saveChatAsText } from "../utils/chatUtils";
+import posthog from "posthog-js";
+import Layout from "../../components/Layout";
+import ChatContainer from "../../components/Chat/ChatContainer";
+import TermsOfServiceDialog from "../../components/Dialogs/TermsOfServiceDialog";
+import FeedbackDialog from "../../components/Dialogs/FeedbackDialog";
+import ReferencesDialog from "../../components/Dialogs/ReferencesDialog";
+import { Message, Context, DialogFadeState } from "../../components/types";
+import { saveChatAsText } from "../../utils/chatUtils";
 
 export default function Home() {
   const [loading, setLoading] = useState<boolean>(false);
@@ -23,19 +26,24 @@ export default function Home() {
 
   // Feedback dialog state
   const [showFeedbackDialog, setShowFeedbackDialog] = useState<boolean>(false);
-  const [feedbackMessageIndex, setFeedbackMessageIndex] = useState<number | null>(null);
-  const [feedbackFadeState, setFeedbackFadeState] = useState<DialogFadeState>("hidden");
+  const [feedbackMessageIndex, setFeedbackMessageIndex] = useState<
+    number | null
+  >(null);
+  const [feedbackFadeState, setFeedbackFadeState] =
+    useState<DialogFadeState>("hidden");
 
   // References dialog state
-  const [showReferencesDialog, setShowReferencesDialog] = useState<boolean>(false);
+  const [showReferencesDialog, setShowReferencesDialog] =
+    useState<boolean>(false);
   const [activeReferences, setActiveReferences] = useState<Context[]>([]);
   const [activeReferenceTitle, setActiveReferenceTitle] = useState<string>("");
-  const [referencesFadeState, setReferencesFadeState] = useState<DialogFadeState>("hidden");
+  const [referencesFadeState, setReferencesFadeState] =
+    useState<DialogFadeState>("hidden");
 
   // Check localStorage for TOS acceptance on component mount
   useEffect(() => {
-    const tosAcceptedStorage = localStorage.getItem('tosAccepted');
-    if (tosAcceptedStorage === 'true') {
+    const tosAcceptedStorage = localStorage.getItem("tosAccepted");
+    if (tosAcceptedStorage === "true") {
       setTosAccepted(true);
       setShowTosDialog(false);
       setTosFadeState("hidden");
@@ -63,34 +71,26 @@ export default function Home() {
     setWebSearchStatus("");
     setError("");
 
-    // Add user message to chat
+    posthog.capture("chat_message_submitted", {
+      message_length: message.length,
+      conversation_turn: messages.filter((m) => m.role === "user").length + 1,
+    });
+
     const userMessage: Message = { role: "user", content: message };
     const updatedMessages = [...messages, userMessage];
     setMessages(updatedMessages);
 
-    // Add an empty assistant message that will be updated with streaming content
     setMessages([
       ...updatedMessages,
-      {
-        role: "assistant",
-        content: "",
-        isStreaming: true,
-      },
+      { role: "assistant", content: "", isStreaming: true },
     ]);
 
     try {
-      // Check if localhost for development mode
-      if (window.location.hostname === "localhost") {
+      if (false) {
         // Development mode mock response with simulated streaming
-
-        // Simulate web search loading
         setWebSearchLoading(true);
         setWebSearchStatus("Searching web for additional context...");
-
-        // Wait 1 second to simulate web search
         await new Promise((resolve) => setTimeout(resolve, 1000));
-
-        // Simulate web search completion
         setWebSearchLoading(false);
         setWebSearchStatus("Found context from DuckDuckGo");
         setTimeout(() => setWebSearchStatus(""), 2000);
@@ -118,7 +118,7 @@ export default function Home() {
             metadata: {
               chunk_idx: -1,
               filename: "🌐 DuckDuckGo",
-              text: "This is a test external context from DuckDuckGo search results. It provides additional information that complements the internal knowledge base.",
+              text: "This is a test external context from DuckDuckGo search results.",
               source: "DuckDuckGo",
             },
           },
@@ -132,91 +132,43 @@ export default function Home() {
               text: "[CLS] mark the machine down and contact a waterjet master / apprentice...",
             },
           },
-          {
-            id: "61",
-            score: 0.549824595,
-            values: [],
-            metadata: {
-              chunk_idx: 60,
-              filename: "something-else.md",
-              text: "[CLS] mark the machine down and contact a waterjet master / apprentice...",
-            },
-          },
-          {
-            id: "62",
-            score: 0.549824595,
-            values: [],
-            metadata: {
-              chunk_idx: 60,
-              filename: "Waterjet-Required&Optional.md",
-              text: "[CLS] something else...",
-            },
-          },
-          {
-            id: "63",
-            score: 0.549824595,
-            values: [],
-            metadata: {
-              chunk_idx: 60,
-              filename: "something-else.md",
-              text: "[CLS] There are indeed so many things to consider when choosing a waterjet.",
-            },
-          },
-          {
-            id: "64",
-            score: 0.549824595,
-            values: [],
-            metadata: {
-              chunk_idx: 60,
-              filename: "Waterjet-Required&Optional.md",
-              text: "[CLS] There are indeed so many things to consider when choosing a waterjet.",
-            },
-          },
         ];
 
-        // First update with contexts (simulate RAG being used)
-        setMessages((currentMessages) => {
-          const newMessages = [...currentMessages];
-          newMessages[newMessages.length - 1] = {
-            ...newMessages[newMessages.length - 1],
+        setMessages((cur) => {
+          const m = [...cur];
+          m[m.length - 1] = {
+            ...m[m.length - 1],
             contexts: mockContexts,
-            usedRAG: true, // Mock shows RAG being used
+            usedRAG: true,
           };
-          return newMessages;
+          return m;
         });
 
-        // Simulate streaming updates
-        for (let i = 0; i < mockChunks.length; i++) {
+        for (const chunk of mockChunks) {
           await new Promise((resolve) => setTimeout(resolve, 100));
-          mockAnswer += mockChunks[i];
-
-          setMessages((currentMessages) => {
-            const newMessages = [...currentMessages];
-            newMessages[newMessages.length - 1] = {
-              ...newMessages[newMessages.length - 1],
-              content: mockAnswer,
-            };
-            return newMessages;
+          mockAnswer += chunk;
+          setMessages((cur) => {
+            const m = [...cur];
+            m[m.length - 1] = { ...m[m.length - 1], content: mockAnswer };
+            return m;
           });
         }
 
-        // Mark streaming as complete
-        setMessages((currentMessages) => {
-          const newMessages = [...currentMessages];
-          newMessages[newMessages.length - 1] = {
-            ...newMessages[newMessages.length - 1],
-            isStreaming: false,
-          };
-          return newMessages;
+        setMessages((cur) => {
+          const m = [...cur];
+          m[m.length - 1] = { ...m[m.length - 1], isStreaming: false };
+          return m;
         });
-
         setContexts([]);
         setLoading(false);
       } else {
-        // Production API call - Switch to use Chutes API instead of RAG API
+        // Production API call
         const response = await fetch("/api/chutes", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "x-posthog-distinct-id": posthog.get_distinct_id() || "anonymous",
+          },
           body: JSON.stringify({
             question: message,
             history: updatedMessages.slice(0, -1).map((msg) => ({
@@ -224,17 +176,17 @@ export default function Home() {
               content: msg.content,
               feedback: msg.feedback,
               isNotification: msg.isNotification,
-              // Explicitly exclude only contexts
             })),
           }),
         });
 
         if (!response.ok) {
           const errorData = await response.json();
-          throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+          throw new Error(
+            errorData.message || `HTTP error! status: ${response.status}`,
+          );
         }
 
-        // Process the stream
         const reader = response.body?.getReader();
         const decoder = new TextDecoder();
         let accumulatedContent = "";
@@ -245,7 +197,6 @@ export default function Home() {
               const { done, value } = await reader.read();
               if (done) break;
 
-              // Process the stream data
               const text = decoder.decode(value, { stream: true });
               const lines = text.split("\n\n");
 
@@ -253,65 +204,55 @@ export default function Home() {
                 if (line.startsWith("data: ")) {
                   try {
                     const eventData = JSON.parse(line.slice(5));
-
-                    // Handle different event types
                     if (eventData.type === "web_search_loading") {
-                      // Show web search loading indicator
                       setWebSearchLoading(true);
-                      setWebSearchStatus(eventData.message || "Searching web...");
+                      setWebSearchStatus(
+                        eventData.message || "Searching web...",
+                      );
                     } else if (eventData.type === "web_search_complete") {
-                      // Hide web search loading indicator
                       setWebSearchLoading(false);
-                      if (eventData.found) {
-                        setWebSearchStatus(`Found context from ${eventData.source}`);
-                      } else {
-                        setWebSearchStatus("No additional context found");
-                      }
-                      // Clear status after 2 seconds
+                      setWebSearchStatus(
+                        eventData.found
+                          ? `Found context from ${eventData.source}`
+                          : "No additional context found",
+                      );
                       setTimeout(() => setWebSearchStatus(""), 2000);
                     } else if (eventData.type === "contexts") {
-                      // Update the message with contexts and usedRAG flag
-                      console.log("Received contexts:", eventData.contexts);
-                      console.log("Used RAG:", eventData.usedRAG);
-                      if (eventData.usedRAG) {
-                        console.log(
-                          "DuckDuckGo contexts found:",
-                          eventData.contexts.filter((ctx: any) => ctx.id?.startsWith("ddg-")),
-                        );
-                      }
-                      setMessages((currentMessages) => {
-                        const newMessages = [...currentMessages];
-                        newMessages[newMessages.length - 1] = {
-                          ...newMessages[newMessages.length - 1],
+                      setMessages((cur) => {
+                        const m = [...cur];
+                        m[m.length - 1] = {
+                          ...m[m.length - 1],
                           contexts: eventData.contexts,
                           usedRAG: eventData.usedRAG,
                         };
-                        return newMessages;
+                        return m;
                       });
                     } else if (eventData.type === "token") {
-                      // Append new token to accumulated content
                       accumulatedContent += eventData.content;
-
-                      // Update the message with new content
-                      setMessages((currentMessages) => {
-                        const newMessages = [...currentMessages];
-                        newMessages[newMessages.length - 1] = {
-                          ...newMessages[newMessages.length - 1],
+                      setMessages((cur) => {
+                        const m = [...cur];
+                        m[m.length - 1] = {
+                          ...m[m.length - 1],
                           content: accumulatedContent,
                         };
-                        return newMessages;
+                        return m;
                       });
                     } else if (eventData.type === "error") {
                       throw new Error(eventData.error);
                     } else if (eventData.type === "done") {
-                      // Mark streaming as complete
-                      setMessages((currentMessages) => {
-                        const newMessages = [...currentMessages];
-                        newMessages[newMessages.length - 1] = {
-                          ...newMessages[newMessages.length - 1],
+                      setMessages((cur) => {
+                        const m = [...cur];
+                        m[m.length - 1] = {
+                          ...m[m.length - 1],
                           isStreaming: false,
                         };
-                        return newMessages;
+                        return m;
+                      });
+                      posthog.capture("chat_response_received", {
+                        response_length: accumulatedContent.length,
+                        conversation_turn: updatedMessages.filter(
+                          (msg) => msg.role === "user",
+                        ).length,
                       });
                     }
                   } catch (e) {
@@ -331,62 +272,53 @@ export default function Home() {
         }
       }
     } catch (e) {
-      // Update the last message to show error
-      setMessages((currentMessages) => {
-        const newMessages = [...currentMessages];
-        if (newMessages[newMessages.length - 1]?.role === "assistant") {
-          // Remove the empty streaming message
-          newMessages.pop();
-        }
-        return newMessages;
+      setMessages((cur) => {
+        const m = [...cur];
+        if (m[m.length - 1]?.role === "assistant") m.pop();
+        return m;
       });
-
       setError("Failed to get answer. Please try again.");
       console.error("Frontend error:", e);
+      posthog.capture("chat_error_occurred", {
+        error_message: e instanceof Error ? e.message : String(e),
+      });
+      posthog.captureException(e);
       setLoading(false);
     }
   };
 
-  // Function to initiate feedback for a specific message
   const initiateFeedback = (messageIndex: number): void => {
     setFeedbackMessageIndex(messageIndex);
     setShowFeedbackDialog(true);
-    // First set entering state
     setFeedbackFadeState("entering");
-    // Then after a brief delay, set to visible
     setTimeout(() => setFeedbackFadeState("visible"), 10);
   };
 
   const closeFeedbackDialog = (): void => {
-    // First set exiting state
     setFeedbackFadeState("exiting");
-    // Then after animation completes, actually hide the dialog
     setTimeout(() => {
       setShowFeedbackDialog(false);
       setFeedbackFadeState("hidden");
     }, 500);
   };
 
-  // Function to submit feedback
   const submitFeedback = (feedbackText: string): void => {
     if (feedbackMessageIndex === null) return;
-
-    // Create a copy of messages
     const updatedMessages = [...messages];
-
-    // Add feedback to the relevant message
     updatedMessages[feedbackMessageIndex] = {
       ...updatedMessages[feedbackMessageIndex],
       feedback: feedbackText,
     };
-
-    // Add a confirmation message to the chat
     updatedMessages.push({
       role: "system",
-      content: "Feedback added to chat history. Press download and then upload your chat history to send feedback. Thank you!",
+      content:
+        "Feedback added to chat history. Press download and then upload your chat history to send feedback. Thank you!",
       isNotification: true,
     });
-
+    posthog.capture("feedback_submitted", {
+      message_index: feedbackMessageIndex,
+      feedback_length: feedbackText.length,
+    });
     setFeedbackFadeState("exiting");
     setTimeout(() => {
       setShowFeedbackDialog(false);
@@ -394,12 +326,13 @@ export default function Home() {
     }, 500);
   };
 
-  // Function to show references for a specific message
   const showReferences = (messageIndex: number): void => {
     const message = messages[messageIndex];
-    if (message && message.contexts && message.contexts.length > 0) {
+    if (message?.contexts && message.contexts.length > 0) {
       setActiveReferences(message.contexts);
-      setActiveReferenceTitle(`References for Q&A #${Math.floor(messageIndex / 2) + 1}`);
+      setActiveReferenceTitle(
+        `References for Q&A #${Math.floor(messageIndex / 2) + 1}`,
+      );
       setShowReferencesDialog(true);
       setReferencesFadeState("entering");
       setTimeout(() => setReferencesFadeState("visible"), 10);
@@ -414,11 +347,9 @@ export default function Home() {
     }, 500);
   };
 
-  // Function to handle TOS acceptance
   const acceptTerms = (): void => {
-    // Save acceptance to localStorage
-    localStorage.setItem('tosAccepted', 'true');
-    
+    localStorage.setItem("tosAccepted", "true");
+    posthog.capture("terms_accepted");
     setTosFadeState("exiting");
     setTimeout(() => {
       setShowTosDialog(false);
@@ -427,24 +358,22 @@ export default function Home() {
     }, 500);
   };
 
-  // Function to decline TOS
   const declineTerms = (): void => {
     alert("You must accept the Terms of Service to use this application.");
   };
 
   const restartChat = (): void => {
     if (messages.length === 0) return;
-
     if (
       window.confirm(
         "Are you sure you want to restart? Your current conversation will be automatically saved.",
       )
     ) {
-      // Auto-save chat before clearing
+      posthog.capture("chat_restarted", {
+        message_count: messages.length,
+      });
       saveChatAsText(messages);
       setHasSaved(true);
-
-      // Clear the chat
       setMessages([]);
       setContexts([]);
     }
@@ -457,16 +386,14 @@ export default function Home() {
         fadeState={tosFadeState}
         onAccept={acceptTerms}
         onDecline={declineTerms}
-        onClose={() => {}} // Not used, but required by interface
+        onClose={() => {}}
       />
-
       <FeedbackDialog
         isVisible={showFeedbackDialog}
         fadeState={feedbackFadeState}
         onClose={closeFeedbackDialog}
         onSubmit={submitFeedback}
       />
-
       <ReferencesDialog
         isVisible={showReferencesDialog}
         fadeState={referencesFadeState}
@@ -475,10 +402,12 @@ export default function Home() {
         references={activeReferences}
       />
 
-      {/* Main application - only shown after ToS acceptance */}
       {(!showTosDialog || tosAccepted) && (
         <Layout
           onSaveChatAsText={() => {
+            posthog.capture("chat_saved", {
+              message_count: messages.length,
+            });
             saveChatAsText(messages);
             setHasSaved(true);
           }}

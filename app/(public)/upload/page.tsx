@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, ChangeEvent, FormEvent } from "react";
-import styles from "../styles/Upload.module.css";
+import posthog from "posthog-js";
+import styles from "../../styles/Upload.module.css";
 
 interface FormData {
   overallRating: string;
@@ -37,23 +38,27 @@ export default function UploadPage() {
   };
 
   const handleFormChange = (
-    event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>,
+    event: ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >,
   ) => {
     const { name, value } = event.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const validateForm = (): boolean => {
-    const requiredFields = ["overallRating", "experienceDuration", "wouldRecommend"];
-    return requiredFields.every((field) => formData[field as keyof FormData].trim() !== "");
+    const requiredFields = [
+      "overallRating",
+      "experienceDuration",
+      "wouldRecommend",
+    ];
+    return requiredFields.every(
+      (field) => formData[field as keyof FormData].trim() !== "",
+    );
   };
 
   const generateCombinedContent = async (): Promise<string> => {
     let combinedContent = "=== AI PI FEEDBACK FORM ===\n\n";
-
     combinedContent += `Overall Rating: ${formData.overallRating}\n`;
     combinedContent += `Experience Duration: ${formData.experienceDuration}\n`;
     combinedContent += `Most Helpful Feature: ${formData.mostHelpfulFeature || "Not specified"}\n`;
@@ -61,25 +66,17 @@ export default function UploadPage() {
     combinedContent += `Would Recommend: ${formData.wouldRecommend}\n`;
     combinedContent += `Improvement Suggestions: ${formData.improvementSuggestions || "None provided"}\n`;
     combinedContent += `Additional Comments: ${formData.additionalComments || "None provided"}\n`;
-
     combinedContent += "\n=== CHAT LOG ===\n\n";
-
-    if (file) {
-      const chatLogContent = await file.text();
-      combinedContent += chatLogContent;
-    }
-
+    if (file) combinedContent += await file.text();
     return combinedContent;
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-
     if (!validateForm()) {
       setError("Please fill in all required fields (marked with *).");
       return;
     }
-
     if (!file) {
       setError("Please select a chat log file to upload.");
       return;
@@ -92,7 +89,6 @@ export default function UploadPage() {
     try {
       const combinedContent = await generateCombinedContent();
       const combinedBlob = new Blob([combinedContent], { type: "text/plain" });
-
       const filename = `feedback_and_chatlog_${Date.now()}.txt`;
 
       const response = await fetch(`/api/upload?filename=${filename}`, {
@@ -102,13 +98,24 @@ export default function UploadPage() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || `Upload failed with status: ${response.status}`);
+        throw new Error(
+          errorData.error || `Upload failed with status: ${response.status}`,
+        );
       }
 
       const blob = await response.json();
       setBlobUrl(blob.url);
+      posthog.capture("feedback_form_submitted", {
+        overall_rating: formData.overallRating,
+        experience_duration: formData.experienceDuration,
+        would_recommend: formData.wouldRecommend,
+        has_most_helpful_feature: !!formData.mostHelpfulFeature,
+        has_technical_issues: !!formData.technicalIssues,
+        has_improvement_suggestions: !!formData.improvementSuggestions,
+      });
     } catch (err: any) {
       setError(err.message);
+      posthog.captureException(err);
     } finally {
       setUploading(false);
     }
@@ -116,14 +123,15 @@ export default function UploadPage() {
 
   return (
     <div className={styles.container}>
-      <h1 className={styles.title}>Submit AI PI Feedback & Chat Log</h1>
+      <h1 className={styles.title}>Submit AI PI Feedback &amp; Chat Log</h1>
       <p className={styles.disclaimerStart}>
-        Please complete the feedback form below and upload your anonymized chat log file. Each
-        submission should contain feedback and <strong>ONE</strong> chat log.
+        Please complete the feedback form below and upload your anonymized chat
+        log file. Each submission should contain feedback and{" "}
+        <strong>ONE</strong> chat log.
       </p>
       <p className={styles.disclaimerEnd}>
-        Questions with a <strong>*</strong> are required. Thank you for contributing to the AI PI
-        research study!
+        Questions with a <strong>*</strong> are required. Thank you for
+        contributing to the AI PI research study!
       </p>
 
       <form onSubmit={handleSubmit} className={styles.form}>
@@ -234,7 +242,7 @@ export default function UploadPage() {
 
           <div className={styles.formGroup}>
             <label className={styles.label}>
-              Anything else you'd like to share?
+              Anything else you&apos;d like to share?
               <textarea
                 name="additionalComments"
                 value={formData.additionalComments}
@@ -276,7 +284,11 @@ export default function UploadPage() {
         </button>
       </form>
 
-      {error && <div className={`${styles.message} ${styles.error}`}>Error: {error}</div>}
+      {error && (
+        <div className={`${styles.message} ${styles.error}`}>
+          Error: {error}
+        </div>
+      )}
 
       {blobUrl && (
         <div className={`${styles.message} ${styles.success}`}>
