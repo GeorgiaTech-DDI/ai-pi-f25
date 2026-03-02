@@ -1,51 +1,31 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useMsal } from "@azure/msal-react";
-import { loginRequest, validateGatechEmail } from "../../../../lib/msal";
+import { signIn } from "../../../../lib/auth-client";
 import styles from "../../../../styles/Login.module.css";
 
 export default function AdminLogin() {
   const router = useRouter();
-  const { instance, accounts } = useMsal();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // Redirect if already authenticated
-  useEffect(() => {
-    const account = accounts[0];
-    if (account && validateGatechEmail(account.username)) {
-      console.log("🔐 User already authenticated, redirecting to dashboard...");
-      router.push("/admin/dashboard");
-    }
-  }, [accounts, router]);
-
-  const handleAzureLogin = async () => {
+  const handleMicrosoftLogin = async () => {
     setIsLoading(true);
     setError("");
-
     try {
-      console.log("🔐 Initiating Azure OAuth login...");
-      await instance.loginRedirect({
-        ...loginRequest,
-        redirectStartPage: window.location.origin + "/admin/dashboard",
+      await signIn.social({
+        provider: "microsoft",
+        callbackURL: "/admin/dashboard",
       });
-      // Code after loginRedirect won't execute as page redirects
+      // Page will redirect — no further code runs here
     } catch (err: any) {
-      console.error("🔐 Azure login error:", err);
-
       let errorMessage = "Login failed. Please try again.";
-      if (err.message?.includes("@gatech.edu")) {
-        errorMessage = err.message;
-      } else if (err.errorCode === "user_cancelled") {
-        errorMessage = "Login was cancelled. Please try again.";
-      } else if (err.errorCode === "access_denied") {
-        errorMessage = "Access denied. Please contact your administrator.";
-      } else if (err.message) {
+      if (err?.message?.includes("@gatech.edu")) {
+        errorMessage = "Only @gatech.edu accounts are allowed.";
+      } else if (err?.message) {
         errorMessage = err.message;
       }
-
       setError(errorMessage);
       setIsLoading(false);
     }
@@ -75,7 +55,7 @@ export default function AdminLogin() {
           )}
 
           <button
-            onClick={handleAzureLogin}
+            onClick={handleMicrosoftLogin}
             disabled={isLoading}
             className={`${styles.submitButton} ${isLoading ? styles.submitButtonDisabled : ""}`}
             style={{

@@ -3,8 +3,7 @@
 import { useState, useEffect } from "react";
 import posthog from "posthog-js";
 import { useRouter } from "next/navigation";
-import { useMsal } from "@azure/msal-react";
-import { useAuth } from "../../../../context/AuthContext";
+import { useSession, signOut } from "../../../../lib/auth-client";
 import styles from "../../../../styles/Dashboard.module.css";
 
 interface FileMetadata {
@@ -65,8 +64,13 @@ interface AnalyticsData {
 
 export default function AdminDashboard() {
   const router = useRouter();
-  const { user, loading } = useAuth();
-  const { instance } = useMsal();
+  const { data: session, isPending: loading } = useSession();
+  const user = session?.user
+    ? {
+        email: session.user.email,
+        displayName: session.user.name || session.user.email,
+      }
+    : null;
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   // File management state
@@ -95,12 +99,7 @@ export default function AdminDashboard() {
     setLoadingFiles(true);
     setError(null);
     try {
-      const response = await fetch("/api/files", {
-        headers: {
-          "x-user-email": user?.email || "",
-          "x-user-name": user?.displayName || "",
-        },
-      });
+      const response = await fetch("/api/files");
       if (!response.ok) {
         const responseText = await response.text();
         let errorMessage = "Failed to load files";
@@ -125,12 +124,7 @@ export default function AdminDashboard() {
     setLoadingAnalytics(true);
     setAnalyticsError(null);
     try {
-      const response = await fetch("/api/analytics", {
-        headers: {
-          "x-user-email": user?.email || "",
-          "x-user-name": user?.displayName || "",
-        },
-      });
+      const response = await fetch("/api/analytics");
       if (!response.ok) {
         const errorText = await response.text();
         let errorMessage = "Failed to load analytics";
@@ -185,11 +179,7 @@ export default function AdminDashboard() {
       }
       const response = await fetch("/api/files", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-user-email": user?.email || "",
-          "x-user-name": user?.displayName || "",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           filename: uploadFile.name,
           content,
@@ -236,13 +226,7 @@ export default function AdminDashboard() {
     try {
       const response = await fetch(
         `/api/files?filename=${encodeURIComponent(filename)}`,
-        {
-          method: "DELETE",
-          headers: {
-            "x-user-email": user?.email || "",
-            "x-user-name": user?.displayName || "",
-          },
-        },
+        { method: "DELETE" },
       );
       if (!response.ok) {
         const responseText = await response.text();
@@ -312,16 +296,14 @@ export default function AdminDashboard() {
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
-    posthog.capture("admin_logged_out", {
-      email: user?.email,
-    });
+    posthog.capture("admin_logged_out", { email: user?.email });
     posthog.reset();
     try {
-      await instance.logoutRedirect({
-        postLogoutRedirectUri: window.location.origin + "/admin/login",
+      await signOut({
+        fetchOptions: { onSuccess: () => router.replace("/admin/login") },
       });
     } catch (error) {
-      console.error("🔐 MSAL logout error:", error);
+      console.error("Logout error:", error);
       router.replace("/admin/login");
       setIsLoggingOut(false);
     }

@@ -326,7 +326,7 @@ async function classifyQuery(
         },
         signal: controller.signal,
         body: JSON.stringify({
-          model: process.env.MODEL,
+          model: process.env.OPENROUTER_MODEL,
           messages: [
             {
               role: "user",
@@ -376,7 +376,7 @@ async function extractKeywordForDuckDuckGo(question: string): Promise<string> {
         },
         signal: controller.signal,
         body: JSON.stringify({
-          model: process.env.MODEL,
+          model: process.env.OPENROUTER_MODEL,
           messages: [
             {
               role: "user",
@@ -483,7 +483,7 @@ async function generateGeneralResponse(
       },
       body: JSON.stringify({
         messages,
-        model: process.env.MODEL,
+        model: process.env.OPENROUTER_MODEL,
         stream: true,
         max_tokens: 500,
         temperature: 0.75,
@@ -639,7 +639,7 @@ async function ragQuery(
       },
       body: JSON.stringify({
         ...payload,
-        model: process.env.MODEL,
+        model: process.env.OPENROUTER_MODEL,
         stream: true,
         provider: { order: ["Chutes"] },
       }),

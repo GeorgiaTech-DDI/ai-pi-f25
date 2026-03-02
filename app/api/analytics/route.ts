@@ -1,5 +1,6 @@
 import { Pinecone } from "@pinecone-database/pinecone";
 import { NextRequest, NextResponse } from "next/server";
+import { auth } from "../../../lib/auth";
 
 // Initialize Pinecone Client
 const pinecone = new Pinecone({ apiKey: process.env.PINECONE_API_KEY || "" });
@@ -38,24 +39,14 @@ interface DocumentPerformance {
 }
 
 export async function GET(req: NextRequest) {
-  const userEmail = req.headers.get("x-user-email");
-  const userName = req.headers.get("x-user-name");
-
-  if (!userEmail || !userName) {
+  const session = await auth.api.getSession({ headers: req.headers });
+  if (!session)
     return NextResponse.json(
       { error: "Authentication required" },
       { status: 401 },
     );
-  }
-  if (!userEmail.endsWith("@gatech.edu")) {
-    return NextResponse.json(
-      { error: "Access denied. Only @gatech.edu users can access analytics." },
-      { status: 403 },
-    );
-  }
 
-  console.log(`📊 Analytics request from: ${userEmail}`);
-
+  const userEmail = session.user.email ?? "unknown";
   try {
     const dummyVector = new Array(1024).fill(0);
     dummyVector[0] = 0.0001;

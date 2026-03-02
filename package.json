@@ -8,6 +8,7 @@
     "@vercel/analytics": "^1.6.1",
     "@vercel/blob": "^2.3.0",
     "@vercel/speed-insights": "^1.3.1",
+    "better-auth": "^1.5.0",
     "deepinfra": "^2.0.2",
     "dotenv": "^17.3.1",
     "file-saver": "^2.0.5",

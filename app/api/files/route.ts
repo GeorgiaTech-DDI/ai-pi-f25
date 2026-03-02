@@ -1,6 +1,6 @@
 import { Pinecone } from "@pinecone-database/pinecone";
 import { Embeddings } from "deepinfra";
-import { validateAzureToken } from "../../../../lib/auth";
+import { auth } from "../../../lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 
 // API Route Configuration - Increase body size limit for file uploads
@@ -116,8 +116,8 @@ export async function GET(req: NextRequest) {
         { status: 500 },
       );
 
-    const user = await validateAzureToken(req as any);
-    if (!user)
+    const session = await auth.api.getSession({ headers: req.headers });
+    if (!session)
       return NextResponse.json(
         { error: "Unauthorized - Please log in with a @gatech.edu account" },
         { status: 401 },
@@ -177,8 +177,8 @@ export async function POST(req: NextRequest) {
         { status: 500 },
       );
 
-    const user = await validateAzureToken(req as any);
-    if (!user)
+    const session = await auth.api.getSession({ headers: req.headers });
+    if (!session)
       return NextResponse.json(
         { error: "Unauthorized - Please log in with a @gatech.edu account" },
         { status: 401 },
@@ -302,8 +302,8 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
-    const user = await validateAzureToken(req as any);
-    if (!user)
+    const session = await auth.api.getSession({ headers: req.headers });
+    if (!session)
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { searchParams } = new URL(req.url);
