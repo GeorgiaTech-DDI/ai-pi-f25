@@ -86,7 +86,7 @@ export default function Home() {
     ]);
 
     try {
-      if (false) {
+      if (process.env.NODE_ENV === "development") {
         // Development mode mock response with simulated streaming
         setWebSearchLoading(true);
         setWebSearchStatus("Searching web for additional context...");
