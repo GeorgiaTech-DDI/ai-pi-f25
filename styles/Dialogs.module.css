@@ -236,16 +236,6 @@
     transform: rotate(90deg);
 }
 
-/* External context styling */
-.contextAccordion summary:has-text("🌐") {
-    background: linear-gradient(135deg, #1a1a3a 0%, #2a2a4a 100%);
-    border-left: 4px solid #4a9eff;
-}
-
-.contextAccordion summary:has-text("🌐"):hover {
-    background: linear-gradient(135deg, #2a2a4a 0%, #3a3a5a 100%);
-}
-
 .externalContextSource {
     background: linear-gradient(135deg, #0d1b0d 0%, #1a3a1a 100%);
     border: 1px solid #2a5a2a;

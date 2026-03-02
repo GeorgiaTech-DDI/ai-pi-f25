@@ -80,7 +80,7 @@ export default function Home() {
     ]);
 
     try {
-      if (window.location.hostname === "localhost") {
+      if (false) {
         // Development mode mock response with simulated streaming
         setWebSearchLoading(true);
         setWebSearchStatus("Searching web for additional context...");
