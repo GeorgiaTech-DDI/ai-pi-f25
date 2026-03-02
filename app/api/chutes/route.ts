@@ -438,22 +438,24 @@ async function generateGeneralResponse(
   question: string,
   conversationHistory: string = "",
   posthogDistinctId = "anonymous",
-): Promise<ReadableStream<Uint8Array>> {
-  const messages: Array<{
-    role: "system" | "user" | "assistant";
-    content: string;
-  }> = [];
-  messages.push({
-    role: "system",
-    content:
-      "You are AI PI, a helpful assistant for the Invention Studio at Georgia Tech, created by the MATRIX Lab team.\n\nGuidelines:\n- Answer questions naturally and conversationally using your general knowledge\n- Be friendly and helpful\n- If asked about specific Invention Studio details (equipment, policies, hours), politely mention you need more specific information\n- Don't make up specific studio policies or details\n- Keep responses concise and helpful\n- Don't announce your name or creator unless specifically asked",
-  });
+): Promise<Stream<ChatCompletionChunk>> {
+  const messages: ChatCompletionMessageParam[] = [
+    {
+      role: "system",
+      content:
+        "You are AI PI, a helpful assistant for the Invention Studio at Georgia Tech, created by the MATRIX Lab team.\n\nGuidelines:\n- Answer questions naturally and conversationally using your general knowledge\n- Be friendly and helpful\n- If asked about specific Invention Studio details (equipment, policies, hours), politely mention you need more specific information\n- Don't make up specific studio policies or details\n- Keep responses concise and helpful\n- Don't announce your name or creator unless specifically asked",
+    },
+  ];
   if (conversationHistory?.trim())
     messages.push({ role: "user", content: conversationHistory });
   messages.push({ role: "user", content: question });
   const openai = getOpenRouterClient();
-  const stream: Stream<ChatCompletionChunk> =
-    await openai.chat.completions.create(
+  console.debug(
+    "[generateGeneralResponse] model:",
+    process.env.OPENROUTER_MODEL,
+  );
+  try {
+    return await openai.chat.completions.create(
       {
         model: process.env.OPENROUTER_MODEL!,
         messages,
@@ -461,14 +463,12 @@ async function generateGeneralResponse(
         max_tokens: 500,
         temperature: 0.75,
       },
-      {
-        posthogDistinctId,
-        // Pass OpenRouter-specific provider routing via extra_body
-        // (the SDK's typed escape hatch for non-OpenAI fields)
-        body: { extra_body: { provider: { order: ["Chutes"] } } },
-      },
+      { posthogDistinctId, extra_body: { provider: { order: ["Chutes"] } } },
     );
-  return stream.toReadableStream() as unknown as ReadableStream<Uint8Array>;
+  } catch (err) {
+    console.error("[generateGeneralResponse] OpenRouter SDK error:", err);
+    throw err;
+  }
 }
 
 // ──────────────────────────────────────────────
@@ -479,7 +479,7 @@ async function ragQuery(
   conversationHistory: string = "",
   emit: (data: object) => void,
   posthogDistinctId = "anonymous",
-): Promise<[ReadableStream<Uint8Array>, any[]]> {
+): Promise<[Stream<ChatCompletionChunk>, any[]]> {
   let textForEmbedding = extractEmbeddingContext(conversationHistory, question);
   const MAX_CHARS = 350;
   if (textForEmbedding.length > MAX_CHARS)
@@ -607,8 +607,15 @@ async function ragQuery(
   const contextStr = constructContext(contextObjects);
   const payload = createPayload(question, contextStr, conversationHistory);
   const openai = getOpenRouterClient();
-  const stream: Stream<ChatCompletionChunk> =
-    await openai.chat.completions.create(
+  console.debug(
+    "[ragQuery] model:",
+    process.env.OPENROUTER_MODEL,
+    "messages:",
+    payload.messages.length,
+  );
+  let ragStream: Stream<ChatCompletionChunk>;
+  try {
+    ragStream = await openai.chat.completions.create(
       {
         model: process.env.OPENROUTER_MODEL!,
         messages: payload.messages,
@@ -618,10 +625,13 @@ async function ragQuery(
       },
       {
         posthogDistinctId,
-        // Pass OpenRouter-specific provider routing via extra_body
-        body: { extra_body: { provider: { order: ["Chutes"] } } },
+        extra_body: { provider: { order: ["Chutes"] } },
       },
     );
+  } catch (err) {
+    console.error("[ragQuery] OpenRouter SDK error:", err);
+    throw err;
+  }
 
   let enhancedContexts = contexts;
   if (duckDuckGoContext) {
@@ -640,10 +650,7 @@ async function ragQuery(
       ...contexts,
     ];
   }
-  return [
-    stream.toReadableStream() as unknown as ReadableStream<Uint8Array>,
-    enhancedContexts,
-  ];
+  return [ragStream, enhancedContexts];
 }
 
 // ──────────────────────────────────────────────
@@ -701,7 +708,7 @@ export async function POST(req: NextRequest) {
 
       // Classify query
       const classification = await classifyQuery(question, posthogDistinctId);
-      let streamOrString: ReadableStream<Uint8Array>;
+      let chunkStream: Stream<ChatCompletionChunk>;
       let contexts: any[] = [];
       let usedRAG = false;
 
@@ -717,7 +724,7 @@ export async function POST(req: NextRequest) {
           sendSSE,
           posthogDistinctId,
         );
-        streamOrString = stream;
+        chunkStream = stream;
         contexts = ragContexts;
       } else {
         usedRAG = false;
@@ -755,7 +762,7 @@ export async function POST(req: NextRequest) {
         } catch {
           /* non-fatal */
         }
-        streamOrString = await generateGeneralResponse(
+        chunkStream = await generateGeneralResponse(
           question,
           conversationHistory,
           posthogDistinctId,
@@ -763,49 +770,18 @@ export async function POST(req: NextRequest) {
         contexts = [];
       }
 
-      // Emit contexts + metrics
+      // Emit contexts + metrics before streaming tokens
       sendSSE({ type: "contexts", contexts, usedRAG });
       sendSSE({ type: "metrics", metrics });
 
-      // Pipe the upstream SSE stream → parse tokens → re-emit as our SSE events
-      const reader = streamOrString.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || "";
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            const data = line.substring(6).trim();
-            if (data === "[DONE]") {
-              sendSSE({ type: "done" });
-              continue;
-            }
-            try {
-              const parsed = JSON.parse(data);
-              let content = "";
-              if (parsed.choices?.[0]?.delta?.content)
-                content = parsed.choices[0].delta.content;
-              else if (parsed.choices?.[0]?.content)
-                content = parsed.choices[0].content;
-              else if (parsed.choices?.[0]?.text)
-                content = parsed.choices[0].text;
-              else if (parsed.choices?.[0]?.message?.content)
-                content = parsed.choices[0].message.content;
-              else if (parsed.completion) content = parsed.completion;
-              if (content) sendSSE({ type: "token", content });
-            } catch {
-              /* skip malformed lines */
-            }
-          }
-        }
+      // Iterate typed chunks — no SSE byte parsing needed
+      for await (const chunk of chunkStream) {
+        const content = chunk.choices[0]?.delta?.content;
+        if (content) sendSSE({ type: "token", content });
       }
       sendSSE({ type: "done" });
     } catch (err) {
+      console.error("[POST /api/chutes] unhandled error:", err);
       sendSSE({ type: "error", error: String(err) });
     } finally {
       await writer.close();
