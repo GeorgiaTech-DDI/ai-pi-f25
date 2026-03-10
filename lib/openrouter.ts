@@ -1,5 +1,5 @@
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
-import { streamText, generateText, type LanguageModel } from "ai";
+import { streamText, generateText, Output, type LanguageModel } from "ai";
 import { withTracing } from "@posthog/ai";
 import { getPostHogClient } from "./posthog-server";
 
@@ -82,6 +82,23 @@ export class OpenRouter {
       model,
       ...params,
     });
+  }
+
+  /**
+   * Structured object completion using Output specification
+   */
+  async generateObject<T>(
+    params: any,
+    output: Parameters<typeof Output.object>[0],
+    options?: CompletionOptions,
+  ) {
+    const model = this.getTracedModel(params.model, options);
+    const { output: result } = await generateText({
+      model,
+      output: Output.object(output),
+      ...params,
+    });
+    return result as T;
   }
 }
 
