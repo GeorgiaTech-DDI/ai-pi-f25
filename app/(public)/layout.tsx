@@ -1,6 +1,8 @@
 import Button from "components/ui/Button";
 import styles from "../../styles/Layout.module.css";
 import Link from "next/link";
+import { EllipsisVertical, MessageSquareCheck } from "lucide-react";
+import Menu from "components/ui/Menu";
 
 /**
  * Public route group layout — no auth required.
@@ -22,7 +24,21 @@ export default function PublicLayout({
           />
           <h2 className={styles.title}>AI PI</h2>
         </div>
-        <div>
+        <div className={styles.buttons}>
+          <Button>
+            <MessageSquareCheck />
+          </Button>
+          <Menu
+            trigger={
+              <Button>
+                <EllipsisVertical />
+              </Button>
+            }
+          >
+            <Menu.Item>Item 1</Menu.Item>
+            <Menu.Item>Item 2</Menu.Item>
+            <Menu.Item>Item 3</Menu.Item>
+          </Menu>
           <Button nativeButton={false} render={<Link href="/admin/login" />}>
             Admin
           </Button>
