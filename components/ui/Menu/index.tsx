@@ -1,5 +1,6 @@
 import { Menu as BaseMenu } from "@base-ui/react/menu";
 import type { ComponentProps } from "react";
+import { clsx } from "clsx";
 import styles from "./index.module.css";
 
 // ── Root ─────────────────────────────────────────────────────────────────────
@@ -31,7 +32,7 @@ function MenuPositioner({
 }: ComponentProps<typeof BaseMenu.Positioner>) {
   return (
     <BaseMenu.Positioner
-      className={[styles.Positioner, className].filter(Boolean).join(" ")}
+      className={clsx(styles.Positioner, className)}
       sideOffset={sideOffset}
       {...props}
     />
@@ -45,10 +46,7 @@ function MenuPopup({
   ...props
 }: ComponentProps<typeof BaseMenu.Popup>) {
   return (
-    <BaseMenu.Popup
-      className={[styles.Popup, className].filter(Boolean).join(" ")}
-      {...props}
-    />
+    <BaseMenu.Popup className={clsx(styles.Popup, className)} {...props} />
   );
 }
 
@@ -59,10 +57,7 @@ function MenuArrow({
   ...props
 }: ComponentProps<typeof BaseMenu.Arrow>) {
   return (
-    <BaseMenu.Arrow
-      className={[styles.Arrow, className].filter(Boolean).join(" ")}
-      {...props}
-    >
+    <BaseMenu.Arrow className={clsx(styles.Arrow, className)} {...props}>
       <svg width="20" height="10" viewBox="0 0 20 10" fill="none">
         <path
           d="M9.66437 2.60207L4.80758 6.97318C4.07308 7.63423 3.11989 8 2.13172 8H0V10H20V8H17.8683C16.8801 8 15.9269 7.63423 15.1924 6.97318L10.3356 2.60207C10.1465 2.42811 9.85348 2.42811 9.66437 2.60207Z"
@@ -87,12 +82,7 @@ function MenuItem({
   className,
   ...props
 }: ComponentProps<typeof BaseMenu.Item>) {
-  return (
-    <BaseMenu.Item
-      className={[styles.Item, className].filter(Boolean).join(" ")}
-      {...props}
-    />
-  );
+  return <BaseMenu.Item className={clsx(styles.Item, className)} {...props} />;
 }
 
 // ── Separator ─────────────────────────────────────────────────────────────────
@@ -103,7 +93,7 @@ function MenuSeparator({
 }: ComponentProps<typeof BaseMenu.Separator>) {
   return (
     <BaseMenu.Separator
-      className={[styles.Separator, className].filter(Boolean).join(" ")}
+      className={clsx(styles.Separator, className)}
       {...props}
     />
   );
@@ -127,7 +117,7 @@ function MenuSubmenuTrigger({
 }: ComponentProps<typeof BaseMenu.SubmenuTrigger>) {
   return (
     <BaseMenu.SubmenuTrigger
-      className={[styles.Item, className].filter(Boolean).join(" ")}
+      className={clsx(styles.Item, className)}
       {...props}
     />
   );
