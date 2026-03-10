@@ -6,7 +6,7 @@ import type {
   ChatCompletionChunk,
   ChatCompletionMessageParam,
 } from "openai/resources/chat/completions";
-import { getOpenRouterClient } from "../../../lib/openrouter";
+import { getOpenRouter } from "../../../lib/openrouter";
 
 export const maxDuration = 60;
 
@@ -321,10 +321,9 @@ async function classifyQuery(
   posthogDistinctId = "anonymous",
 ): Promise<{ needsRAG: boolean; reasoning?: string }> {
   try {
-    const openai = getOpenRouterClient();
-    const response = await openai.chat.completions.create(
+    const openrouter = getOpenRouter();
+    const response = await openrouter.complete(
       {
-        model: process.env.OPENROUTER_MODEL!,
         messages: [
           {
             role: "user",
@@ -359,10 +358,9 @@ async function extractKeywordForDuckDuckGo(
   posthogDistinctId = "anonymous",
 ): Promise<string> {
   try {
-    const openai = getOpenRouterClient();
-    const response = await openai.chat.completions.create(
+    const openrouter = getOpenRouter();
+    const response = await openrouter.complete(
       {
-        model: process.env.OPENROUTER_MODEL!,
         messages: [
           {
             role: "user",
@@ -449,21 +447,19 @@ async function generateGeneralResponse(
   if (conversationHistory?.trim())
     messages.push({ role: "user", content: conversationHistory });
   messages.push({ role: "user", content: question });
-  const openai = getOpenRouterClient();
+  const openrouter = getOpenRouter();
   console.debug(
     "[generateGeneralResponse] model:",
     process.env.OPENROUTER_MODEL,
   );
   try {
-    return await openai.chat.completions.create(
+    return await openrouter.stream(
       {
-        model: process.env.OPENROUTER_MODEL!,
         messages,
-        stream: true as const,
         max_tokens: 500,
         temperature: 0.75,
       },
-      { posthogDistinctId, extra_body: { provider: { order: ["Chutes"] } } },
+      { posthogDistinctId, provider: { order: ["Chutes"] } },
     );
   } catch (err) {
     console.error("[generateGeneralResponse] OpenRouter SDK error:", err);
@@ -606,7 +602,7 @@ async function ragQuery(
 
   const contextStr = constructContext(contextObjects);
   const payload = createPayload(question, contextStr, conversationHistory);
-  const openai = getOpenRouterClient();
+  const openrouter = getOpenRouter();
   console.debug(
     "[ragQuery] model:",
     process.env.OPENROUTER_MODEL,
@@ -615,17 +611,15 @@ async function ragQuery(
   );
   let ragStream: Stream<ChatCompletionChunk>;
   try {
-    ragStream = await openai.chat.completions.create(
+    ragStream = await openrouter.stream(
       {
-        model: process.env.OPENROUTER_MODEL!,
         messages: payload.messages,
-        stream: true as const,
         max_tokens: payload.max_tokens,
         temperature: payload.temperature,
       },
       {
         posthogDistinctId,
-        extra_body: { provider: { order: ["Chutes"] } },
+        provider: { order: ["Chutes"] },
       },
     );
   } catch (err) {
