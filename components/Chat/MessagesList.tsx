@@ -1,7 +1,7 @@
 import React, { useRef, useEffect } from "react";
 import MessageItem from "./MessageItem";
 import { Message } from "../types";
-import styles from "../../styles/Chat.module.css";
+import styles from "@/styles/Chat.module.css";
 
 interface MessagesListProps {
   messages: Message[];

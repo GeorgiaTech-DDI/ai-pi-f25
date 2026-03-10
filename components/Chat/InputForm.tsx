@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import styles from "../../styles/Chat.module.css";
+import styles from "@/styles/Chat.module.css";
 
 interface InputFormProps {
   loading: boolean;

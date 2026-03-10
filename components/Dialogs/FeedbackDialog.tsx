@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { DialogProps } from "../types";
-import styles from "../../styles/Dialogs.module.css";
+import styles from "@/styles/Dialogs.module.css";
 
 interface FeedbackDialogProps extends DialogProps {
   onSubmit: (text: string) => void;

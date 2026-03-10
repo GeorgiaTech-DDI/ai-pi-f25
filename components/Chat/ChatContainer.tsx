@@ -2,7 +2,7 @@ import React, { useRef } from "react";
 import MessagesList from "./MessagesList";
 import InputForm from "./InputForm";
 import { Message } from "../types";
-import styles from "../../styles/Chat.module.css";
+import styles from "@/styles/Chat.module.css";
 
 interface ChatContainerProps {
   messages: Message[];
