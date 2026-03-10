@@ -1,13 +1,16 @@
 {
   "dependencies": {
+    "@ai-sdk/react": "^3.0.118",
     "@aws-sdk/client-sagemaker-runtime": "^3.1000.0",
     "@aws-sdk/credential-providers": "^3.1000.0",
     "@base-ui/react": "^1.2.0",
+    "@openrouter/ai-sdk-provider": "^2.2.5",
     "@pinecone-database/pinecone": "^7.1.0",
     "@posthog/ai": "^7.9.3",
     "@vercel/analytics": "^1.6.1",
     "@vercel/blob": "^2.3.0",
     "@vercel/speed-insights": "^1.3.1",
+    "ai": "^6.0.116",
     "better-auth": "^1.5.0",
     "deepinfra": "^2.0.2",
     "dotenv": "^17.3.1",
