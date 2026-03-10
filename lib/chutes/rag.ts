@@ -1,4 +1,5 @@
 import { Pinecone } from "@pinecone-database/pinecone";
+import { jsonSchema } from "ai";
 import type { UIMessageStreamWriter } from "ai";
 import { getOpenRouter } from "../openrouter";
 import { embedDocs } from "./embeddings";
@@ -12,6 +13,7 @@ import {
   EMBEDDING_MAX_CHARS,
   SYSTEM_PROMPT_RAG,
   SYSTEM_PROMPT_GENERAL,
+  SYSTEM_PROMPT_CLASSIFIER,
   type OpenRouterStream,
 } from "./types";
 import { extractEmbeddingContext } from "./history";
@@ -95,25 +97,35 @@ export async function classifyQuery(
 ): Promise<{ needsRAG: boolean; reasoning?: string }> {
   try {
     const openrouter = getOpenRouter();
-    const response = await openrouter.complete(
+    const result = await openrouter.generateObject<{
+      classification: "GENERAL" | "RAG";
+      reasoning: string;
+    }>(
       {
-        messages: [
-          {
-            role: "user",
-            content: `You are a query classifier for an Invention Studio chatbot at Georgia Tech.\n\nThe Invention Studio is a makerspace with equipment like 3D printers, laser cutters, CNC machines, etc.\n\nClassify this query as GENERAL or RAG:\n- GENERAL: Simple greetings, farewells, gratitude, general knowledge questions, conversational responses\n- RAG: Questions about Invention Studio equipment, policies, procedures, hours, training, materials, or anything requiring studio-specific information\n\nQuestion: "${question}"\n\nRespond ONLY with valid JSON:\n{"classification": "GENERAL", "reasoning": "brief explanation"}\nOR\n{"classification": "RAG", "reasoning": "brief explanation"}`,
-          },
-        ],
+        system: SYSTEM_PROMPT_CLASSIFIER,
+        messages: [{ role: "user", content: question }],
         maxTokens: 100,
         temperature: 0.1,
       },
+      {
+        schema: jsonSchema<{
+          classification: "GENERAL" | "RAG";
+          reasoning: string;
+        }>({
+          type: "object",
+          properties: {
+            classification: { type: "string", enum: ["GENERAL", "RAG"] },
+            reasoning: { type: "string" },
+          },
+          required: ["classification", "reasoning"],
+          additionalProperties: false,
+        }),
+      },
       { posthogDistinctId },
     );
-    const content = response.text?.trim();
-    if (!content) return { needsRAG: true };
-    const parsed = JSON.parse(content.replace(/```json\s*|\s*```/g, "").trim());
     return {
-      needsRAG: parsed.classification === "RAG",
-      reasoning: parsed.reasoning,
+      needsRAG: result.classification === "RAG",
+      reasoning: result.reasoning,
     };
   } catch {
     return {
