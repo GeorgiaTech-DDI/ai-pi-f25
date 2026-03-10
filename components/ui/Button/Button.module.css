@@ -119,6 +119,26 @@
   flex-shrink: 0;
 }
 
+/* ── icon ghost — square icon button with no border or background ────────── */
+
+.iconGhost {
+  border-color: transparent;
+  background-color: transparent;
+
+  @media (hover: hover) {
+    &:hover:not([data-disabled]) {
+      background-color: var(--color-gray-100);
+      border-color: transparent;
+    }
+  }
+
+  &:active:not([data-disabled]) {
+    background-color: var(--color-gray-200);
+    box-shadow: none;
+    border-top-color: transparent;
+  }
+}
+
 /* ── link ───────────────────────────────────────────────────────────────── */
 
 .link {

@@ -1,7 +1,7 @@
 import { Menu as BaseMenu } from "@base-ui/react/menu";
 import type { ComponentProps } from "react";
 import { clsx } from "clsx";
-import styles from "./index.module.css";
+import styles from "./Menu.module.css";
 
 // ── Root ─────────────────────────────────────────────────────────────────────
 
