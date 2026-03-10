@@ -1,12 +1,10 @@
 import { Pinecone } from "@pinecone-database/pinecone";
 import { NextRequest } from "next/server";
 import { Embeddings } from "deepinfra";
-import type { Stream } from "openai/streaming";
-import type {
-  ChatCompletionChunk,
-  ChatCompletionMessageParam,
-} from "openai/resources/chat/completions";
 import { getOpenRouter } from "../../../lib/openrouter";
+type OpenRouterStream = Awaited<
+  ReturnType<ReturnType<typeof getOpenRouter>["stream"]>
+>;
 
 export const maxDuration = 60;
 
@@ -280,11 +278,12 @@ function createPayload(
   contextStr: string,
   conversationHistory: string = "",
 ): {
-  messages: ChatCompletionMessageParam[];
+  messages: { role: "system" | "user" | "assistant"; content: string }[];
   max_tokens: number;
   temperature: number;
 } {
-  const messages: ChatCompletionMessageParam[] = [];
+  const messages: { role: "system" | "user" | "assistant"; content: string }[] =
+    [];
   messages.push({
     role: "system",
     content: `You are AI PI, a helpful assistant for the Invention Studio at Georgia Tech, created by the MATRIX Lab team.\n\nGuidelines:\n- Answer questions naturally and conversationally\n- Use the provided context when relevant to the user's question\n- If context doesn't contain the answer, say "I don't know" or give your best guess with "I think that..."\n- Don't repeat yourself or use template responses\n- Don't announce your name or creator unless specifically asked\n- Focus on being helpful and direct\n- If the user's question is unclear or off-topic, ask for clarification\n\nRespond naturally to the conversation flow and the user's current question.`,
@@ -335,7 +334,7 @@ async function classifyQuery(
       },
       { posthogDistinctId },
     );
-    const content = response.choices?.[0]?.message?.content?.trim();
+    const content = response.text?.trim();
     if (!content) return { needsRAG: true };
     const parsed = JSON.parse(content.replace(/```json\s*|\s*```/g, "").trim());
     return {
@@ -372,7 +371,7 @@ async function extractKeywordForDuckDuckGo(
       },
       { posthogDistinctId },
     );
-    const keywords = response.choices?.[0]?.message?.content?.trim() || "";
+    const keywords = response.text?.trim() || "";
     if (keywords.length < 2) return "";
     return keywords.split(",")[0].trim().split(/\s+/).slice(0, 10).join(" ");
   } catch {
@@ -436,14 +435,15 @@ async function generateGeneralResponse(
   question: string,
   conversationHistory: string = "",
   posthogDistinctId = "anonymous",
-): Promise<Stream<ChatCompletionChunk>> {
-  const messages: ChatCompletionMessageParam[] = [
-    {
-      role: "system",
-      content:
-        "You are AI PI, a helpful assistant for the Invention Studio at Georgia Tech, created by the MATRIX Lab team.\n\nGuidelines:\n- Answer questions naturally and conversationally using your general knowledge\n- Be friendly and helpful\n- If asked about specific Invention Studio details (equipment, policies, hours), politely mention you need more specific information\n- Don't make up specific studio policies or details\n- Keep responses concise and helpful\n- Don't announce your name or creator unless specifically asked",
-    },
-  ];
+): Promise<OpenRouterStream> {
+  const messages: { role: "system" | "user" | "assistant"; content: string }[] =
+    [
+      {
+        role: "system",
+        content:
+          "You are AI PI, a helpful assistant for the Invention Studio at Georgia Tech, created by the MATRIX Lab team.\n\nGuidelines:\n- Answer questions naturally and conversationally using your general knowledge\n- Be friendly and helpful\n- If asked about specific Invention Studio details (equipment, policies, hours), politely mention you need more specific information\n- Don't make up specific studio policies or details\n- Keep responses concise and helpful\n- Don't announce your name or creator unless specifically asked",
+      },
+    ];
   if (conversationHistory?.trim())
     messages.push({ role: "user", content: conversationHistory });
   messages.push({ role: "user", content: question });
@@ -456,7 +456,7 @@ async function generateGeneralResponse(
     return await openrouter.stream(
       {
         messages,
-        max_tokens: 500,
+        maxTokens: 500,
         temperature: 0.75,
       },
       { posthogDistinctId, provider: { order: ["Chutes"] } },
@@ -475,7 +475,7 @@ async function ragQuery(
   conversationHistory: string = "",
   emit: (data: object) => void,
   posthogDistinctId = "anonymous",
-): Promise<[Stream<ChatCompletionChunk>, any[]]> {
+): Promise<[OpenRouterStream, any[]]> {
   let textForEmbedding = extractEmbeddingContext(conversationHistory, question);
   const MAX_CHARS = 350;
   if (textForEmbedding.length > MAX_CHARS)
@@ -609,12 +609,12 @@ async function ragQuery(
     "messages:",
     payload.messages.length,
   );
-  let ragStream: Stream<ChatCompletionChunk>;
+  let ragStream: OpenRouterStream;
   try {
     ragStream = await openrouter.stream(
       {
         messages: payload.messages,
-        max_tokens: payload.max_tokens,
+        maxTokens: payload.max_tokens,
         temperature: payload.temperature,
       },
       {
@@ -702,7 +702,7 @@ export async function POST(req: NextRequest) {
 
       // Classify query
       const classification = await classifyQuery(question, posthogDistinctId);
-      let chunkStream: Stream<ChatCompletionChunk>;
+      let chunkStream: OpenRouterStream;
       let contexts: any[] = [];
       let usedRAG = false;
 
@@ -768,9 +768,8 @@ export async function POST(req: NextRequest) {
       sendSSE({ type: "contexts", contexts, usedRAG });
       sendSSE({ type: "metrics", metrics });
 
-      // Iterate typed chunks — no SSE byte parsing needed
-      for await (const chunk of chunkStream) {
-        const content = chunk.choices[0]?.delta?.content;
+      // Iterate text tokens from the AI SDK stream
+      for await (const content of chunkStream.textStream) {
         if (content) sendSSE({ type: "token", content });
       }
       sendSSE({ type: "done" });
