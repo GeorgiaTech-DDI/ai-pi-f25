@@ -30,7 +30,6 @@ export default function Home() {
     >
   >({});
 
-  // ── useChat ────────────────────────────────────────────────────────────────
   const {
     messages: sdkMessages,
     status,
