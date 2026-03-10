@@ -1,7 +1,5 @@
-import { Button } from "components/ui/Button";
 import styles from "./layout.module.css";
-import { EllipsisVertical, MessageSquareCheck } from "lucide-react";
-import { Menu } from "components/ui/Menu";
+import HeaderButtons from "./components/header-buttons/header-buttons";
 
 /**
  * Public route group layout — no auth required.
@@ -23,27 +21,7 @@ export default function PublicLayout({
           />
           <h2 className={styles.title}>AI PI</h2>
         </div>
-        <div className={styles.buttons}>
-          <Button
-            variant="icon"
-            ghost
-            tooltip="Give feedback"
-            aria-label="Give feedback"
-          >
-            <MessageSquareCheck />
-          </Button>
-          <Menu
-            trigger={
-              <Button variant="icon" ghost aria-label="More options">
-                <EllipsisVertical />
-              </Button>
-            }
-          >
-            <Menu.Item>Save Chat</Menu.Item>
-            <Menu.Item style={{ color: "red" }}>Restart</Menu.Item>
-          </Menu>
-          <Button href="/admin/login">Admin Log In</Button>
-        </div>
+        <HeaderButtons className={styles.buttons} />
       </header>
       <main>{children}</main>
     </>

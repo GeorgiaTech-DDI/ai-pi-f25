@@ -4,16 +4,10 @@ import { useState, useEffect } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import posthog from "posthog-js";
-import Layout from "../../components/Layout";
 import ChatContainer from "../../components/Chat/ChatContainer";
 import TermsOfServiceDialog from "../../components/Dialogs/TermsOfServiceDialog";
-import FeedbackDialog from "../../components/Dialogs/FeedbackDialog";
 import ReferencesDialog from "../../components/Dialogs/ReferencesDialog";
-import {
-  type Message,
-  type Context,
-  type DialogFadeState,
-} from "../../components/types";
+import { type Message, type Context } from "../../components/types";
 import { saveChatAsText } from "../../utils/chatUtils";
 
 export default function Home() {
@@ -104,7 +98,9 @@ export default function Home() {
   // ── Terms of Service ───────────────────────────────────────────────────────
   const [tosAccepted, setTosAccepted] = useState<boolean>(false);
   const [showTosDialog, setShowTosDialog] = useState<boolean>(false);
-  const [tosFadeState, setTosFadeState] = useState<DialogFadeState>("hidden");
+  const [tosFadeState, setTosFadeState] = useState<
+    "hidden" | "visible" | "entering" | "exiting"
+  >("hidden");
 
   useEffect(() => {
     const stored = localStorage.getItem("tosAccepted");
@@ -131,16 +127,18 @@ export default function Home() {
   const [feedbackMessageIndex, setFeedbackMessageIndex] = useState<
     number | null
   >(null);
-  const [feedbackFadeState, setFeedbackFadeState] =
-    useState<DialogFadeState>("hidden");
+  const [feedbackFadeState, setFeedbackFadeState] = useState<
+    "hidden" | "visible" | "entering" | "exiting"
+  >("hidden");
 
   // ── References dialog ──────────────────────────────────────────────────────
   const [showReferencesDialog, setShowReferencesDialog] =
     useState<boolean>(false);
   const [activeReferences, setActiveReferences] = useState<Context[]>([]);
   const [activeReferenceTitle, setActiveReferenceTitle] = useState<string>("");
-  const [referencesFadeState, setReferencesFadeState] =
-    useState<DialogFadeState>("hidden");
+  const [referencesFadeState, setReferencesFadeState] = useState<
+    "hidden" | "visible" | "entering" | "exiting"
+  >("hidden");
 
   // ── Handlers ───────────────────────────────────────────────────────────────
   const handleSubmit = (message: string): void => {
@@ -242,26 +240,20 @@ export default function Home() {
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <>
-      <TermsOfServiceDialog
-        isVisible={showTosDialog}
+      {/* <TermsOfServiceDialog
+        isVisible={false}
         fadeState={tosFadeState}
         onAccept={acceptTerms}
         onDecline={declineTerms}
         onClose={() => {}}
-      />
-      <FeedbackDialog
-        isVisible={showFeedbackDialog}
-        fadeState={feedbackFadeState}
-        onClose={closeFeedbackDialog}
-        onSubmit={submitFeedback}
-      />
-      <ReferencesDialog
+      /> */}
+      {/* <ReferencesDialog
         isVisible={showReferencesDialog}
         fadeState={referencesFadeState}
         onClose={closeReferencesDialog}
         title={activeReferenceTitle}
         references={activeReferences}
-      />
+      /> */}
 
       <ChatContainer
         messages={messages}
