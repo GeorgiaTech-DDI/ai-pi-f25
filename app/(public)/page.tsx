@@ -1,60 +1,121 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useChat } from "@ai-sdk/react";
+import { DefaultChatTransport } from "ai";
 import posthog from "posthog-js";
 import Layout from "../../components/Layout";
 import ChatContainer from "../../components/Chat/ChatContainer";
 import TermsOfServiceDialog from "../../components/Dialogs/TermsOfServiceDialog";
 import FeedbackDialog from "../../components/Dialogs/FeedbackDialog";
 import ReferencesDialog from "../../components/Dialogs/ReferencesDialog";
-import { Message, Context, DialogFadeState } from "../../components/types";
+import {
+  type Message,
+  type Context,
+  type DialogFadeState,
+} from "../../components/types";
 import { saveChatAsText } from "../../utils/chatUtils";
 
 export default function Home() {
-  const [loading, setLoading] = useState<boolean>(false);
+  const [hasSaved, setHasSaved] = useState<boolean>(false);
+  const [error, setError] = useState<string>("");
   const [webSearchLoading, setWebSearchLoading] = useState<boolean>(false);
   const [webSearchStatus, setWebSearchStatus] = useState<string>("");
-  const [error, setError] = useState<string>("");
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [_, setContexts] = useState<Context[]>([]);
-  const [hasSaved, setHasSaved] = useState<boolean>(false);
 
-  // Terms of Service state
+  // Per-message metadata (contexts, usedRAG) keyed by message index
+  const [messageMetadata, setMessageMetadata] = useState<
+    Record<
+      number,
+      { contexts?: Context[]; usedRAG?: boolean; feedback?: string }
+    >
+  >({});
+
+  // ── useChat ────────────────────────────────────────────────────────────────
+  const {
+    messages: sdkMessages,
+    status,
+    sendMessage,
+  } = useChat({
+    transport: new DefaultChatTransport({
+      api: "/api/chutes",
+      headers: {
+        "x-posthog-distinct-id": posthog.get_distinct_id?.() || "anonymous",
+      },
+    }),
+    onFinish: ({ message }) => {
+      posthog.capture("chat_response_received", {
+        response_length: message.parts
+          .filter((p: any) => p.type === "text") // TODO: fix any typing
+          .map((p: any) => p.text) // TODO: fix any typing
+          .join("").length,
+      });
+    },
+    onError: (err) => {
+      setError("Failed to get answer. Please try again.");
+      posthog.capture("chat_error_occurred", { error_message: String(err) });
+      posthog.captureException(err);
+    },
+    onData: (dataPart: any) => {
+      const { type, data } = dataPart;
+      if (type === "data-web_search_loading") {
+        setWebSearchLoading(true);
+        setWebSearchStatus(data.message || "Searching web...");
+      } else if (type === "data-web_search_complete") {
+        setWebSearchLoading(false);
+        setWebSearchStatus(
+          data.found
+            ? `Found context from ${data.source}`
+            : "No additional context found",
+        );
+        setTimeout(() => setWebSearchStatus(""), 2000);
+      } else if (type === "data-contexts") {
+        const assistantIdx =
+          sdkMessages.filter((m) => m.role === "user" || m.role === "assistant")
+            .length - 1;
+        setMessageMetadata((prev) => ({
+          ...prev,
+          [assistantIdx]: {
+            ...prev[assistantIdx],
+            contexts: data.contexts,
+            usedRAG: data.usedRAG,
+          },
+        }));
+      }
+    },
+  });
+
+  // ── Derive display messages from SDK messages + local metadata ─────────────
+  const isLoading = status === "submitted" || status === "streaming";
+  const messages: Message[] = sdkMessages
+    .filter((m) => m.role === "user" || m.role === "assistant")
+    .map((m, i) => ({
+      role: m.role as "user" | "assistant",
+      content: m.parts
+        .filter((p: any) => p.type === "text") // TODO: fix any typing
+        .map((p: any) => p.text) // TODO: fix any typing
+        .join(""),
+      isStreaming:
+        isLoading && i === sdkMessages.length - 1 && m.role === "assistant",
+      contexts: messageMetadata[i]?.contexts,
+      usedRAG: messageMetadata[i]?.usedRAG,
+      feedback: messageMetadata[i]?.feedback,
+    }));
+
+  // ── Terms of Service ───────────────────────────────────────────────────────
   const [tosAccepted, setTosAccepted] = useState<boolean>(false);
   const [showTosDialog, setShowTosDialog] = useState<boolean>(false);
   const [tosFadeState, setTosFadeState] = useState<DialogFadeState>("hidden");
 
-  // Feedback dialog state
-  const [showFeedbackDialog, setShowFeedbackDialog] = useState<boolean>(false);
-  const [feedbackMessageIndex, setFeedbackMessageIndex] = useState<
-    number | null
-  >(null);
-  const [feedbackFadeState, setFeedbackFadeState] =
-    useState<DialogFadeState>("hidden");
-
-  // References dialog state
-  const [showReferencesDialog, setShowReferencesDialog] =
-    useState<boolean>(false);
-  const [activeReferences, setActiveReferences] = useState<Context[]>([]);
-  const [activeReferenceTitle, setActiveReferenceTitle] = useState<string>("");
-  const [referencesFadeState, setReferencesFadeState] =
-    useState<DialogFadeState>("hidden");
-
-  // Check localStorage for TOS acceptance on component mount
   useEffect(() => {
-    const tosAcceptedStorage = localStorage.getItem("tosAccepted");
-    if (tosAcceptedStorage === "true") {
+    const stored = localStorage.getItem("tosAccepted");
+    if (stored === "true") {
       setTosAccepted(true);
-      setShowTosDialog(false);
-      setTosFadeState("hidden");
     } else {
-      setTosAccepted(false);
       setShowTosDialog(true);
       setTosFadeState("visible");
     }
   }, []);
 
-  // Handle ToS dialog animation
   useEffect(() => {
     if (showTosDialog) {
       setTosFadeState("entering");
@@ -63,228 +124,32 @@ export default function Home() {
       setTosFadeState("exiting");
       setTimeout(() => setTosFadeState("hidden"), 500);
     }
-  }, [showTosDialog, tosFadeState]);
+  }, [showTosDialog]);
 
-  const handleSubmit = async (message: string): Promise<void> => {
-    setLoading(true);
-    setWebSearchLoading(false);
-    setWebSearchStatus("");
+  // ── Feedback dialog ────────────────────────────────────────────────────────
+  const [showFeedbackDialog, setShowFeedbackDialog] = useState<boolean>(false);
+  const [feedbackMessageIndex, setFeedbackMessageIndex] = useState<
+    number | null
+  >(null);
+  const [feedbackFadeState, setFeedbackFadeState] =
+    useState<DialogFadeState>("hidden");
+
+  // ── References dialog ──────────────────────────────────────────────────────
+  const [showReferencesDialog, setShowReferencesDialog] =
+    useState<boolean>(false);
+  const [activeReferences, setActiveReferences] = useState<Context[]>([]);
+  const [activeReferenceTitle, setActiveReferenceTitle] = useState<string>("");
+  const [referencesFadeState, setReferencesFadeState] =
+    useState<DialogFadeState>("hidden");
+
+  // ── Handlers ───────────────────────────────────────────────────────────────
+  const handleSubmit = (message: string): void => {
     setError("");
-
     posthog.capture("chat_message_submitted", {
       message_length: message.length,
       conversation_turn: messages.filter((m) => m.role === "user").length + 1,
     });
-
-    const userMessage: Message = { role: "user", content: message };
-    const updatedMessages = [...messages, userMessage];
-    setMessages(updatedMessages);
-
-    setMessages([
-      ...updatedMessages,
-      { role: "assistant", content: "", isStreaming: true },
-    ]);
-
-    try {
-      if (process.env.NODE_ENV === "development") {
-        // Development mode mock response with simulated streaming
-        setWebSearchLoading(true);
-        setWebSearchStatus("Searching web for additional context...");
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-        setWebSearchLoading(false);
-        setWebSearchStatus("Found context from DuckDuckGo");
-        setTimeout(() => setWebSearchStatus(""), 2000);
-
-        let mockAnswer = "";
-        const mockChunks = [
-          "This ",
-          "is ",
-          "a ",
-          "test ",
-          "answer ",
-          "with ",
-          "simulated ",
-          "streaming ",
-          "for ",
-          "development ",
-          "purposes.",
-        ];
-
-        const mockContexts: Context[] = [
-          {
-            id: "ddg-test",
-            score: 1.0,
-            values: [],
-            metadata: {
-              chunk_idx: -1,
-              filename: "🌐 DuckDuckGo",
-              text: "This is a test external context from DuckDuckGo search results.",
-              source: "DuckDuckGo",
-            },
-          },
-          {
-            id: "60",
-            score: 0.549824595,
-            values: [],
-            metadata: {
-              chunk_idx: 60,
-              filename: "Waterjet-Required&Optional.md",
-              text: "[CLS] mark the machine down and contact a waterjet master / apprentice...",
-            },
-          },
-        ];
-
-        setMessages((cur) => {
-          const m = [...cur];
-          m[m.length - 1] = {
-            ...m[m.length - 1],
-            contexts: mockContexts,
-            usedRAG: true,
-          };
-          return m;
-        });
-
-        for (const chunk of mockChunks) {
-          await new Promise((resolve) => setTimeout(resolve, 100));
-          mockAnswer += chunk;
-          setMessages((cur) => {
-            const m = [...cur];
-            m[m.length - 1] = { ...m[m.length - 1], content: mockAnswer };
-            return m;
-          });
-        }
-
-        setMessages((cur) => {
-          const m = [...cur];
-          m[m.length - 1] = { ...m[m.length - 1], isStreaming: false };
-          return m;
-        });
-        setContexts([]);
-        setLoading(false);
-      } else {
-        // Production API call
-        const response = await fetch("/api/chutes", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-posthog-distinct-id": posthog.get_distinct_id() || "anonymous",
-          },
-          body: JSON.stringify({
-            question: message,
-            history: updatedMessages.slice(0, -1).map((msg) => ({
-              role: msg.role,
-              content: msg.content,
-              feedback: msg.feedback,
-              isNotification: msg.isNotification,
-            })),
-          }),
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(
-            errorData.message || `HTTP error! status: ${response.status}`,
-          );
-        }
-
-        const reader = response.body?.getReader();
-        const decoder = new TextDecoder();
-        let accumulatedContent = "";
-
-        if (reader) {
-          try {
-            while (true) {
-              const { done, value } = await reader.read();
-              if (done) break;
-
-              const text = decoder.decode(value, { stream: true });
-              const lines = text.split("\n\n");
-
-              for (const line of lines) {
-                if (line.startsWith("data: ")) {
-                  try {
-                    const eventData = JSON.parse(line.slice(5));
-                    if (eventData.type === "web_search_loading") {
-                      setWebSearchLoading(true);
-                      setWebSearchStatus(
-                        eventData.message || "Searching web...",
-                      );
-                    } else if (eventData.type === "web_search_complete") {
-                      setWebSearchLoading(false);
-                      setWebSearchStatus(
-                        eventData.found
-                          ? `Found context from ${eventData.source}`
-                          : "No additional context found",
-                      );
-                      setTimeout(() => setWebSearchStatus(""), 2000);
-                    } else if (eventData.type === "contexts") {
-                      setMessages((cur) => {
-                        const m = [...cur];
-                        m[m.length - 1] = {
-                          ...m[m.length - 1],
-                          contexts: eventData.contexts,
-                          usedRAG: eventData.usedRAG,
-                        };
-                        return m;
-                      });
-                    } else if (eventData.type === "token") {
-                      accumulatedContent += eventData.content;
-                      setMessages((cur) => {
-                        const m = [...cur];
-                        m[m.length - 1] = {
-                          ...m[m.length - 1],
-                          content: accumulatedContent,
-                        };
-                        return m;
-                      });
-                    } else if (eventData.type === "error") {
-                      throw new Error(eventData.error);
-                    } else if (eventData.type === "done") {
-                      setMessages((cur) => {
-                        const m = [...cur];
-                        m[m.length - 1] = {
-                          ...m[m.length - 1],
-                          isStreaming: false,
-                        };
-                        return m;
-                      });
-                      posthog.capture("chat_response_received", {
-                        response_length: accumulatedContent.length,
-                        conversation_turn: updatedMessages.filter(
-                          (msg) => msg.role === "user",
-                        ).length,
-                      });
-                    }
-                  } catch (e) {
-                    console.error("Error parsing stream event:", e, line);
-                  }
-                }
-              }
-            }
-          } catch (e) {
-            console.error("Stream reading error:", e);
-            throw e;
-          } finally {
-            setLoading(false);
-          }
-        } else {
-          throw new Error("Failed to get stream from response");
-        }
-      }
-    } catch (e) {
-      setMessages((cur) => {
-        const m = [...cur];
-        if (m[m.length - 1]?.role === "assistant") m.pop();
-        return m;
-      });
-      setError("Failed to get answer. Please try again.");
-      console.error("Frontend error:", e);
-      posthog.capture("chat_error_occurred", {
-        error_message: e instanceof Error ? e.message : String(e),
-      });
-      posthog.captureException(e);
-      setLoading(false);
-    }
+    sendMessage({ text: message });
   };
 
   const initiateFeedback = (messageIndex: number): void => {
@@ -304,17 +169,13 @@ export default function Home() {
 
   const submitFeedback = (feedbackText: string): void => {
     if (feedbackMessageIndex === null) return;
-    const updatedMessages = [...messages];
-    updatedMessages[feedbackMessageIndex] = {
-      ...updatedMessages[feedbackMessageIndex],
-      feedback: feedbackText,
-    };
-    updatedMessages.push({
-      role: "system",
-      content:
-        "Feedback added to chat history. Press download and then upload your chat history to send feedback. Thank you!",
-      isNotification: true,
-    });
+    setMessageMetadata((prev) => ({
+      ...prev,
+      [feedbackMessageIndex]: {
+        ...prev[feedbackMessageIndex],
+        feedback: feedbackText,
+      },
+    }));
     posthog.capture("feedback_submitted", {
       message_index: feedbackMessageIndex,
       feedback_length: feedbackText.length,
@@ -322,14 +183,14 @@ export default function Home() {
     setFeedbackFadeState("exiting");
     setTimeout(() => {
       setShowFeedbackDialog(false);
-      setMessages(updatedMessages);
+      setFeedbackFadeState("hidden");
     }, 500);
   };
 
   const showReferences = (messageIndex: number): void => {
-    const message = messages[messageIndex];
-    if (message?.contexts && message.contexts.length > 0) {
-      setActiveReferences(message.contexts);
+    const refs = messageMetadata[messageIndex]?.contexts;
+    if (refs && refs.length > 0) {
+      setActiveReferences(refs);
       setActiveReferenceTitle(
         `References for Q&A #${Math.floor(messageIndex / 2) + 1}`,
       );
@@ -369,16 +230,16 @@ export default function Home() {
         "Are you sure you want to restart? Your current conversation will be automatically saved.",
       )
     ) {
-      posthog.capture("chat_restarted", {
-        message_count: messages.length,
-      });
+      posthog.capture("chat_restarted", { message_count: messages.length });
       saveChatAsText(messages);
       setHasSaved(true);
-      setMessages([]);
-      setContexts([]);
+      setMessageMetadata({});
+      // Note: useChat doesn't expose a reset — reload to clear SDK state
+      window.location.reload();
     }
   };
 
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <>
       <TermsOfServiceDialog
@@ -405,9 +266,7 @@ export default function Home() {
       {(!showTosDialog || tosAccepted) && (
         <Layout
           onSaveChatAsText={() => {
-            posthog.capture("chat_saved", {
-              message_count: messages.length,
-            });
+            posthog.capture("chat_saved", { message_count: messages.length });
             saveChatAsText(messages);
             setHasSaved(true);
           }}
@@ -417,7 +276,7 @@ export default function Home() {
         >
           <ChatContainer
             messages={messages}
-            loading={loading}
+            loading={isLoading}
             webSearchLoading={webSearchLoading}
             webSearchStatus={webSearchStatus}
             error={error}
