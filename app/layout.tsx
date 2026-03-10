@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "../styles/globals.css";
+import "../styles/theme.css";
 import { inter } from "../utils/fonts";
 import Providers from "./providers/Providers";
 

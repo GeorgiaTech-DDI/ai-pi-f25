@@ -263,29 +263,16 @@ export default function Home() {
         references={activeReferences}
       />
 
-      {(!showTosDialog || tosAccepted) && (
-        <Layout
-          onSaveChatAsText={() => {
-            posthog.capture("chat_saved", { message_count: messages.length });
-            saveChatAsText(messages);
-            setHasSaved(true);
-          }}
-          onRestartChat={restartChat}
-          hasMessages={messages.length > 0}
-          hasSaved={hasSaved}
-        >
-          <ChatContainer
-            messages={messages}
-            loading={isLoading}
-            webSearchLoading={webSearchLoading}
-            webSearchStatus={webSearchStatus}
-            error={error}
-            onSubmit={handleSubmit}
-            onFeedbackClick={initiateFeedback}
-            onReferencesClick={showReferences}
-          />
-        </Layout>
-      )}
+      <ChatContainer
+        messages={messages}
+        loading={isLoading}
+        webSearchLoading={webSearchLoading}
+        webSearchStatus={webSearchStatus}
+        error={error}
+        onSubmit={handleSubmit}
+        onFeedbackClick={initiateFeedback}
+        onReferencesClick={showReferences}
+      />
     </>
   );
 }
