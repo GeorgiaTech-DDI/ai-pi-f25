@@ -1,6 +1,5 @@
-import Button from "components/ui/Button";
+import { Button } from "components/ui/Button";
 import styles from "../../styles/Layout.module.css";
-import Link from "next/link";
 import { EllipsisVertical, MessageSquareCheck } from "lucide-react";
 import Menu from "components/ui/Menu";
 
@@ -25,23 +24,20 @@ export default function PublicLayout({
           <h2 className={styles.title}>AI PI</h2>
         </div>
         <div className={styles.buttons}>
-          <Button>
+          <Button variant="ghost">
             <MessageSquareCheck />
           </Button>
           <Menu
             trigger={
-              <Button>
+              <Button variant="ghost">
                 <EllipsisVertical />
               </Button>
             }
           >
-            <Menu.Item>Item 1</Menu.Item>
-            <Menu.Item>Item 2</Menu.Item>
-            <Menu.Item>Item 3</Menu.Item>
+            <Menu.Item>Export Chat</Menu.Item>
+            <Menu.Item>Clear Chat</Menu.Item>
           </Menu>
-          <Button nativeButton={false} render={<Link href="/admin/login" />}>
-            Admin
-          </Button>
+          <Button href="/admin/login">Admin</Button>
         </div>
       </header>
       <main>{children}</main>
