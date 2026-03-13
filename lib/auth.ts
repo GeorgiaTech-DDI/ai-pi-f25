@@ -1,6 +1,6 @@
 import { betterAuth } from "better-auth";
 import { nextCookies } from "better-auth/next-js";
-import { jwt } from "better-auth/plugins";
+import { jwt, oAuthProxy } from "better-auth/plugins";
 
 /**
  * Automatically detects the URL based on Vercel's system variables.
@@ -31,8 +31,11 @@ export const auth = betterAuth({
 
   // ── Plugins ────────────────────────────────────────────────────────────────
   plugins: [
-    jwt(), // Stateless JWT sessions
-    nextCookies(), // Next.js cookie helper
+    jwt(),
+    nextCookies(),
+    oAuthProxy({
+      productionURL: `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`,
+    }),
   ],
 
   // Use the standard secret variable
@@ -44,7 +47,10 @@ export const auth = betterAuth({
       clientId: process.env.NEXT_PUBLIC_AZURE_AD_CLIENT_ID as string,
       clientSecret: process.env.AZURE_AD_CLIENT_SECRET as string,
       tenantId: process.env.NEXT_PUBLIC_AZURE_AD_TENANT_ID as string,
-      scope: ["openid", "profile", "email", "User.Read"],
+      redirectURI:
+        process.env.NODE_ENV === "development"
+          ? "http://localhost:3000/api/auth/callback/microsoft"
+          : `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}/api/auth/callback/microsoft`,
     },
   },
 
