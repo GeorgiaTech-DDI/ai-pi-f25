@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState } from "react";
 import { DialogProps } from "../types";
-import styles from "../../styles/Dialogs.module.css";
+import styles from "@/styles/Dialogs.module.css";
 
 interface TermsOfServiceDialogProps extends DialogProps {
   onAccept: () => void;

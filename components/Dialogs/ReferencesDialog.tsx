@@ -1,6 +1,6 @@
 import React, { useRef } from "react";
 import { DialogProps, Context } from "../types";
-import styles from "../../styles/Dialogs.module.css";
+import styles from "@/styles/Dialogs.module.css";
 
 interface ReferencesDialogProps extends DialogProps {
   title: string;

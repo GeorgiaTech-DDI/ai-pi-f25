@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import posthog from "posthog-js";
 import { useRouter } from "next/navigation";
 import { useSession, signOut } from "../../../../lib/auth-client";
-import styles from "../../../../styles/Dashboard.module.css";
+import styles from "@/styles/Dashboard.module.css";
 
 interface FileMetadata {
   filename: string;

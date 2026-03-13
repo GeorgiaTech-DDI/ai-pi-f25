@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "../../../../lib/auth-client";
-import styles from "../../../../styles/Login.module.css";
+import styles from "@/styles/Login.module.css";
 
 export default function AdminLogin() {
   const router = useRouter();
