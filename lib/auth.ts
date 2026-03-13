@@ -7,10 +7,14 @@ import { jwt } from "better-auth/plugins";
  * This removes the need for a manual BETTER_AUTH_URL variable.
  */
 const getBaseUrl = () => {
-  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+  if (
+    process.env.VERCEL_PROJECT_PRODUCTION_URL &&
+    process.env.VERCEL_ENV === "production"
+  ) {
     return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
   }
-  if (process.env.VERCEL_URL) {
+
+  if (process.env.VERCEL_URL && process.env.VERCEL_ENV === "preview") {
     return `https://${process.env.VERCEL_URL}`;
   }
 
@@ -18,7 +22,7 @@ const getBaseUrl = () => {
 };
 
 const currentUrl = getBaseUrl();
-console.log({currentUrl})
+console.log({ currentUrl });
 
 export const auth = betterAuth({
   // ── URL Configuration ──────────────────────────────────────────────────────
