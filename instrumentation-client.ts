@@ -8,7 +8,7 @@ posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY!, {
   // Enables capturing unhandled exceptions via Error Tracking
   capture_exceptions: true,
   // Turn on debug in development mode
-  debug: process.env.NODE_ENV === "development",
+  debug: (process.env.VERCEL_ENV ?? process.env.NODE_ENV) === "development",
 });
 
 // IMPORTANT: Never combine this approach with other client-side PostHog initialization
