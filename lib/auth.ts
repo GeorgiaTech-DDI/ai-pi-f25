@@ -51,6 +51,7 @@ export const auth = betterAuth({
         process.env.NODE_ENV === "development"
           ? "http://localhost:3000/api/auth/callback/microsoft"
           : `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}/api/auth/callback/microsoft`,
+      skipStateCookieCheck: true,// allows proxy to work across different .vercel.app subdomains, preview and production
     },
   },
 
