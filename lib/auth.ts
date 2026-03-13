@@ -18,6 +18,7 @@ const getBaseUrl = () => {
 };
 
 const currentUrl = getBaseUrl();
+console.log({currentUrl})
 
 export const auth = betterAuth({
   // ── URL Configuration ──────────────────────────────────────────────────────
