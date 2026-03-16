@@ -270,15 +270,23 @@ export default function Home() {
         onReferencesClick={showReferences}
       /> */}
       <div className={styles.container}>
-        <div className={styles.messagesContainer}>
-          <p
-            className={styles.greeting}
-            data-state={hasMessages ? "hidden" : "visible"}
-          >
-            Hey! How can I help?
-          </p>
+        <div
+          className={styles.messagesContainer}
+          data-show={hasMessages ? "messages" : "greeting"}
+        >
+          {hasMessages ? (
+            <div>prented</div>
+          ) : (
+            <p className={styles.greeting}>Hey! How can I help?</p>
+          )}
         </div>
         <Chatbox className={styles.chatbox} onSubmit={handleSubmit} />
+        {hasMessages && (
+          <p className={styles.disclaimer}>
+            AI PI can make mistakes. Always verify technical steps and safety
+            protocols with a human PI.
+          </p>
+        )}
       </div>
     </>
   );

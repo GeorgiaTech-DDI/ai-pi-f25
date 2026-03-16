@@ -14,6 +14,10 @@
   justify-content: end;
 }
 
+.messagesContainer[data-show="messages"] {
+  height: 78%;
+}
+
 .greeting {
   text-align: center;
   font-size: 2rem;
@@ -34,5 +38,10 @@
 }
 
 .chatbox {
-  margin-bottom: 2rem;
+
+}
+
+.disclaimer {
+  font-size: 0.75rem;
+  opacity: 0.6;
 }
