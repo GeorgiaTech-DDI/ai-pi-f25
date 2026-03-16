@@ -19,6 +19,10 @@
   width: fit-content;
 }
 
+.main {
+  flex: 1;
+}
+
 .logo {
   height: 50px;
   width: auto;

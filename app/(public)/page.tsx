@@ -9,6 +9,8 @@ import TermsOfServiceDialog from "../../components/Dialogs/TermsOfServiceDialog"
 import ReferencesDialog from "../../components/Dialogs/ReferencesDialog";
 import { type Message, type Context } from "../../components/types";
 import { saveChatAsText } from "../../utils/chatUtils";
+import Chatbox from "./components/chatbox/chatbox";
+import styles from "./page.module.css";
 
 export default function Home() {
   const [hasSaved, setHasSaved] = useState<boolean>(false);
@@ -255,7 +257,7 @@ export default function Home() {
         references={activeReferences}
       /> */}
 
-      <ChatContainer
+      {/* <ChatContainer
         messages={messages}
         loading={isLoading}
         webSearchLoading={webSearchLoading}
@@ -264,7 +266,10 @@ export default function Home() {
         onSubmit={handleSubmit}
         onFeedbackClick={initiateFeedback}
         onReferencesClick={showReferences}
-      />
+      /> */}
+      <div className={styles.container}>
+        <Chatbox />
+      </div>
     </>
   );
 }

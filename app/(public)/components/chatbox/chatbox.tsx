@@ -1,10 +1,13 @@
 import { Button } from "components/ui/Button";
 import { ArrowUp } from "lucide-react";
 
+import { Textbox } from "components/ui/Textbox/Textbox";
+import styles from "./chatbox.module.css";
+
 export default function Chatbox() {
   return (
-    <div>
-      <textarea placeholder="Ask any question about the Invention Studio..." />
+    <div className={styles.container}>
+      <Textbox className={styles.textbox} placeholder="Ask AI PI" />
       <Button variant="icon" ghost>
         <ArrowUp />
       </Button>

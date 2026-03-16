@@ -2,7 +2,7 @@
 
 import { useState, ChangeEvent, FormEvent } from "react";
 import posthog from "posthog-js";
-import styles from "../../styles/Upload.module.css";
+import styles from "./upload.module.css";
 
 interface FormData {
   overallRating: string;

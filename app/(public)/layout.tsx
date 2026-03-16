@@ -23,7 +23,7 @@ export default function PublicLayout({
         </div>
         <HeaderButtons className={styles.buttons} />
       </header>
-      <main>{children}</main>
+      <main className={styles.main}>{children}</main>
     </>
   );
 }

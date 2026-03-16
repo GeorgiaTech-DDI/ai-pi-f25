@@ -16,6 +16,8 @@ body {
     "Helvetica Neue",
     sans-serif;
   position: relative;
+  display: flex;
+  flex-direction: column;
 }
 
 h1 {
@@ -24,6 +26,13 @@ h1 {
 
 h3 {
   margin-block: 0;
+}
+
+html,
+body {
+  height: 100%;
+  width: 100%;
+  margin: 0;
 }
 
 .root {
