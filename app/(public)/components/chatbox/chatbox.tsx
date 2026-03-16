@@ -1,64 +1,56 @@
+import { useForm, Controller } from "react-hook-form";
 import { Button } from "components/ui/Button";
 import { ArrowUp } from "lucide-react";
-
-import styles from "./chatbox.module.css";
-import { Form } from "components/ui/Form";
 import { Field } from "components/ui/Field";
 import { Textbox } from "components/ui/Textbox/Textbox";
+import styles from "./chatbox.module.css";
 import clsx from "clsx";
-import { BaseUIEvent } from "@base-ui/react/utils/types";
 
 export default function Chatbox({
   className,
   onSubmit,
 }: {
   className?: string;
-  onSubmit: (userInput: string) => void;
+  onSubmit: (val: string) => void;
 }) {
-  const handleFormSubmit = (event: React.SubmitEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const { control, handleSubmit, reset } = useForm({
+    defaultValues: { message: "" },
+  });
 
-    const formData = new FormData(event.currentTarget);
-
-    const message = formData.get("message") as string;
-
-    if (message?.trim()) {
-      onSubmit(message);
-      event.currentTarget.reset();
-    }
-  };
-
-  const handleKeyDown = (
-    event: React.KeyboardEvent<HTMLTextAreaElement | HTMLInputElement>,
-  ) => {
-    if (event.key === "Enter" && !event.shiftKey) {
-      event.preventDefault();
-      onSubmit(event.currentTarget.value);
-    }
+  const onInternalSubmit = (data: { message: string }) => {
+    if (!data.message.trim()) return;
+    onSubmit(data.message);
+    reset();
   };
 
   return (
-    <Form
+    <form
       className={clsx(styles.container, className)}
-      onSubmit={handleFormSubmit}
+      onSubmit={handleSubmit(onInternalSubmit)}
     >
       <Field className={styles.field}>
-        <Field.Control
-          type="text"
-          placeholder="Ask AI PI"
-          render={(props) => (
+        <Controller
+          name="message"
+          control={control}
+          render={({ field }) => (
             <Textbox
-              {...props}
+              {...field}
+              placeholder="Ask AI PI"
               className={styles.textbox}
-              onKeyDown={handleKeyDown}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSubmit(onInternalSubmit)();
+                }
+              }}
             />
           )}
         />
-        <Field.Error />
       </Field>
-      <Button variant="icon" ghost type="submit">
+
+      <Button type="submit" variant="icon" ghost>
         <ArrowUp />
       </Button>
-    </Form>
+    </form>
   );
 }
