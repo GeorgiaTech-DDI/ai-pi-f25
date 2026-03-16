@@ -275,7 +275,7 @@ export default function Home() {
           data-show={hasMessages ? "messages" : "greeting"}
         >
           {hasMessages ? (
-            <div>Some data</div>
+            <div></div>
           ) : (
             <p className={styles.greeting}>Hey! How can I help?</p>
           )}
