@@ -3,6 +3,10 @@ import "../styles/globals.css";
 import "../styles/theme.css";
 import { inter } from "../utils/fonts";
 import Providers from "./providers/Providers";
+import { Inter } from "next/font/google";
+import { cn } from "@/lib/utils";
+
+const inter = Inter({subsets:['latin'],variable:'--font-sans'});
 
 export const metadata: Metadata = {
   title: "AI PI",
@@ -16,7 +20,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="root">
+    <html lang="en" className={cn("root", "font-sans", inter.variable)}>
       <body className={`${inter.className}`}>
         <Providers>{children}</Providers>
       </body>
