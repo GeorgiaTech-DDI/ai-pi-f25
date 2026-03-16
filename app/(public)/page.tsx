@@ -268,7 +268,10 @@ export default function Home() {
         onReferencesClick={showReferences}
       /> */}
       <div className={styles.container}>
-        <Chatbox />
+        <div className={styles.messagesContainer}>
+          <p className={styles.greeting}>Hey! How can I help?</p>
+        </div>
+        <Chatbox className={styles.chatbox} onSubmit={(input) => console.log(input)} />
       </div>
     </>
   );

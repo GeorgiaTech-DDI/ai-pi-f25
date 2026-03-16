@@ -1,0 +1,77 @@
+/* ── Root ──────────────────────────────────────────────────────────────────── */
+
+.Root {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* ── Label ─────────────────────────────────────────────────────────────────── */
+
+.Label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: inherit;
+
+  &:where([data-disabled]) {
+    opacity: 0.5;
+  }
+}
+
+/* ── Control ───────────────────────────────────────────────────────────────── */
+
+.Control {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  background: transparent;
+  color: inherit;
+  outline: none;
+
+  &:where(:focus-visible) {
+    outline: 2px solid;
+    outline-offset: 2px;
+  }
+
+  &:where([data-invalid]) {
+    border-color: red;
+  }
+
+  &:where([data-disabled]) {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+/* ── Description ───────────────────────────────────────────────────────────── */
+
+.Description {
+  font-size: 0.75rem;
+  opacity: 0.6;
+
+  &:where([data-disabled]) {
+    opacity: 0.3;
+  }
+}
+
+/* ── Item ───────────────────────────────────────────────────────────────────── */
+
+.Item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  &:where([data-disabled]) {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+/* ── Error ──────────────────────────────────────────────────────────────────── */
+
+.Error {
+  font-size: 0.75rem;
+  color: red;
+}

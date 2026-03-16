@@ -1,6 +1,6 @@
 .container {
   border: 1px solid var(--color-gray-300);
-  width: 40vw;
+  width: 44vw;
   min-height: 10vh;
   display: flex;
   flex-direction: column;
@@ -25,4 +25,8 @@
   &:focus {
     outline: none;
   }
+}
+
+.field {
+  width: 100%;
 }

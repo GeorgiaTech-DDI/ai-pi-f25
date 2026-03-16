@@ -1,8 +1,27 @@
 .container {
+  width: 100%;
+  height: 100%;
   display: flex;
   flex-direction: column;
-  justify-content: center;
   align-items: center;
-  height: 100%;
+}
+
+.messagesContainer {
+  height: 40%;
   width: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: end;
+}
+
+.greeting {
+  text-align: center;
+  font-size: 2rem;
+  margin-bottom: 2rem;
+  font-weight: 200;
+  color: var(--text-primary);
+}
+
+.chatbox {
+  margin-bottom: 2rem;
 }
