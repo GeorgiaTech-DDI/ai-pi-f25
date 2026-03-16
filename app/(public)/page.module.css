@@ -20,6 +20,17 @@
   margin-bottom: 2rem;
   font-weight: 200;
   color: var(--text-primary);
+
+  transition:
+    opacity 0.2s ease-in-out,
+    visibility 0.2s;
+  opacity: 1;
+  visibility: visible;
+}
+
+.greeting[data-state="hidden"] {
+  opacity: 0;
+  visibility: hidden;
 }
 
 .chatbox {

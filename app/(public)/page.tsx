@@ -11,6 +11,7 @@ import { type Message, type Context } from "../../components/types";
 import { saveChatAsText } from "../../utils/chatUtils";
 import Chatbox from "./components/chatbox/chatbox";
 import styles from "./page.module.css";
+import clsx from "clsx";
 
 export default function Home() {
   const [hasSaved, setHasSaved] = useState<boolean>(false);
@@ -96,6 +97,7 @@ export default function Home() {
       usedRAG: messageMetadata[i]?.usedRAG,
       feedback: messageMetadata[i]?.feedback,
     }));
+  const hasMessages = messages.length > 0;
 
   // ── Terms of Service ───────────────────────────────────────────────────────
   const [tosAccepted, setTosAccepted] = useState<boolean>(false);
@@ -269,9 +271,14 @@ export default function Home() {
       /> */}
       <div className={styles.container}>
         <div className={styles.messagesContainer}>
-          <p className={styles.greeting}>Hey! How can I help?</p>
+          <p
+            className={styles.greeting}
+            data-state={hasMessages ? "hidden" : "visible"}
+          >
+            Hey! How can I help?
+          </p>
         </div>
-        <Chatbox className={styles.chatbox} onSubmit={(input) => console.log(input)} />
+        <Chatbox className={styles.chatbox} onSubmit={handleSubmit} />
       </div>
     </>
   );
