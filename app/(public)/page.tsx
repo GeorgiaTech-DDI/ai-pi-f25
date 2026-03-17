@@ -12,6 +12,13 @@ import Chatbox from "./components/chatbox/chatbox";
 import { cn } from "@/lib/utils";
 import { Message, Context } from "@/lib/types";
 import Conversation from "./components/conversation/conversation";
+import { Button } from "@/components/ui/button";
+
+const SUGGESTED_ACTIONS = [
+  "What's the Invention Studio?",
+  "How do I use the bandsaw?",
+  "Are there 3D printers?",
+];
 
 export default function Home() {
   const [hasSaved, setHasSaved] = useState<boolean>(false);
@@ -273,41 +280,6 @@ export default function Home() {
   }
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    // <>
-    //   <div
-    //     id="scroll-container"
-    //     className="flex-1 min-h-0 w-full overflow-y-auto scroll-smooth flex justify-center pt-12"
-    //   >
-    //     <div className="w-196 flex flex-col">
-    //       <div className="flex-1">
-    //         {hasMessages ? (
-    //           <Conversation messages={messages} />
-    //         ) : (
-    //           <div className="flex items-center justify-center h-screen">
-    //             <p className="text-3xl">Hey! How can I help?</p>
-    //           </div>
-    //         )}
-    //       </div>
-    //     </div>
-    //   </div>
-
-    //   <div className="fixed bottom-0 w-fit flex justify-center bg-background">
-    //     <div
-    //       className={cn(
-    //         "w-196 flex flex-col items-center py-4",
-    //         hasMessages ? "gap-y-2" : "gap-y-4",
-    //       )}
-    //     >
-    //       <Chatbox onSubmit={handleSubmit} className="w-full" />
-    //       {hasMessages && (
-    //         <p className="text-xs text-muted-foreground font-normal">
-    //           AI PI can make mistakes. Always verify technical steps and safety
-    //           protocols with a human PI.
-    //         </p>
-    //       )}
-    //     </div>
-    //   </div>
-    // </>
     <div className="w-full min-h-full">
       <div
         className={cn(
@@ -334,12 +306,28 @@ export default function Home() {
           className="sticky bottom-0 mx-auto w-full pt-6 relative z-[5] bg-background"
           data-chatbox-container
         >
-          <Chatbox onSubmit={handleSubmit} className="w-full" />
-          {hasMessages && (
+          <Chatbox
+            onSubmit={handleSubmit}
+            className="w-full"
+            isLoading={isLoading}
+          />
+          {hasMessages ? (
             <p className="text-xs text-muted-foreground font-normal text-center py-2">
               AI PI can make mistakes. Always verify technical steps and safety
               protocols with a human PI.
             </p>
+          ) : (
+            <div className="flex py-4 gap-x-4 w-full justify-center">
+              {SUGGESTED_ACTIONS.map((action) => (
+                <Button
+                  key={action}
+                  variant="outline"
+                  onClick={() => handleSubmit(action)}
+                >
+                  {action}
+                </Button>
+              ))}
+            </div>
           )}
         </div>
       </div>
