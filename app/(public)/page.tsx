@@ -1,18 +1,17 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import posthog from "posthog-js";
 // import ChatContainer from "../../components/Chat/ChatContainer";
 // import TermsOfServiceDialog from "../../components/Dialogs/TermsOfServiceDialog";
 // import ReferencesDialog from "../../components/Dialogs/ReferencesDialog";
-// import { type Message, type Context } from "../../components/types";
 import { saveChatAsText } from "../../utils/chatUtils";
 import Chatbox from "./components/chatbox/chatbox";
-import styles from "./page.module.css";
-import clsx from "clsx";
 import { cn } from "@/lib/utils";
+import { Message, Context } from "@/lib/types";
+import Conversation from "./components/conversation/conversation";
 
 export default function Home() {
   const [hasSaved, setHasSaved] = useState<boolean>(false);
@@ -146,14 +145,14 @@ export default function Home() {
   // >("hidden");
 
   // // ── Handlers ───────────────────────────────────────────────────────────────
-  // const handleSubmit = (message: string): void => {
-  //   setError("");
-  //   posthog.capture("chat_message_submitted", {
-  //     message_length: message.length,
-  //     conversation_turn: messages.filter((m) => m.role === "user").length + 1,
-  //   });
-  //   sendMessage({ text: message });
-  // };
+  const handleSubmit = (message: string): void => {
+    setError("");
+    posthog.capture("chat_message_submitted", {
+      message_length: message.length,
+      conversation_turn: messages.filter((m) => m.role === "user").length + 1,
+    });
+    sendMessage({ text: message });
+  };
 
   // const initiateFeedback = (messageIndex: number): void => {
   //   setFeedbackMessageIndex(messageIndex);
@@ -270,23 +269,35 @@ export default function Home() {
         onFeedbackClick={initiateFeedback}
         onReferencesClick={showReferences}
       /> */}
-      <div className="h-full w-full flex flex-col items-center gap-y-4">
-        <div
-          className={cn("flex items-end", hasMessages ? "h-[70%]" : "h-[30%]")}
-        >
-          {hasMessages ? (
-            <div></div>
-          ) : (
-            <p className="text-3xl">Hey! How can I help?</p>
-          )}
+      <div className="h-full w-full flex justify-center">
+        <div className="w-196 flex flex-col">
+          <div className="flex-1 pb-48 pt-16">
+            {hasMessages ? (
+              <Conversation messages={messages} />
+            ) : (
+              <div className="flex items-center justify-center h-screen">
+                <p className="text-3xl">Hey! How can I help?</p>
+              </div>
+            )}
+          </div>
         </div>
-        <Chatbox onSubmit={() => {}} />
-        {hasMessages && (
-          <p className="text-xs p-4">
-            AI PI can make mistakes. Always verify technical steps and safety
-            protocols with a human PI.
-          </p>
-        )}
+
+        <div className="fixed bottom-0 w-fit flex justify-center bg-background">
+          <div
+            className={cn(
+              "w-196 flex flex-col items-center py-4",
+              hasMessages ? "gap-y-2" : "gap-y-4",
+            )}
+          >
+            <Chatbox onSubmit={handleSubmit} className="w-full" />
+            {hasMessages && (
+              <p className="text-xs text-muted-foreground font-normal">
+                AI PI can make mistakes. Always verify technical steps and
+                safety protocols with a human PI.
+              </p>
+            )}
+          </div>
+        </div>
       </div>
     </>
   );

@@ -47,11 +47,8 @@ export default function Chatbox({
       <Controller
         name="message"
         control={control}
-        render={({ field, fieldState }) => (
-          <Field
-            data-invalid={fieldState.invalid}
-            className={cn("flex-1 w-full")}
-          >
+        render={({ field }) => (
+          <Field className={cn("flex-1 w-full")}>
             <Textarea
               {...field}
               id={field.name}
@@ -69,7 +66,6 @@ export default function Chatbox({
             <FieldDescription className="sr-only">
               Type your message and press enter to send.
             </FieldDescription>
-            {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
           </Field>
         )}
       />
