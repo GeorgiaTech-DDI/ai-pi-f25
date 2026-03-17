@@ -10,8 +10,11 @@ export default function PublicLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="h-screen flex flex-col">
-      <header className="w-full flex justify-between p-4 items-center sticky top-0 z-10 bg-background">
+    <div className="h-full flex flex-col">
+      <header
+        className="w-full flex justify-between p-4 items-center sticky top-0 z-10 bg-background"
+        data-header
+      >
         <div className="flex items-center justify-center gap-2">
           <img src="/images/logo.svg" alt="AI PI Logo" className="w-auto h-8" />
           <h2 className="text-lg font-bold">AI PI</h2>

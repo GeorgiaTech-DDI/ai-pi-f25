@@ -320,7 +320,10 @@ export default function Home() {
           )}
         </div>
 
-        <div className="sticky bottom-0 mx-auto w-full pt-6 relative z-[5] bg-background">
+        <div
+          className="sticky bottom-0 mx-auto w-full pt-6 relative z-[5] bg-background"
+          data-chatbox-container
+        >
           <Chatbox onSubmit={handleSubmit} className="w-full" />
           {hasMessages && (
             <p className="text-xs text-muted-foreground font-normal text-center py-2">

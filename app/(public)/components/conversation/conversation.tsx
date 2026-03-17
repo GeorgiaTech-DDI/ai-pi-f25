@@ -12,7 +12,7 @@ export default function Conversation({ messages }: { messages: Message[] }) {
         <div
           key={index}
           data-role={message.role}
-          className="snap-start scroll-mt-[80px] pb-12"
+          className="snap-start scroll-mt-[24px] pb-12"
         >
           {message.role === "user" ? (
             <UserMessageItem message={message.content} />
