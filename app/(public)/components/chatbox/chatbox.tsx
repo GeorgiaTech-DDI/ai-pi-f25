@@ -42,7 +42,7 @@ export default function Chatbox({
     <form
       onSubmit={handleSubmit(onInternalSubmit)}
       className={cn(
-        "w-[44vw] dark:bg-secondary rounded-md p-4 flex flex-col items-end gap-y-4",
+        "w-[44vw] dark:bg-secondary rounded-xl p-4 flex flex-col items-end gap-y-4",
         className,
       )}
     >

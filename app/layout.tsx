@@ -17,7 +17,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={cn(inter.variable, "h-full root")}>
+    <html
+      lang="en"
+      className={cn(inter.variable, "h-full root")}
+      suppressHydrationWarning
+    >
       <body className="h-full">
         <Providers>{children}</Providers>
       </body>
