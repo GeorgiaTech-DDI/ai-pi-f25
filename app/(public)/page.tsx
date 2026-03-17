@@ -289,7 +289,7 @@ export default function Home() {
       >
         <div className="flex-1">
           {hasMessages ? (
-            <Conversation messages={messages} />
+            <Conversation messages={messages} isLoading={status === "submitted"} />
           ) : (
             <div
               className={cn(
@@ -309,7 +309,7 @@ export default function Home() {
           <Chatbox
             onSubmit={handleSubmit}
             className="w-full"
-            isLoading={isLoading}
+            isLoading={status === "streaming" || status === "submitted"}
           />
           {hasMessages ? (
             <p className="text-xs text-muted-foreground font-normal text-center py-2">

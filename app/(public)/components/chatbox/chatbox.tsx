@@ -6,6 +6,7 @@ import { Field, FieldDescription } from "@/components/ui/field";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import Spinner from "@/components/loaders/spinner";
 
 const formSchema = z.object({
   message: z.string().min(1),
@@ -18,7 +19,7 @@ export default function Chatbox({
 }: {
   className?: string;
   onSubmit: (val: string) => void;
-  isLoading?: boolean;
+  isLoading: boolean;
 }) {
   const { control, handleSubmit, reset } = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -80,7 +81,7 @@ export default function Chatbox({
         tooltip={hasInput ? "Send message" : "Type a message"}
       >
         {isLoading ? (
-          <Loader2 className="h-4 w-4 pointer-events-none animate-spin" />
+          <Spinner />
         ) : (
           <ArrowUp className="h-4 w-4 pointer-events-none" />
         )}

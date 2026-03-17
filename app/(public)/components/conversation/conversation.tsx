@@ -2,8 +2,16 @@ import { Message } from "@/lib/types";
 import { useScrollToLatestUserMsg } from "../../hooks/useScrollToLatestUserMsg";
 import { UserMessageItem } from "./user-message-item";
 import { AIMessageItem } from "./ai-message-item";
+import { LoadingDots } from "@/components/loaders/loading-dots";
+import { cn } from "@/lib/utils";
 
-export default function Conversation({ messages }: { messages: Message[] }) {
+export default function Conversation({
+  messages,
+  isLoading,
+}: {
+  messages: Message[];
+  isLoading: boolean;
+}) {
   const { spacerRef } = useScrollToLatestUserMsg(messages);
 
   return (
@@ -21,6 +29,7 @@ export default function Conversation({ messages }: { messages: Message[] }) {
           )}
         </div>
       ))}
+      {isLoading && <LoadingDots />}
       <div
         ref={spacerRef}
         className="w-full pointer-events-none"
