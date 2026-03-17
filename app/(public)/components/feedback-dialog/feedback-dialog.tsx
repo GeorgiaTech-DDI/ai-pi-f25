@@ -1,7 +1,15 @@
 "use client";
+
 import { useState } from "react";
-import { Dialog } from "components/ui/Dialog";
-import { Button } from "components/ui/Button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import styles from "./feedback-dialog.module.css";
 
 const RATINGS = [
@@ -41,57 +49,51 @@ export default function FeedbackDialog({
   };
 
   return (
-    <Dialog.Root open={open} onOpenChange={onOpenChange}>
-      <Dialog.Portal>
-        <Dialog.Backdrop />
-        <Dialog.Popup>
-          <Dialog.Title>Share Your Feedback</Dialog.Title>
-          <Dialog.Description>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Share Your Feedback</DialogTitle>
+          <DialogDescription>
             How was the AI&apos;s response? Your feedback helps us improve.
-          </Dialog.Description>
+          </DialogDescription>
+        </DialogHeader>
 
-          <div className={styles.feedbackBody}>
-            <div className={styles.feedbackRating}>
-              {RATINGS.map((rating) => (
-                <button
-                  key={rating.value}
-                  type="button"
-                  className={styles.ratingButton}
-                  data-selected={selectedRating === rating.value || undefined}
-                  onClick={() => {
-                    setSelectedRating(rating.value);
-                    setFeedbackText(`${rating.emoji} `);
-                  }}
-                  aria-pressed={selectedRating === rating.value}
-                >
-                  {rating.emoji} {rating.label}
-                </button>
-              ))}
-            </div>
-
-            <textarea
-              className={styles.textarea}
-              value={feedbackText}
-              onChange={(e) => setFeedbackText(e.target.value)}
-              placeholder="What was helpful or not helpful? (optional)"
-              rows={4}
-            />
+        <div className={styles.feedbackBody}>
+          <div className={styles.feedbackRating}>
+            {RATINGS.map((rating) => (
+              <button
+                key={rating.value}
+                type="button"
+                className={styles.ratingButton}
+                data-selected={selectedRating === rating.value || undefined}
+                onClick={() => {
+                  setSelectedRating(rating.value);
+                  setFeedbackText(`${rating.emoji} `);
+                }}
+                aria-pressed={selectedRating === rating.value}
+              >
+                {rating.emoji} {rating.label}
+              </button>
+            ))}
           </div>
+          <textarea
+            className={styles.textarea}
+            value={feedbackText}
+            onChange={(e) => setFeedbackText(e.target.value)}
+            placeholder="What was helpful or not helpful? (optional)"
+            rows={4}
+          />
+        </div>
 
-          <Dialog.Actions>
-            <Button variant="secondary" onClick={handleClose}>
-              Cancel
-            </Button>
-            <Button
-              variant="primary"
-              disabled={!feedbackText.trim()}
-              onClick={handleSubmit}
-            >
-              Submit
-            </Button>
-          </Dialog.Actions>
-        </Dialog.Popup>
-      </Dialog.Portal>
-    </Dialog.Root>
+        <DialogFooter>
+          <Button variant="secondary" onClick={handleClose}>
+            Cancel
+          </Button>
+          <Button disabled={!feedbackText.trim()} onClick={handleSubmit}>
+            Submit
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

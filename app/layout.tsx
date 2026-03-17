@@ -1,12 +1,9 @@
 import type { Metadata } from "next";
-import "../styles/globals.css";
-import "../styles/theme.css";
-import { inter } from "../utils/fonts";
+import "../globals.css";
+// import "../styles/theme.css";
 import Providers from "./providers/Providers";
-import { Inter } from "next/font/google";
+import { inter } from "@/lib/fonts";
 import { cn } from "@/lib/utils";
-
-const inter = Inter({subsets:['latin'],variable:'--font-sans'});
 
 export const metadata: Metadata = {
   title: "AI PI",
@@ -20,8 +17,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={cn("root", "font-sans", inter.variable)}>
-      <body className={`${inter.className}`}>
+    <html lang="en" className={cn(inter.variable, "h-full root")}>
+      <body className="h-full">
         <Providers>{children}</Providers>
       </body>
     </html>

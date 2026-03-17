@@ -12,18 +12,14 @@ export default function PublicLayout({
 }) {
   return (
     <>
-      <header className={styles.header}>
-        <div className={styles.logoContainer}>
-          <img
-            src="/images/logo.svg"
-            alt="AI PI Logo"
-            className={styles.logo}
-          />
-          <h2 className={styles.title}>AI PI</h2>
+      <header className="w-full flex justify-between p-4 items-center">
+        <div className="flex items-center justify-center gap-2">
+          <img src="/images/logo.svg" alt="AI PI Logo" className="w-auto h-8" />
+          <h2 className="text-lg font-bold">AI PI</h2>
         </div>
-        <HeaderButtons className={styles.buttons} />
+        <HeaderButtons className="flex gap-x-1 items-center" />
       </header>
-      <main className={styles.main}>{children}</main>
+      <main className="flex-1">{children}</main>
     </>
   );
 }

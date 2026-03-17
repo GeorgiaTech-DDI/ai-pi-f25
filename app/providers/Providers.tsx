@@ -5,6 +5,8 @@ import { PostHogProvider } from "posthog-js/react";
 import { useEffect } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useSession } from "../../lib/auth-client";
+import { ThemeProvider } from "@/components/theme-provider";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 /** Fires a $pageview on every client-side navigation */
 function PostHogPageView() {
@@ -44,7 +46,14 @@ export default function Providers({ children }: { children: React.ReactNode }) {
   return (
     <PostHogProvider client={posthog}>
       <PostHogPageView />
-      {children}
+      <ThemeProvider
+        attribute="class"
+        defaultTheme="dark"
+        enableSystem
+        disableTransitionOnChange
+      >
+        <TooltipProvider>{children}</TooltipProvider>
+      </ThemeProvider>
     </PostHogProvider>
   );
 }

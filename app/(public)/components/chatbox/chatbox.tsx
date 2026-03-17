@@ -1,10 +1,15 @@
-import { useForm, Controller } from "react-hook-form";
-import { Button } from "components/ui/Button";
+import { useForm, Controller, useWatch } from "react-hook-form"; // 1. Added useWatch
+import { zodResolver } from "@hookform/resolvers/zod";
+import z from "zod";
 import { ArrowUp } from "lucide-react";
-import { Field } from "components/ui/Field";
-import { Textbox } from "components/ui/Textbox/Textbox";
-import styles from "./chatbox.module.css";
-import clsx from "clsx";
+import { Field, FieldDescription, FieldError } from "@/components/ui/field";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+
+const formSchema = z.object({
+  message: z.string().min(1),
+});
 
 export default function Chatbox({
   className,
@@ -13,30 +18,47 @@ export default function Chatbox({
   className?: string;
   onSubmit: (val: string) => void;
 }) {
-  const { control, handleSubmit, reset } = useForm({
+  const { control, handleSubmit, reset } = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
     defaultValues: { message: "" },
   });
 
-  const onInternalSubmit = (data: { message: string }) => {
-    if (!data.message.trim()) return;
+  const onInternalSubmit = (data: z.infer<typeof formSchema>) => {
     onSubmit(data.message);
     reset();
   };
 
+  const messageValue = useWatch({
+    control,
+    name: "message",
+    defaultValue: "",
+  });
+
+  const hasInput = messageValue.trim().length > 0;
+
   return (
     <form
-      className={clsx(styles.container, className)}
       onSubmit={handleSubmit(onInternalSubmit)}
+      className={cn(
+        "w-[44vw] dark:bg-secondary rounded-md p-4 flex flex-col items-end gap-y-4",
+        className,
+      )}
     >
-      <Field className={styles.field}>
-        <Controller
-          name="message"
-          control={control}
-          render={({ field }) => (
-            <Textbox
+      <Controller
+        name="message"
+        control={control}
+        render={({ field, fieldState }) => (
+          <Field
+            data-invalid={fieldState.invalid}
+            className={cn("flex-1 w-full")}
+          >
+            <Textarea
               {...field}
+              id={field.name}
               placeholder="Ask AI PI"
-              className={styles.textbox}
+              className={cn(
+                "min-h-[40px] resize-none border-none shadow-none focus-visible:ring-0 dark:bg-transparent",
+              )}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
@@ -44,12 +66,22 @@ export default function Chatbox({
                 }
               }}
             />
-          )}
-        />
-      </Field>
-
-      <Button type="submit" variant="icon" ghost>
-        <ArrowUp />
+            <FieldDescription className="sr-only">
+              Type your message and press enter to send.
+            </FieldDescription>
+            {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+          </Field>
+        )}
+      />
+      <Button
+        type="submit"
+        variant="default"
+        size="icon"
+        className="hover:brightness-90"
+        disabled={!hasInput}
+        tooltip={hasInput ? "Send message" : "Type a message"}
+      >
+        <ArrowUp className="h-4 w-4 pointer-events-none" />
       </Button>
     </form>
   );
