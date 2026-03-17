@@ -309,12 +309,22 @@ export default function Home() {
     //   </div>
     // </>
     <div className="w-full min-h-full">
-      <div className="mx-auto flex size-full max-w-3xl flex-col md:px-2">
+      <div
+        className={cn(
+          "flex size-full mx-auto max-w-3xl flex-col md:px-2",
+          !hasMessages && "pt-[20vh]",
+        )}
+      >
         <div className="flex-1">
           {hasMessages ? (
             <Conversation messages={messages} />
           ) : (
-            <div className="flex items-center justify-center h-screen">
+            <div
+              className={cn(
+                "flex items-center justify-center",
+                hasMessages && "h-screen",
+              )}
+            >
               <p className="text-3xl">Hey! How can I help?</p>
             </div>
           )}
