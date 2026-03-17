@@ -2,7 +2,7 @@ import { useForm, Controller, useWatch } from "react-hook-form"; // 1. Added use
 import { zodResolver } from "@hookform/resolvers/zod";
 import z from "zod";
 import { ArrowUp } from "lucide-react";
-import { Field, FieldDescription, FieldError } from "@/components/ui/field";
+import { Field, FieldDescription } from "@/components/ui/field";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -54,7 +54,7 @@ export default function Chatbox({
               id={field.name}
               placeholder="Ask AI PI"
               className={cn(
-                "min-h-[40px] resize-none border-none shadow-none focus-visible:ring-0 dark:bg-transparent",
+                "min-h-[40px] resize-none border-none shadow-none focus-visible:ring-0 dark:bg-transparent !text-base",
               )}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {

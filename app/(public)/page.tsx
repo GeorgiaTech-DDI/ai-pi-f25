@@ -269,9 +269,9 @@ export default function Home() {
         onFeedbackClick={initiateFeedback}
         onReferencesClick={showReferences}
       /> */}
-      <div className="h-full w-full flex justify-center">
+      <div className="h-full w-full flex justify-center pt-12">
         <div className="w-196 flex flex-col">
-          <div className="flex-1 pb-48 pt-16">
+          <div className="flex-1 pb-48">
             {hasMessages ? (
               <Conversation messages={messages} />
             ) : (
