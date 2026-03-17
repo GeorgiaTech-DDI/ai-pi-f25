@@ -240,26 +240,27 @@ export default function Home() {
   //     window.location.reload();
   //   }
   // };
-
-  // ── Render ─────────────────────────────────────────────────────────────────
-  return (
-    <>
-      {/* <TermsOfServiceDialog
+  {
+    /* <TermsOfServiceDialog
         isVisible={false}
         fadeState={tosFadeState}
         onAccept={acceptTerms}
         onDecline={declineTerms}
         onClose={() => {}}
-      /> */}
-      {/* <ReferencesDialog
+      /> */
+  }
+  {
+    /* <ReferencesDialog
         isVisible={showReferencesDialog}
         fadeState={referencesFadeState}
         onClose={closeReferencesDialog}
         title={activeReferenceTitle}
         references={activeReferences}
-      /> */}
+      /> */
+  }
 
-      {/* <ChatContainer
+  {
+    /* <ChatContainer
         messages={messages}
         loading={isLoading}
         webSearchLoading={webSearchLoading}
@@ -268,37 +269,67 @@ export default function Home() {
         onSubmit={handleSubmit}
         onFeedbackClick={initiateFeedback}
         onReferencesClick={showReferences}
-      /> */}
-      <div className="h-full w-full flex justify-center pt-12">
-        <div className="w-196 flex flex-col">
-          <div className="flex-1 pb-48">
-            {hasMessages ? (
-              <Conversation messages={messages} />
-            ) : (
-              <div className="flex items-center justify-center h-screen">
-                <p className="text-3xl">Hey! How can I help?</p>
-              </div>
-            )}
-          </div>
+      /> */
+  }
+  // ── Render ─────────────────────────────────────────────────────────────────
+  return (
+    // <>
+    //   <div
+    //     id="scroll-container"
+    //     className="flex-1 min-h-0 w-full overflow-y-auto scroll-smooth flex justify-center pt-12"
+    //   >
+    //     <div className="w-196 flex flex-col">
+    //       <div className="flex-1">
+    //         {hasMessages ? (
+    //           <Conversation messages={messages} />
+    //         ) : (
+    //           <div className="flex items-center justify-center h-screen">
+    //             <p className="text-3xl">Hey! How can I help?</p>
+    //           </div>
+    //         )}
+    //       </div>
+    //     </div>
+    //   </div>
+
+    //   <div className="fixed bottom-0 w-fit flex justify-center bg-background">
+    //     <div
+    //       className={cn(
+    //         "w-196 flex flex-col items-center py-4",
+    //         hasMessages ? "gap-y-2" : "gap-y-4",
+    //       )}
+    //     >
+    //       <Chatbox onSubmit={handleSubmit} className="w-full" />
+    //       {hasMessages && (
+    //         <p className="text-xs text-muted-foreground font-normal">
+    //           AI PI can make mistakes. Always verify technical steps and safety
+    //           protocols with a human PI.
+    //         </p>
+    //       )}
+    //     </div>
+    //   </div>
+    // </>
+    <div className="w-full min-h-full">
+      <div className="mx-auto flex size-full max-w-3xl flex-col md:px-2">
+        <div className="flex-1">
+          {hasMessages ? (
+            <Conversation messages={messages} />
+          ) : (
+            <div className="flex items-center justify-center h-screen">
+              <p className="text-3xl">Hey! How can I help?</p>
+            </div>
+          )}
         </div>
 
-        <div className="fixed bottom-0 w-fit flex justify-center bg-background">
-          <div
-            className={cn(
-              "w-196 flex flex-col items-center py-4",
-              hasMessages ? "gap-y-2" : "gap-y-4",
-            )}
-          >
-            <Chatbox onSubmit={handleSubmit} className="w-full" />
-            {hasMessages && (
-              <p className="text-xs text-muted-foreground font-normal">
-                AI PI can make mistakes. Always verify technical steps and
-                safety protocols with a human PI.
-              </p>
-            )}
-          </div>
+        <div className="sticky bottom-0 mx-auto w-full pt-6 relative z-[5] bg-background">
+          <Chatbox onSubmit={handleSubmit} className="w-full" />
+          {hasMessages && (
+            <p className="text-xs text-muted-foreground font-normal text-center py-2">
+              AI PI can make mistakes. Always verify technical steps and safety
+              protocols with a human PI.
+            </p>
+          )}
         </div>
       </div>
-    </>
+    </div>
   );
 }

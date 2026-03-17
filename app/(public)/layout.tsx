@@ -1,4 +1,3 @@
-import styles from "./layout.module.css";
 import HeaderButtons from "./components/header-buttons/header-buttons";
 
 /**
@@ -19,7 +18,12 @@ export default function PublicLayout({
         </div>
         <HeaderButtons className="flex gap-x-1 items-center" />
       </header>
-      <main className="flex-1 overflow-y-auto">{children}</main>
+      <main
+        data-autoscroll-container
+        className="overflow-y-auto overflow-x-hidden [scrollbar-gutter:stable] pt-6 flex-1"
+      >
+        {children}
+      </main>
     </div>
   );
 }

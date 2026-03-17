@@ -1,12 +1,19 @@
 import { Message } from "@/lib/types";
+import { useScrollToLatestUserMsg } from "../../hooks/useScrollToLatestUserMsg";
 import { UserMessageItem } from "./user-message-item";
 import { AIMessageItem } from "./ai-message-item";
 
 export default function Conversation({ messages }: { messages: Message[] }) {
+  const { spacerRef } = useScrollToLatestUserMsg(messages);
+
   return (
-    <div className="flex flex-col gap-y-8 w-full overflow-y-auto">
+    <div className="flex-1 flex flex-col px-4 max-w-3xl mx-auto w-full pt-1">
       {messages.map((message, index) => (
-        <div key={index}>
+        <div
+          key={index}
+          data-role={message.role}
+          className="snap-start scroll-mt-[80px] pb-12"
+        >
           {message.role === "user" ? (
             <UserMessageItem message={message.content} />
           ) : (
@@ -14,6 +21,11 @@ export default function Conversation({ messages }: { messages: Message[] }) {
           )}
         </div>
       ))}
+      <div
+        ref={spacerRef}
+        className="w-full pointer-events-none"
+        aria-hidden="true"
+      />
     </div>
   );
 }
