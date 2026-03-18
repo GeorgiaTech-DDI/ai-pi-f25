@@ -6,7 +6,7 @@ import { ChatStatus, DefaultChatTransport } from "ai";
 import posthog from "posthog-js";
 // import ChatContainer from "../../components/Chat/ChatContainer";
 // import TermsOfServiceDialog from "../../components/Dialogs/TermsOfServiceDialog";
-import { saveChatAsText } from "../../utils/chatUtils";
+// import { saveChatAsText } from "../../utils/chatUtils";
 import Chatbox from "./components/chatbox/chatbox";
 import { cn } from "@/lib/utils";
 import { Context } from "@/lib/types";
