@@ -3,7 +3,6 @@ import { useScrollToLatestUserMsg } from "../../hooks/useScrollToLatestUserMsg";
 import { UserMessageItem } from "./user-message-item";
 import { AIMessageItem } from "./ai-message-item";
 import { LoadingDots } from "@/components/loaders/loading-dots";
-import { cn } from "@/lib/utils";
 
 export default function Conversation({
   messages,

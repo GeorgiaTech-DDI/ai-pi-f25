@@ -1,7 +1,7 @@
 import { useForm, Controller, useWatch } from "react-hook-form"; // 1. Added useWatch
 import { zodResolver } from "@hookform/resolvers/zod";
 import z from "zod";
-import { ArrowUp, Loader2 } from "lucide-react";
+import { ArrowUp, CircleStop, Loader2 } from "lucide-react";
 import { Field, FieldDescription } from "@/components/ui/field";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -16,10 +16,12 @@ export default function Chatbox({
   className,
   onSubmit,
   isLoading,
+  onStopPressed,
 }: {
   className?: string;
   onSubmit: (val: string) => void;
   isLoading: boolean;
+  onStopPressed: () => void;
 }) {
   const { control, handleSubmit, reset } = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -72,20 +74,27 @@ export default function Chatbox({
           </Field>
         )}
       />
-      <Button
-        type="submit"
-        variant="default"
-        size="icon"
-        className="hover:brightness-90"
-        disabled={!hasInput}
-        tooltip={hasInput ? "Send message" : "Type a message"}
-      >
-        {isLoading ? (
-          <Spinner />
-        ) : (
+      {isLoading ? (
+        <Button
+          onClick={onStopPressed}
+          variant="default"
+          size="icon"
+          className="hover:brightness-90"
+        >
+          <CircleStop className="h-4 w-4" />
+        </Button>
+      ) : (
+        <Button
+          type="submit"
+          variant="default"
+          size="icon"
+          className="hover:brightness-90"
+          disabled={!hasInput}
+          tooltip={hasInput ? "Send message" : "Type a message"}
+        >
           <ArrowUp className="h-4 w-4 pointer-events-none" />
-        )}
-      </Button>
+        </Button>
+      )}
     </form>
   );
 }

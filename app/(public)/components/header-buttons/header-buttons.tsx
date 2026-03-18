@@ -2,7 +2,7 @@
 import { Button } from "@/components/ui/button";
 import { EllipsisVertical, MessageSquareCheck } from "lucide-react";
 import { useState } from "react";
-import FeedbackDialog from "../feedback-dialog/feedback-dialog";
+import FeedbackDialog from "../feedback/feedback-dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,

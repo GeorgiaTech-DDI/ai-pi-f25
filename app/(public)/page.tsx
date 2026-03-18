@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useChat } from "@ai-sdk/react";
-import { DefaultChatTransport } from "ai";
+import { DataUIPart, DefaultChatTransport } from "ai";
 import posthog from "posthog-js";
 // import ChatContainer from "../../components/Chat/ChatContainer";
 // import TermsOfServiceDialog from "../../components/Dialogs/TermsOfServiceDialog";
@@ -13,6 +13,8 @@ import { cn } from "@/lib/utils";
 import { Message, Context } from "@/lib/types";
 import Conversation from "./components/conversation/conversation";
 import { Button } from "@/components/ui/button";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
+import TermsOfServiceDialog from "./components/tos/tos-dialog";
 
 const SUGGESTED_ACTIONS = [
   "What's the Invention Studio?",
@@ -34,11 +36,11 @@ export default function Home() {
     >
   >({});
 
-  // ── useChat ────────────────────────────────────────────────────────────────
   const {
     messages: sdkMessages,
     status,
     sendMessage,
+    stop,
   } = useChat({
     transport: new DefaultChatTransport({
       api: "/api/chutes",
@@ -105,6 +107,12 @@ export default function Home() {
       feedback: messageMetadata[i]?.feedback,
     }));
   const hasMessages = messages.length > 0;
+
+  const [isTOSAccepted, setIsTOSAccepted] = useLocalStorage<boolean>(
+    "tos-accepted",
+    false,
+  );
+  const [isTOSOpen, setIsTOSOpen] = useState<boolean>(!isTOSAccepted);
 
   // ── Terms of Service ───────────────────────────────────────────────────────
   // const [tosAccepted, setTosAccepted] = useState<boolean>(false);
@@ -248,15 +256,6 @@ export default function Home() {
   //   }
   // };
   {
-    /* <TermsOfServiceDialog
-        isVisible={false}
-        fadeState={tosFadeState}
-        onAccept={acceptTerms}
-        onDecline={declineTerms}
-        onClose={() => {}}
-      /> */
-  }
-  {
     /* <ReferencesDialog
         isVisible={showReferencesDialog}
         fadeState={referencesFadeState}
@@ -280,57 +279,72 @@ export default function Home() {
   }
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="w-full min-h-full">
-      <div
-        className={cn(
-          "flex size-full mx-auto max-w-3xl flex-col md:px-2",
-          !hasMessages && "pt-[20vh]",
-        )}
-      >
-        <div className="flex-1">
-          {hasMessages ? (
-            <Conversation messages={messages} isLoading={status === "submitted"} />
-          ) : (
-            <div
-              className={cn(
-                "flex items-center justify-center",
-                hasMessages && "h-screen",
-              )}
-            >
-              <p className="text-3xl">Hey! How can I help?</p>
-            </div>
-          )}
-        </div>
+    <>
+      <TermsOfServiceDialog
+        open={isTOSOpen}
+        onAccept={() => {
+          setIsTOSAccepted(true);
+          setIsTOSOpen(false);
+        }}
+        setIsOpen={setIsTOSOpen}
+      />
 
+      <div className="w-full min-h-full">
         <div
-          className="sticky bottom-0 mx-auto w-full pt-6 relative z-[5] bg-background"
-          data-chatbox-container
-        >
-          <Chatbox
-            onSubmit={handleSubmit}
-            className="w-full"
-            isLoading={status === "streaming" || status === "submitted"}
-          />
-          {hasMessages ? (
-            <p className="text-xs text-muted-foreground font-normal text-center py-2">
-              AI PI can make mistakes. Always verify technical steps and safety
-              protocols with a human PI.
-            </p>
-          ) : (
-            <div className="flex py-4 gap-x-4 w-full justify-center">
-              {SUGGESTED_ACTIONS.map((action) => (
-                <Button
-                  key={action}
-                  variant="outline"
-                  onClick={() => handleSubmit(action)}
-                >
-                  {action}
-                </Button>
-              ))}
-            </div>
+          className={cn(
+            "flex size-full mx-auto max-w-3xl flex-col md:px-2",
+            !hasMessages && "pt-[20vh]",
           )}
+        >
+          <div className="flex-1">
+            {hasMessages ? (
+              <Conversation
+                messages={messages}
+                isLoading={status === "submitted"}
+              />
+            ) : (
+              <div
+                className={cn(
+                  "flex items-center justify-center",
+                  hasMessages && "h-screen",
+                )}
+              >
+                <p className="text-3xl">Hey! How can I help?</p>
+              </div>
+            )}
+          </div>
+
+          <div
+            className="sticky bottom-0 mx-auto w-full pt-6 relative z-[5] bg-background"
+            data-chatbox-container
+          >
+            <Chatbox
+              onSubmit={handleSubmit}
+              className="w-full"
+              isLoading={status === "streaming" || status === "submitted"}
+              onStopPressed={stop}
+            />
+            {hasMessages ? (
+              <p className="text-xs text-muted-foreground font-normal text-center py-2">
+                AI PI can make mistakes. Always verify technical steps and
+                safety protocols with a human PI.
+              </p>
+            ) : (
+              <div className="flex py-4 gap-x-4 w-full justify-center">
+                {SUGGESTED_ACTIONS.map((action) => (
+                  <Button
+                    key={action}
+                    variant="outline"
+                    onClick={() => handleSubmit(action)}
+                  >
+                    {action}
+                  </Button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
