@@ -1,30 +1,49 @@
 import { betterAuth } from "better-auth";
 import { nextCookies } from "better-auth/next-js";
-import { jwt } from "better-auth/plugins";
+import { jwt, oAuthProxy } from "better-auth/plugins";
+
+const productionURL = `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
+
+const getBaseUrl = () => {
+  if (process.env.VERCEL_ENV === "production" && process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+    return productionURL;
+  }
+  if (process.env.VERCEL_ENV === "preview" && process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+  return "http://localhost:3000";
+};
+
+const currentUrl = getBaseUrl();
 
 export const auth = betterAuth({
-  // ── JWT session (stateless, no DB needed) ──────────────────────────────────
-  plugins: [
-    jwt(), // stores session as a signed JWT cookie
-    nextCookies(), // makes cookies work in Next.js Server Components / middleware
-  ],
+  baseURL: currentUrl,
+
+  trustedOrigins:
+    process.env.VERCEL_ENV === "production"
+      ? [productionURL, process.env.PREVIEW_URL_PATTERN as string]
+      : [currentUrl],
 
   secret: process.env.BETTER_AUTH_SECRET,
-  baseURL: process.env.BETTER_AUTH_URL,
 
-  // ── Microsoft Entra ID provider ────────────────────────────────────────────
+  plugins: [
+    jwt(),
+    nextCookies(),
+    oAuthProxy({
+      productionURL,
+      currentURL: currentUrl,
+    }),
+  ],
+
   socialProviders: {
     microsoft: {
-      clientId: process.env.NEXT_PUBLIC_AZURE_AD_CLIENT_ID as string,
+      clientId: process.env.AZURE_AD_CLIENT_ID as string,
       clientSecret: process.env.AZURE_AD_CLIENT_SECRET as string,
-      // Setting the specific tenant ID makes Entra ID skip the personal
-      // account picker and land directly on the Georgia Tech org login page.
-      tenantId: process.env.NEXT_PUBLIC_AZURE_AD_TENANT_ID as string,
-      scope: ["openid", "profile", "email", "User.Read"],
+      tenantId: process.env.AZURE_AD_TENANT_ID as string,
+      redirectURI: `${productionURL}/api/auth/callback/microsoft`,
     },
   },
 
-  // ── Restrict to @gatech.edu accounts ──────────────────────────────────────
   callbacks: {
     async signIn({ user }: { user: Record<string, any> }) {
       if (!user.email?.toLowerCase().endsWith("@gatech.edu")) {
