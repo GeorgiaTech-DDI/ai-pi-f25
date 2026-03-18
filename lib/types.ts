@@ -17,18 +17,6 @@ export interface Context {
     filename: string;
     text: string;
     source?: string;
+    type: string;
   };
-}
-
-export interface DialogProps {
-  isVisible: boolean;
-  fadeState: DialogFadeState;
-  onClose: () => void;
-}
-
-export type DialogFadeState = "hidden" | "entering" | "visible" | "exiting";
-
-export interface ChatHistorySaveData {
-  messages: Message[];
-  savedAt: string;
 }

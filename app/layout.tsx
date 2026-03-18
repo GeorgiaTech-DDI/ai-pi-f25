@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
-import "../styles/globals.css";
-import { inter } from "../utils/fonts";
+import "../globals.css";
+// import "../styles/theme.css";
 import Providers from "./providers/Providers";
+import { inter } from "@/lib/fonts";
+import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "AI PI",
@@ -15,8 +17,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body className={`${inter.className} root`}>
+    <html
+      lang="en"
+      className={cn(inter.variable, "h-full root")}
+      suppressHydrationWarning
+    >
+      <body className="h-full">
         <Providers>{children}</Providers>
       </body>
     </html>

@@ -1,26 +1,41 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useChat } from "@ai-sdk/react";
-import { DefaultChatTransport } from "ai";
+import { ChatStatus, DefaultChatTransport } from "ai";
 import posthog from "posthog-js";
-import Layout from "../../components/Layout";
-import ChatContainer from "../../components/Chat/ChatContainer";
-import TermsOfServiceDialog from "../../components/Dialogs/TermsOfServiceDialog";
-import FeedbackDialog from "../../components/Dialogs/FeedbackDialog";
-import ReferencesDialog from "../../components/Dialogs/ReferencesDialog";
-import {
-  type Message,
-  type Context,
-  type DialogFadeState,
-} from "../../components/types";
-import { saveChatAsText } from "../../utils/chatUtils";
+// import ChatContainer from "../../components/Chat/ChatContainer";
+// import TermsOfServiceDialog from "../../components/Dialogs/TermsOfServiceDialog";
+// import { saveChatAsText } from "../../utils/chatUtils";
+import Chatbox from "./components/chatbox/chatbox";
+import { cn } from "@/lib/utils";
+import { Context } from "@/lib/types";
+import Conversation from "./components/conversation/conversation";
+import { Button } from "@/components/ui/button";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
+import TermsOfServiceDialog from "./components/tos/tos-dialog";
+import ReferencesSheet from "./components/references/references-sheet";
+
+const SUGGESTED_ACTIONS = [
+  "What's the Invention Studio?",
+  "How do I use the bandsaw?",
+  "Are there 3D printers?",
+];
+
+export type QueryStatusType =
+  | {
+      status: Exclude<ChatStatus, "error">;
+      info?: never;
+    }
+  | {
+      status: "web_search_loading" | "web_search_complete" | "error";
+      info: string;
+    };
 
 export default function Home() {
-  const [hasSaved, setHasSaved] = useState<boolean>(false);
-  const [error, setError] = useState<string>("");
-  const [webSearchLoading, setWebSearchLoading] = useState<boolean>(false);
-  const [webSearchStatus, setWebSearchStatus] = useState<string>("");
+  const [queryStatus, setQueryStatusType] = useState<QueryStatusType>({
+    status: "ready",
+  });
 
   // Per-message metadata (contexts, usedRAG) keyed by message index
   const [messageMetadata, setMessageMetadata] = useState<
@@ -34,6 +49,7 @@ export default function Home() {
     messages: sdkMessages,
     status,
     sendMessage,
+    stop,
   } = useChat({
     transport: new DefaultChatTransport({
       api: "/api/chutes",
@@ -50,27 +66,27 @@ export default function Home() {
       });
     },
     onError: (err) => {
-      setError("Failed to get answer. Please try again.");
+      setQueryStatusType({ status: "error", info: err.message });
       posthog.capture("chat_error_occurred", { error_message: String(err) });
       posthog.captureException(err);
     },
     onData: (dataPart: any) => {
       const { type, data } = dataPart;
       if (type === "data-web_search_loading") {
-        setWebSearchLoading(true);
-        setWebSearchStatus(data.message || "Searching web...");
+        setQueryStatusType({
+          status: "web_search_loading",
+          info: data.message,
+        });
       } else if (type === "data-web_search_complete") {
-        setWebSearchLoading(false);
-        setWebSearchStatus(
-          data.found
-            ? `Found context from ${data.source}`
-            : "No additional context found",
-        );
-        setTimeout(() => setWebSearchStatus(""), 2000);
+        setQueryStatusType({
+          status: "web_search_complete",
+          info: data.message,
+        });
       } else if (type === "data-contexts") {
-        const assistantIdx =
-          sdkMessages.filter((m) => m.role === "user" || m.role === "assistant")
-            .length - 1;
+        const assistantIdx = sdkMessages.filter(
+          (m) => m.role === "user" || m.role === "assistant",
+        ).length;
+
         setMessageMetadata((prev) => ({
           ...prev,
           [assistantIdx]: {
@@ -83,9 +99,16 @@ export default function Home() {
     },
   });
 
+  useEffect(() => {
+    if (status !== "error") {
+      setQueryStatusType({ status });
+    }
+  }, [status]);
+
   // ── Derive display messages from SDK messages + local metadata ─────────────
-  const isLoading = status === "submitted" || status === "streaming";
-  const messages: Message[] = sdkMessages
+  const isLoading =
+    queryStatus?.status === "submitted" || queryStatus?.status === "streaming";
+  const messages = sdkMessages
     .filter((m) => m.role === "user" || m.role === "assistant")
     .map((m, i) => ({
       role: m.role as "user" | "assistant",
@@ -99,51 +122,21 @@ export default function Home() {
       usedRAG: messageMetadata[i]?.usedRAG,
       feedback: messageMetadata[i]?.feedback,
     }));
+  const hasMessages = messages.length > 0;
 
-  // ── Terms of Service ───────────────────────────────────────────────────────
-  const [tosAccepted, setTosAccepted] = useState<boolean>(false);
-  const [showTosDialog, setShowTosDialog] = useState<boolean>(false);
-  const [tosFadeState, setTosFadeState] = useState<DialogFadeState>("hidden");
+  const [isTOSAccepted, setIsTOSAccepted] = useLocalStorage<boolean>(
+    "tos-accepted",
+    false,
+  );
+  const [isTOSOpen, setIsTOSOpen] = useState<boolean>(!isTOSAccepted);
 
-  useEffect(() => {
-    const stored = localStorage.getItem("tosAccepted");
-    if (stored === "true") {
-      setTosAccepted(true);
-    } else {
-      setShowTosDialog(true);
-      setTosFadeState("visible");
-    }
-  }, []);
-
-  useEffect(() => {
-    if (showTosDialog) {
-      setTosFadeState("entering");
-      setTimeout(() => setTosFadeState("visible"), 10);
-    } else if (tosFadeState !== "hidden") {
-      setTosFadeState("exiting");
-      setTimeout(() => setTosFadeState("hidden"), 500);
-    }
-  }, [showTosDialog]);
-
-  // ── Feedback dialog ────────────────────────────────────────────────────────
-  const [showFeedbackDialog, setShowFeedbackDialog] = useState<boolean>(false);
-  const [feedbackMessageIndex, setFeedbackMessageIndex] = useState<
+  const [isReferencesSheetOpen, setIsReferencesSheetOpen] = useState(false);
+  const [activeReferenceIndex, setActiveReferenceIndex] = useState<
     number | null
   >(null);
-  const [feedbackFadeState, setFeedbackFadeState] =
-    useState<DialogFadeState>("hidden");
 
-  // ── References dialog ──────────────────────────────────────────────────────
-  const [showReferencesDialog, setShowReferencesDialog] =
-    useState<boolean>(false);
-  const [activeReferences, setActiveReferences] = useState<Context[]>([]);
-  const [activeReferenceTitle, setActiveReferenceTitle] = useState<string>("");
-  const [referencesFadeState, setReferencesFadeState] =
-    useState<DialogFadeState>("hidden");
-
-  // ── Handlers ───────────────────────────────────────────────────────────────
   const handleSubmit = (message: string): void => {
-    setError("");
+    setQueryStatusType({ status: "submitted" });
     posthog.capture("chat_message_submitted", {
       message_length: message.length,
       conversation_turn: messages.filter((m) => m.role === "user").length + 1,
@@ -151,140 +144,85 @@ export default function Home() {
     sendMessage({ text: message });
   };
 
-  const initiateFeedback = (messageIndex: number): void => {
-    setFeedbackMessageIndex(messageIndex);
-    setShowFeedbackDialog(true);
-    setFeedbackFadeState("entering");
-    setTimeout(() => setFeedbackFadeState("visible"), 10);
-  };
-
-  const closeFeedbackDialog = (): void => {
-    setFeedbackFadeState("exiting");
-    setTimeout(() => {
-      setShowFeedbackDialog(false);
-      setFeedbackFadeState("hidden");
-    }, 500);
-  };
-
-  const submitFeedback = (feedbackText: string): void => {
-    if (feedbackMessageIndex === null) return;
-    setMessageMetadata((prev) => ({
-      ...prev,
-      [feedbackMessageIndex]: {
-        ...prev[feedbackMessageIndex],
-        feedback: feedbackText,
-      },
-    }));
-    posthog.capture("feedback_submitted", {
-      message_index: feedbackMessageIndex,
-      feedback_length: feedbackText.length,
-    });
-    setFeedbackFadeState("exiting");
-    setTimeout(() => {
-      setShowFeedbackDialog(false);
-      setFeedbackFadeState("hidden");
-    }, 500);
-  };
-
-  const showReferences = (messageIndex: number): void => {
-    const refs = messageMetadata[messageIndex]?.contexts;
-    if (refs && refs.length > 0) {
-      setActiveReferences(refs);
-      setActiveReferenceTitle(
-        `References for Q&A #${Math.floor(messageIndex / 2) + 1}`,
-      );
-      setShowReferencesDialog(true);
-      setReferencesFadeState("entering");
-      setTimeout(() => setReferencesFadeState("visible"), 10);
-    }
-  };
-
-  const closeReferencesDialog = (): void => {
-    setReferencesFadeState("exiting");
-    setTimeout(() => {
-      setShowReferencesDialog(false);
-      setReferencesFadeState("hidden");
-    }, 500);
-  };
-
-  const acceptTerms = (): void => {
-    localStorage.setItem("tosAccepted", "true");
-    posthog.capture("terms_accepted");
-    setTosFadeState("exiting");
-    setTimeout(() => {
-      setShowTosDialog(false);
-      setTosAccepted(true);
-      setTosFadeState("hidden");
-    }, 500);
-  };
-
-  const declineTerms = (): void => {
-    alert("You must accept the Terms of Service to use this application.");
-  };
-
-  const restartChat = (): void => {
-    if (messages.length === 0) return;
-    if (
-      window.confirm(
-        "Are you sure you want to restart? Your current conversation will be automatically saved.",
-      )
-    ) {
-      posthog.capture("chat_restarted", { message_count: messages.length });
-      saveChatAsText(messages);
-      setHasSaved(true);
-      setMessageMetadata({});
-      // Note: useChat doesn't expose a reset — reload to clear SDK state
-      window.location.reload();
-    }
-  };
-
-  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <>
       <TermsOfServiceDialog
-        isVisible={showTosDialog}
-        fadeState={tosFadeState}
-        onAccept={acceptTerms}
-        onDecline={declineTerms}
-        onClose={() => {}}
-      />
-      <FeedbackDialog
-        isVisible={showFeedbackDialog}
-        fadeState={feedbackFadeState}
-        onClose={closeFeedbackDialog}
-        onSubmit={submitFeedback}
-      />
-      <ReferencesDialog
-        isVisible={showReferencesDialog}
-        fadeState={referencesFadeState}
-        onClose={closeReferencesDialog}
-        title={activeReferenceTitle}
-        references={activeReferences}
+        open={isTOSOpen}
+        onAccept={() => {
+          setIsTOSAccepted(true);
+          setIsTOSOpen(false);
+        }}
+        setIsOpen={setIsTOSOpen}
       />
 
-      {(!showTosDialog || tosAccepted) && (
-        <Layout
-          onSaveChatAsText={() => {
-            posthog.capture("chat_saved", { message_count: messages.length });
-            saveChatAsText(messages);
-            setHasSaved(true);
-          }}
-          onRestartChat={restartChat}
-          hasMessages={messages.length > 0}
-          hasSaved={hasSaved}
-        >
-          <ChatContainer
-            messages={messages}
-            loading={isLoading}
-            webSearchLoading={webSearchLoading}
-            webSearchStatus={webSearchStatus}
-            error={error}
-            onSubmit={handleSubmit}
-            onFeedbackClick={initiateFeedback}
-            onReferencesClick={showReferences}
-          />
-        </Layout>
+      {activeReferenceIndex !== null && (
+        <ReferencesSheet
+          isOpen={isReferencesSheetOpen}
+          onClose={() => setIsReferencesSheetOpen(false)}
+          contexts={messageMetadata[activeReferenceIndex]?.contexts ?? []}
+        />
       )}
+
+      <div className="w-full min-h-full">
+        <div
+          className={cn(
+            "flex size-full mx-auto max-w-3xl flex-col md:px-2",
+            !hasMessages && "pt-[20vh]",
+          )}
+        >
+          <div className="flex-1">
+            {hasMessages ? (
+              <Conversation
+                messages={messages}
+                userQueryStatus={queryStatus}
+                onViewReferencesPressed={(msgIdx) => {
+                  setActiveReferenceIndex(msgIdx);
+                  setIsReferencesSheetOpen(true);
+                }}
+              />
+            ) : (
+              <div
+                className={cn(
+                  "flex items-center justify-center",
+                  hasMessages && "h-screen",
+                )}
+              >
+                <p className="text-3xl">Hey! How can I help?</p>
+              </div>
+            )}
+          </div>
+
+          <div
+            className="sticky bottom-0 mx-auto w-full pt-6 relative z-[5] bg-background"
+            data-chatbox-container
+          >
+            <Chatbox
+              onSubmit={handleSubmit}
+              className="w-full"
+              isLoading={isLoading}
+              onStopPressed={stop}
+            />
+            {hasMessages ? (
+              <p className="text-xs text-muted-foreground font-normal text-center py-2">
+                AI PI can make mistakes. Always verify technical steps and
+                safety protocols with a human PI.
+              </p>
+            ) : (
+              <div className="flex py-4 gap-x-4 w-full justify-center">
+                {SUGGESTED_ACTIONS.map((action) => (
+                  <Button
+                    key={action}
+                    variant="outline"
+                    onClick={() => handleSubmit(action)}
+                  >
+                    {action}
+                  </Button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
     </>
   );
 }
