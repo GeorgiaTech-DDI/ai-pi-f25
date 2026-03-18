@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { signIn } from "../../../../lib/auth-client";
+import { signIn } from "@/lib/auth-client";
 import styles from "@/styles/Login.module.css";
+import Image from "next/image";
 
 export default function AdminLogin() {
   const router = useRouter();
@@ -34,11 +35,12 @@ export default function AdminLogin() {
   return (
     <div className={styles.container}>
       <div className={styles.loginCard}>
-        <div className={styles.logoSection}>
-          <img
+        <div className="flex flex-col items-center text-center pb-4">
+          <Image
             src="/images/logo.svg"
             alt="AI PI Logo"
-            className={styles.logo}
+            width={60}
+            height={60}
           />
           <h1 className={styles.title}>AI PI Admin Portal</h1>
           <p className={styles.subtitle}>
