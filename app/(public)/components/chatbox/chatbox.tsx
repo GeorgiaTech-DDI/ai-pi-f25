@@ -1,12 +1,11 @@
-import { useForm, Controller, useWatch } from "react-hook-form"; // 1. Added useWatch
+import { useForm, Controller, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import z from "zod";
-import { ArrowUp, CircleStop, Loader2 } from "lucide-react";
+import { ArrowUp, CircleStop } from "lucide-react";
 import { Field, FieldDescription } from "@/components/ui/field";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import Spinner from "@/components/loaders/spinner";
 
 const formSchema = z.object({
   message: z.string().min(1),

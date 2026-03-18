@@ -17,5 +17,6 @@ export interface Context {
     filename: string;
     text: string;
     source?: string;
+    type: string;
   };
 }
