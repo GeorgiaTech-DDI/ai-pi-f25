@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import posthog from "posthog-js";
-import { useRouter } from "next/navigation";
-import { useSession, signOut } from "@/lib/auth-client";
+import { signOut, useSession } from "@/lib/auth-client";
 import styles from "@/styles/Dashboard.module.css";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
+import posthog from "posthog-js";
+import { useState } from "react";
 
 interface FileMetadata {
   filename: string;
