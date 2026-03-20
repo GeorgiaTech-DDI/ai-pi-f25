@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import "../globals.css";
 // import "../styles/theme.css";
-import Providers from "./providers/Providers";
 import { inter } from "@/lib/fonts";
 import { cn } from "@/lib/utils";
+import Providers from "./providers";
 
 export const metadata: Metadata = {
   title: "AI PI",
