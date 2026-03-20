@@ -101,64 +101,57 @@ function splitTextIntoChunks(
 }
 
 export async function GET(req: NextRequest) {
-  try {
-    if (!process.env.PINECONE_API_KEY)
-      return NextResponse.json(
-        { error: "Server configuration error: PINECONE_API_KEY is missing." },
-        { status: 500 },
-      );
-    if (!process.env.DEEPINFRA_API_KEY && !process.env.HF_API_KEY)
-      return NextResponse.json(
-        {
-          error:
-            "Server configuration error: No embedding provider configured.",
-        },
-        { status: 500 },
-      );
+  const session = await auth.api.getSession({ headers: req.headers });
 
-    const session = await auth.api.getSession({ headers: req.headers });
-    if (!session)
-      return NextResponse.json(
-        { error: "Unauthorized - Please log in with a @gatech.edu account" },
-        { status: 401 },
-      );
+  let errorMessage: { type: "general" | "auth"; message: string } | null = null;
+  if (!process.env.PINECONE_API_KEY) {
+    errorMessage = {
+      type: "general",
+      message: "Server configuration error: PINECONE_API_KEY is missing.",
+    };
+  } else if (!process.env.DEEPINFRA_API_KEY && !process.env.HF_API_KEY) {
+    errorMessage = {
+      type: "general",
+      message: "Server configuration error: No embedding provider configured.",
+    };
+  } else if (!session) {
+    errorMessage = {
+      type: "auth",
+      message: "Unauthorized - Please log in with a @gatech.edu account",
+    };
+  }
 
-    const index = getPineconeIndex();
-    const dummyVector = new Array(1024).fill(0);
-    dummyVector[0] = 0.0001;
-    const queryResponse = await index.query({
-      vector: dummyVector,
-      topK: 1000,
-      includeMetadata: true,
-      filter: { type: "file_metadata" },
-    });
-    const files: PineconeFile[] = queryResponse.matches.reduce(
-      (acc: PineconeFile[], match: any) => {
-        const meta = match.metadata as any;
-        if (meta?.type === "file_metadata")
-          acc.push({ id: match.id, metadata: meta as FileMetadata });
-        return acc;
-      },
-      [],
-    );
-    return NextResponse.json({ files });
-  } catch (error) {
-    console.error("Error fetching files:", error);
-    const errorMessage =
-      error instanceof Error ? error.message : "Failed to fetch files";
-    if (errorMessage.includes("Index") && errorMessage.includes("not found")) {
-      return NextResponse.json(
-        {
-          error: `Pinecone index '${process.env.PINECONE_INDEX_NAME || "rag-embeddings"}' not found.`,
-        },
-        { status: 500 },
-      );
-    }
+  if (errorMessage) {
     return NextResponse.json(
-      { error: `Failed to fetch files: ${errorMessage}` },
-      { status: 500 },
+      { error: errorMessage },
+      { status: errorMessage.type === "auth" ? 401 : 500 },
     );
   }
+
+  // TODO: resolve the any typing using correct Pinecone SDK
+  // get all files from Pinecone via a dummy vector query
+  const index = getPineconeIndex();
+  const dummyVector = new Array(1024).fill(0);
+  dummyVector[0] = 0.0001;
+
+  // make the query
+  const queryResponse = await index.query({
+    vector: dummyVector,
+    topK: 1000,
+    includeMetadata: true,
+    filter: { type: "file_metadata" },
+  });
+
+  // convert query response to files
+  const files: PineconeFile[] = [];
+  for (const match of queryResponse) {
+    const meta = match.metadata as any;
+    if (meta?.type === "file_metadata") {
+      files.push({ id: match.id, metadata: meta as FileMetadata });
+    }
+  }
+
+  return NextResponse.json({ files }, { status: 200 });
 }
 
 export async function POST(req: NextRequest) {

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import posthog from "posthog-js";
 import { useRouter } from "next/navigation";
-import { useSession, signOut } from "../../../../lib/auth-client";
+import { useSession, signOut } from "@/lib/auth-client";
 import styles from "@/styles/Dashboard.module.css";
 
 interface FileMetadata {
@@ -95,53 +95,53 @@ export default function AdminDashboard() {
   );
 
   const loadFiles = async () => {
-    if (!user?.email) return;
-    setLoadingFiles(true);
-    setError(null);
-    try {
-      const response = await fetch("/api/files");
-      if (!response.ok) {
-        const responseText = await response.text();
-        let errorMessage = "Failed to load files";
-        try {
-          errorMessage = JSON.parse(responseText).error || errorMessage;
-        } catch {
-          errorMessage = responseText || `HTTP ${response.status}`;
-        }
-        throw new Error(errorMessage);
-      }
-      const data = await response.json();
-      setFiles(data.files || []);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoadingFiles(false);
-    }
+    // if (!user?.email) return;
+    // setLoadingFiles(true);
+    // setError(null);
+    // try {
+    //   const response = await fetch("/api/files");
+    //   if (!response.ok) {
+    //     const responseText = await response.text();
+    //     let errorMessage = "Failed to load files";
+    //     try {
+    //       errorMessage = JSON.parse(responseText).error || errorMessage;
+    //     } catch {
+    //       errorMessage = responseText || `HTTP ${response.status}`;
+    //     }
+    //     throw new Error(errorMessage);
+    //   }
+    //   const data = await response.json();
+    //   setFiles(data.files || []);
+    // } catch (err: any) {
+    //   setError(err.message);
+    // } finally {
+    //   setLoadingFiles(false);
+    // }
   };
 
   const loadAnalytics = async () => {
-    if (!user?.email) return;
-    setLoadingAnalytics(true);
-    setAnalyticsError(null);
-    try {
-      const response = await fetch("/api/analytics");
-      if (!response.ok) {
-        const errorText = await response.text();
-        let errorMessage = "Failed to load analytics";
-        try {
-          errorMessage = JSON.parse(errorText).error || errorMessage;
-        } catch {
-          errorMessage = errorText || `HTTP ${response.status}`;
-        }
-        throw new Error(errorMessage);
-      }
-      const data = await response.json();
-      setAnalytics(data);
-    } catch (err: any) {
-      setAnalyticsError(err.message);
-    } finally {
-      setLoadingAnalytics(false);
-    }
+    // if (!user?.email) return;
+    // setLoadingAnalytics(true);
+    // setAnalyticsError(null);
+    // try {
+    //   const response = await fetch("/api/analytics");
+    //   if (!response.ok) {
+    //     const errorText = await response.text();
+    //     let errorMessage = "Failed to load analytics";
+    //     try {
+    //       errorMessage = JSON.parse(errorText).error || errorMessage;
+    //     } catch {
+    //       errorMessage = errorText || `HTTP ${response.status}`;
+    //     }
+    //     throw new Error(errorMessage);
+    //   }
+    //   const data = await response.json();
+    //   setAnalytics(data);
+    // } catch (err: any) {
+    //   setAnalyticsError(err.message);
+    // } finally {
+    //   setLoadingAnalytics(false);
+    // }
   };
 
   const handleFileUpload = async (e: React.FormEvent) => {
