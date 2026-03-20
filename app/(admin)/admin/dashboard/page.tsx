@@ -86,14 +86,9 @@ export default function AdminDashboard() {
   const [success, setSuccess] = useState<string | null>(null);
 
   // Analytics state
-  const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
-  const [loadingAnalytics, setLoadingAnalytics] = useState(false);
-  const [analyticsError, setAnalyticsError] = useState<string | null>(null);
   const [expandedReferences, setExpandedReferences] = useState<number | null>(
     null,
   );
-
-  const queryClient = useQueryClient();
 
   const {
     data: files = [],
@@ -121,30 +116,31 @@ export default function AdminDashboard() {
     staleTime: 10000,
   });
 
-  const loadAnalytics = async () => {
-    // if (!user?.email) return;
-    // setLoadingAnalytics(true);
-    // setAnalyticsError(null);
-    // try {
-    //   const response = await fetch("/api/analytics");
-    //   if (!response.ok) {
-    //     const errorText = await response.text();
-    //     let errorMessage = "Failed to load analytics";
-    //     try {
-    //       errorMessage = JSON.parse(errorText).error || errorMessage;
-    //     } catch {
-    //       errorMessage = errorText || `HTTP ${response.status}`;
-    //     }
-    //     throw new Error(errorMessage);
-    //   }
-    //   const data = await response.json();
-    //   setAnalytics(data);
-    // } catch (err: any) {
-    //   setAnalyticsError(err.message);
-    // } finally {
-    //   setLoadingAnalytics(false);
-    // }
-  };
+  const {
+    data: analytics,
+    refetch: refetchAnalytics,
+    error: analyticsError,
+    isLoading: isAnalyticsLoading,
+  } = useQuery({
+    queryKey: ["analytics"],
+    queryFn: async () => {
+      const response = await fetch("/api/analytics");
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorMessage = "Failed to load analytics";
+        try {
+          errorMessage = JSON.parse(errorText).error || errorMessage;
+        } catch {
+          errorMessage = errorText || `HTTP ${response.status}`;
+        }
+        throw new Error(errorMessage);
+      }
+      const data = await response.json();
+      return data as AnalyticsData;
+    },
+    refetchInterval: 30000,
+    staleTime: 10000,
+  });
 
   const handleFileUpload = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -310,18 +306,6 @@ export default function AdminDashboard() {
       setIsLoggingOut(false);
     }
   };
-
-  useEffect(() => {
-    if (!loading && user?.email) {
-      loadAnalytics();
-    }
-  }, [user, loading]);
-
-  useEffect(() => {
-    if (!user?.email) return;
-    const analyticsInterval = setInterval(() => loadAnalytics(), 30000);
-    return () => clearInterval(analyticsInterval);
-  }, [user?.email]);
 
   return (
     <>
@@ -541,19 +525,19 @@ export default function AdminDashboard() {
             <div className={styles.fileListHeader}>
               <h2 className={styles.sectionTitle}>📊 Documentation Quality</h2>
               <button
-                onClick={loadAnalytics}
-                disabled={loadingAnalytics}
+                onClick={() => refetchAnalytics()}
+                disabled={isAnalyticsLoading}
                 className={`${styles.button} ${styles.buttonSecondary} ${styles.smallButton}`}
               >
-                {loadingAnalytics ? "Refreshing..." : "Refresh"}
+                {isAnalyticsLoading ? "Refreshing..." : "Refresh"}
               </button>
             </div>
             {analyticsError && (
               <div className={styles.errorMessage}>
-                Error loading analytics: {analyticsError}
+                Error loading analytics: {analyticsError.message}
               </div>
             )}
-            {loadingAnalytics ? (
+            {isAnalyticsLoading ? (
               <div className={styles.loadingMessage}>Loading analytics...</div>
             ) : analytics ? (
               <>
@@ -807,11 +791,11 @@ export default function AdminDashboard() {
             <div className={styles.fileListHeader}>
               <h2 className={styles.sectionTitle}>📋 Recent Query Logs</h2>
               <button
-                onClick={loadAnalytics}
-                disabled={loadingAnalytics}
+                onClick={() => refetchAnalytics()}
+                disabled={isAnalyticsLoading}
                 className={`${styles.button} ${styles.buttonSecondary} ${styles.smallButton}`}
               >
-                {loadingAnalytics ? "Refreshing..." : "Refresh"}
+                {isAnalyticsLoading ? "Refreshing..." : "Refresh"}
               </button>
             </div>
             <p
@@ -824,7 +808,7 @@ export default function AdminDashboard() {
               All queries from users, updated in real-time (auto-refreshes every
               30 seconds)
             </p>
-            {loadingAnalytics ? (
+            {isAnalyticsLoading ? (
               <div className={styles.loadingMessage}>Loading query logs...</div>
             ) : analytics?.recentLogs?.length ? (
               <div style={{ overflowX: "auto" }}>
