@@ -74,6 +74,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       <ButtonPrimitive
         ref={ref}
         data-slot="button"
+        nativeButton={!isLink}
         className={cn(buttonVariants({ variant, size }), className)}
         // If href exists, we render a Next.js Link. Base UI handles prop merging.
         render={isLink ? <Link href={href!} /> : undefined}
