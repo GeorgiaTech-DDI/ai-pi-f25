@@ -144,7 +144,7 @@ export async function GET(req: NextRequest) {
 
   // convert query response to files
   const files: PineconeFile[] = [];
-  for (const match of queryResponse) {
+  for (const match of queryResponse.matches) {
     const meta = match.metadata as any;
     if (meta?.type === "file_metadata") {
       files.push({ id: match.id, metadata: meta as FileMetadata });

@@ -5,6 +5,7 @@ import posthog from "posthog-js";
 import { useRouter } from "next/navigation";
 import { useSession, signOut } from "@/lib/auth-client";
 import styles from "@/styles/Dashboard.module.css";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 interface FileMetadata {
   filename: string;
@@ -74,8 +75,6 @@ export default function AdminDashboard() {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   // File management state
-  const [files, setFiles] = useState<PineconeFile[]>([]);
-  const [loadingFiles, setLoadingFiles] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
@@ -94,30 +93,33 @@ export default function AdminDashboard() {
     null,
   );
 
-  const loadFiles = async () => {
-    // if (!user?.email) return;
-    // setLoadingFiles(true);
-    // setError(null);
-    // try {
-    //   const response = await fetch("/api/files");
-    //   if (!response.ok) {
-    //     const responseText = await response.text();
-    //     let errorMessage = "Failed to load files";
-    //     try {
-    //       errorMessage = JSON.parse(responseText).error || errorMessage;
-    //     } catch {
-    //       errorMessage = responseText || `HTTP ${response.status}`;
-    //     }
-    //     throw new Error(errorMessage);
-    //   }
-    //   const data = await response.json();
-    //   setFiles(data.files || []);
-    // } catch (err: any) {
-    //   setError(err.message);
-    // } finally {
-    //   setLoadingFiles(false);
-    // }
-  };
+  const queryClient = useQueryClient();
+
+  const {
+    data: files = [],
+    isLoading: isFilesLoading,
+    error: filesError,
+    refetch: refetchFiles,
+  } = useQuery({
+    queryKey: ["files"],
+    queryFn: async () => {
+      const response = await fetch("/api/files");
+      if (!response.ok) {
+        const responseText = await response.text();
+        let errorMessage = "Failed to load files";
+        try {
+          errorMessage = JSON.parse(responseText).error || errorMessage;
+        } catch {
+          errorMessage = responseText || `HTTP ${response.status}`;
+        }
+        throw new Error(errorMessage);
+      }
+      const data = await response.json();
+      return data.files as PineconeFile[];
+    },
+    refetchInterval: 30000,
+    staleTime: 10000,
+  });
 
   const loadAnalytics = async () => {
     // if (!user?.email) return;
@@ -211,7 +213,7 @@ export default function AdminDashboard() {
         'input[type="file"]',
       ) as HTMLInputElement;
       if (fileInput) fileInput.value = "";
-      loadFiles();
+      await refetchFiles();
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -243,7 +245,7 @@ export default function AdminDashboard() {
         filename,
       });
       setShowDeleteConfirm(null);
-      loadFiles();
+      await refetchFiles();
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -311,16 +313,9 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     if (!loading && user?.email) {
-      loadFiles();
       loadAnalytics();
     }
   }, [user, loading]);
-
-  useEffect(() => {
-    if (!user?.email) return;
-    const refreshInterval = setInterval(() => loadFiles(), 30000);
-    return () => clearInterval(refreshInterval);
-  }, [user?.email]);
 
   useEffect(() => {
     if (!user?.email) return;
@@ -478,11 +473,11 @@ export default function AdminDashboard() {
                 <div className={styles.fileListHeader}>
                   <h3 className={styles.subsectionTitle}>Uploaded Files</h3>
                   <button
-                    onClick={loadFiles}
-                    disabled={loadingFiles}
+                    onClick={() => refetchFiles()}
+                    disabled={isFilesLoading}
                     className={`${styles.button} ${styles.buttonSecondary} ${styles.smallButton}`}
                   >
-                    {loadingFiles ? "Refreshing..." : "Refresh"}
+                    {isFilesLoading ? "Refreshing..." : "Refresh"}
                   </button>
                 </div>
                 {error && (
@@ -491,7 +486,7 @@ export default function AdminDashboard() {
                 {success && (
                   <div className={styles.successMessage}>{success}</div>
                 )}
-                {loadingFiles ? (
+                {isFilesLoading ? (
                   <div className={styles.loadingMessage}>Loading files...</div>
                 ) : files.length === 0 ? (
                   <div className={styles.emptyMessage}>
