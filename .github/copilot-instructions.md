@@ -163,6 +163,35 @@ Optional: `OLLAMA_URL` (for local embeddings), `HF_API_KEY` + `HF_API_URL` (Hugg
 
 ---
 
+## Agent Skills
+
+Three specialized skills are available in `.agents/skills/`. **Always invoke the relevant skill before starting the associated type of work** — skills carry detailed rules and enforce correct patterns that are easy to get wrong without them.
+
+### `shadcn`
+**Trigger:** Any task involving UI components — adding, editing, styling, or composing shadcn/ui primitives; anything touching `components/ui/`; tasks that mention specific component names (Button, Dialog, Sheet, etc.).
+
+What it does:
+- Injects live project context (installed components, aliases, Tailwind version, base library, icon library) via `pnpm dlx shadcn@latest info`
+- Enforces critical rules: semantic color tokens only, `gap-*` not `space-y-*`, `size-*` for equal dimensions, `cn()` for conditional classes, no inline `dark:` overrides, correct `asChild`/`render` usage for Base UI vs Radix, required accessibility titles on overlays
+- Manages adding components via `pnpm dlx shadcn@latest add <component>` — never hand-write shadcn primitives
+- Provides component documentation URLs via `pnpm dlx shadcn@latest docs <component>`
+
+### `vercel-react-best-practices`
+**Trigger:** Writing or refactoring React components, Next.js pages, data-fetching logic, bundle optimization, or any performance-related work.
+
+What it does:
+- Applies 64 prioritized rules across 8 categories (waterfall elimination, bundle size, server performance, re-render optimization, etc.)
+- Highest-impact rules: use `Promise.all()` for independent async calls, avoid barrel imports, use `next/dynamic` for heavy components, derive state during render not effects, use primitive effect dependencies, prefer functional `setState`
+
+### `documentation-writer`
+**Trigger:** Creating or significantly rewriting any file in `/docs/`, README content, or other user-facing documentation.
+
+What it does:
+- Applies the Diátaxis framework: Tutorials (learning), How-to Guides (problem-solving), Reference (technical spec), Explanation (conceptual)
+- Enforces docs conventions for this repo: files go in `/docs/` as `UPPERCASE_SNAKE_CASE.md`, update `/docs/README.md` index when adding new docs
+
+---
+
 ## Documentation Conventions
 
 - **All** markdown documentation files go in `/docs/` with `UPPERCASE_SNAKE_CASE.md` names
