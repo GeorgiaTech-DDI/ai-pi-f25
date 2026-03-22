@@ -11,12 +11,14 @@ export function AIMessageItem({
   hasReferences,
   onViewReferencesPressed,
   traceId,
+  isStreaming,
 }: {
   message: string;
   className?: string;
   hasReferences: boolean;
   onViewReferencesPressed: () => void;
   traceId?: string;
+  isStreaming?: boolean;
 }) {
   const { respond, response, triggerRef } = useThumbSurvey({
     surveyId: LLM_RESPONSE_SURVEY_ID,
@@ -64,17 +66,17 @@ export function AIMessageItem({
               fill={response === "down" ? "currentColor" : "none"}
             />
           </Button>
+          {!isStreaming && hasReferences && (
+            <Button
+              onClick={onViewReferencesPressed}
+              variant="ghost"
+              size="icon"
+              className="text-muted-foreground hover:text-foreground h-8 w-8"
+            >
+              <FileSearchCorner className="h-4 w-4" />
+            </Button>
+          )}
         </div>
-        {hasReferences && (
-          <Button
-            onClick={onViewReferencesPressed}
-            variant="ghost"
-            size="icon"
-            className="text-muted-foreground hover:text-foreground h-8 w-8"
-          >
-            <FileSearchCorner className="h-4 w-4" />
-          </Button>
-        )}
       </div>
     </div>
   );
