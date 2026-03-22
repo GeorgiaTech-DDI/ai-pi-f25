@@ -142,6 +142,8 @@ export default function Home() {
           setMessageMetadata({});
           setQueryStatusType({ status: "ready" });
           setIsTOSAccepted(false);
+          posthog.capture("chat_logged_out_due_to_timeout");
+          posthog.reset();
         }
       },
     });
