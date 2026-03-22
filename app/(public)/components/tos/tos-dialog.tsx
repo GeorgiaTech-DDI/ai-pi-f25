@@ -107,9 +107,9 @@ export default function TermsOfServiceDialog({
               </h3>
               <p>
                 By using this service, you acknowledge and agree that your chat
-                conversations may be logged and stored to improve the system's
-                responses. Personal information should not be shared in your
-                queries.
+                conversations may be logged and stored to improve the
+                system&apos;s responses. Personal information should not be
+                shared in your queries.
               </p>
               <ul className="mt-2 list-disc space-y-1 pl-5">
                 <li>Conversations are stored for training purposes.</li>

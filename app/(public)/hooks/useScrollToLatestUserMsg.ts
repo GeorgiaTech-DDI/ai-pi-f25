@@ -78,7 +78,7 @@ export function useScrollToLatestUserMsg(messages: { role: string }[]) {
     }, 0);
 
     return () => clearTimeout(id);
-  }, [messages.length, snapToMessage]);
+  }, [messages.length, snapToMessage, messages]);
 
   // Cleanup observer on unmount
   useEffect(() => {

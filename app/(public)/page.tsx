@@ -99,11 +99,13 @@ export default function Home() {
     },
   });
 
-  useEffect(() => {
+  const [prevStatus, setPrevStatus] = useState(status);
+  if (prevStatus !== status) {
+    setPrevStatus(status);
     if (status !== "error") {
       setQueryStatusType({ status });
     }
-  }, [status]);
+  }
 
   // ── Derive display messages from SDK messages + local metadata ─────────────
   const isLoading =
