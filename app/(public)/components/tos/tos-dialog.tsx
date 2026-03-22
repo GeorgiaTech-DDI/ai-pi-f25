@@ -73,7 +73,7 @@ export default function TermsOfServiceDialog({
   return (
     <Dialog open={open} closable={false} onCloseAttempt={handleCloseAttempt}>
       <DialogContent
-        className="sm:max-w-[550px] flex flex-col max-h-[90vh]"
+        className="flex max-h-[90vh] flex-col sm:max-w-[550px]"
         showCloseButton={false}
       >
         <DialogHeader>
@@ -87,10 +87,10 @@ export default function TermsOfServiceDialog({
           <div
             ref={tosContentRef}
             onScroll={checkScroll}
-            className="h-[400px] overflow-y-auto pr-4 text-sm leading-relaxed text-muted-foreground space-y-4"
+            className="text-muted-foreground h-[400px] space-y-4 overflow-y-auto pr-4 text-sm leading-relaxed"
           >
             <section>
-              <h3 className="text-lg font-semibold text-foreground mb-2">
+              <h3 className="text-foreground mb-2 text-lg font-semibold">
                 Understanding AI Limitations
               </h3>
               <p>
@@ -102,7 +102,7 @@ export default function TermsOfServiceDialog({
             </section>
 
             <section>
-              <h3 className="text-lg font-semibold text-foreground mb-2">
+              <h3 className="text-foreground mb-2 text-lg font-semibold">
                 Data Collection & Privacy
               </h3>
               <p>
@@ -111,7 +111,7 @@ export default function TermsOfServiceDialog({
                 responses. Personal information should not be shared in your
                 queries.
               </p>
-              <ul className="list-disc pl-5 mt-2 space-y-1">
+              <ul className="mt-2 list-disc space-y-1 pl-5">
                 <li>Conversations are stored for training purposes.</li>
                 <li>
                   Your feedback may be collected to enhance service quality.
@@ -120,7 +120,7 @@ export default function TermsOfServiceDialog({
             </section>
 
             <section>
-              <h3 className="text-lg font-semibold text-foreground mb-2">
+              <h3 className="text-foreground mb-2 text-lg font-semibold">
                 Appropriate Use
               </h3>
               <p>
@@ -131,7 +131,7 @@ export default function TermsOfServiceDialog({
             </section>
 
             <section className="pb-4">
-              <h3 className="text-lg font-semibold text-foreground mb-2">
+              <h3 className="text-foreground mb-2 text-lg font-semibold">
                 Age Requirement
               </h3>
               <p>
@@ -144,8 +144,8 @@ export default function TermsOfServiceDialog({
 
           {/* Bottom Scroll Indicator Overlay */}
           {!canAcceptTos && (
-            <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-background to-transparent pointer-events-none flex flex-col items-center justify-end pb-2 animate-in fade-in duration-500">
-              <div className="flex flex-col items-center gap-1 text-xs font-medium text-muted-foreground">
+            <div className="from-background animate-in fade-in pointer-events-none absolute right-0 bottom-0 left-0 flex h-20 flex-col items-center justify-end bg-gradient-to-t to-transparent pb-2 duration-500">
+              <div className="text-muted-foreground flex flex-col items-center gap-1 text-xs font-medium">
                 <span>Scroll to continue</span>
                 <ChevronDown className="h-4 w-4 animate-bounce" />
               </div>
@@ -153,7 +153,7 @@ export default function TermsOfServiceDialog({
           )}
         </div>
 
-        <DialogFooter className="flex-row justify-end gap-3 pt-4 border-t">
+        <DialogFooter className="flex-row justify-end gap-3 border-t pt-4">
           <Button
             onClick={onAccept}
             disabled={!canAcceptTos}
@@ -161,8 +161,8 @@ export default function TermsOfServiceDialog({
               "min-w-[120px] transition-all duration-150 ease-in-out",
               // Pure Tailwind Scale Transition
               isPulsing
-                ? "scale-110 shadow-md ring-2 ring-primary/50"
-                : "scale-100",
+                ? "ring-primary/50 scale-110 shadow-md ring-2"
+                : "scale-100"
             )}
           >
             Accept Terms

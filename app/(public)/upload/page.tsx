@@ -40,7 +40,7 @@ export default function UploadPage() {
   const handleFormChange = (
     event: ChangeEvent<
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >,
+    >
   ) => {
     const { name, value } = event.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -53,7 +53,7 @@ export default function UploadPage() {
       "wouldRecommend",
     ];
     return requiredFields.every(
-      (field) => formData[field as keyof FormData].trim() !== "",
+      (field) => formData[field as keyof FormData].trim() !== ""
     );
   };
 
@@ -99,7 +99,7 @@ export default function UploadPage() {
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(
-          errorData.error || `Upload failed with status: ${response.status}`,
+          errorData.error || `Upload failed with status: ${response.status}`
         );
       }
 

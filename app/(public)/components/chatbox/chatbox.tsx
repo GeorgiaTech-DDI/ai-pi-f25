@@ -46,21 +46,21 @@ export default function Chatbox({
     <form
       onSubmit={handleSubmit(onInternalSubmit)}
       className={cn(
-        "w-[44vw] dark:bg-secondary rounded-xl p-4 flex flex-col items-end gap-y-4",
-        className,
+        "dark:bg-secondary flex w-[44vw] flex-col items-end gap-y-4 rounded-xl p-4",
+        className
       )}
     >
       <Controller
         name="message"
         control={control}
         render={({ field }) => (
-          <Field className={cn("flex-1 w-full")}>
+          <Field className={cn("w-full flex-1")}>
             <Textarea
               {...field}
               id={field.name}
               placeholder="Ask AI PI"
               className={cn(
-                "min-h-[40px] resize-none border-none shadow-none focus-visible:ring-0 dark:bg-transparent !text-base",
+                "min-h-[40px] resize-none border-none !text-base shadow-none focus-visible:ring-0 dark:bg-transparent"
               )}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
@@ -93,7 +93,7 @@ export default function Chatbox({
           disabled={!hasInput}
           tooltip={hasInput ? "Send message" : "Type a message"}
         >
-          <ArrowUp className="h-4 w-4 pointer-events-none" />
+          <ArrowUp className="pointer-events-none h-4 w-4" />
         </Button>
       )}
     </form>

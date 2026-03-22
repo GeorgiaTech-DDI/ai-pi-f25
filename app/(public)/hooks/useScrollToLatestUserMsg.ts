@@ -8,11 +8,11 @@ export function useScrollToLatestUserMsg(messages: { role: string }[]) {
 
   const snapToMessage = useCallback(() => {
     const container = document.querySelector<HTMLElement>(
-      "[data-autoscroll-container]",
+      "[data-autoscroll-container]"
     );
     const header = document.querySelector<HTMLElement>("[data-header]");
     const chatbox = document.querySelector<HTMLElement>(
-      "[data-chatbox-container]",
+      "[data-chatbox-container]"
     );
     const spacer = spacerRef.current;
     if (!container || !spacer) return;

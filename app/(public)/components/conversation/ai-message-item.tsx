@@ -20,17 +20,17 @@ export function AIMessageItem({
 }) {
   const { respond, response, triggerRef } = useThumbSurvey({
     surveyId: LLM_RESPONSE_SURVEY_ID,
-    ...(traceId ? { properties: { $trace_id: traceId } } : {})
+    ...(traceId ? { properties: { $trace_id: traceId } } : {}),
   });
   return (
-    <div className={cn("flex flex-col gap-y-2 group", className)}>
+    <div className={cn("group flex flex-col gap-y-2", className)}>
       <p>{message}</p>
 
       <div className="flex gap-x-2">
         <div
           className={cn(
             "flex gap-x-1 transition-opacity",
-            response ? "opacity-100" : "opacity-0 group-hover:opacity-100",
+            response ? "opacity-100" : "opacity-0 group-hover:opacity-100"
           )}
         >
           <Button
@@ -38,9 +38,9 @@ export function AIMessageItem({
             variant="ghost"
             size="icon"
             className={cn(
-              "h-8 w-8 text-muted-foreground hover:text-foreground",
+              "text-muted-foreground hover:text-foreground h-8 w-8",
               response === "up" &&
-                "bg-secondary text-green-500 hover:text-green-500",
+                "bg-secondary text-green-500 hover:text-green-500"
             )}
           >
             <ThumbsUp
@@ -53,9 +53,9 @@ export function AIMessageItem({
             variant="ghost"
             size="icon"
             className={cn(
-              "h-8 w-8 text-muted-foreground hover:text-foreground",
+              "text-muted-foreground hover:text-foreground h-8 w-8",
               response === "down" &&
-                "bg-secondary text-red-500 hover:text-red-500",
+                "bg-secondary text-red-500 hover:text-red-500"
             )}
             ref={triggerRef}
           >
@@ -70,7 +70,7 @@ export function AIMessageItem({
             onClick={onViewReferencesPressed}
             variant="ghost"
             size="icon"
-            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+            className="text-muted-foreground hover:text-foreground h-8 w-8"
           >
             <FileSearchCorner className="h-4 w-4" />
           </Button>

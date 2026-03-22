@@ -8,7 +8,7 @@ export async function POST(req: NextRequest) {
   if (!filename) {
     return NextResponse.json(
       { error: "Filename is required" },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
   if (!body) {
     return NextResponse.json(
       { error: "Request body is empty" },
-      { status: 400 },
+      { status: 400 }
     );
   }
 

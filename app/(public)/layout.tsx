@@ -10,20 +10,20 @@ export default function PublicLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="h-full flex flex-col">
+    <div className="flex h-full flex-col">
       <header
-        className="w-full flex justify-between p-4 items-center sticky top-0 z-10 bg-background"
+        className="bg-background sticky top-0 z-10 flex w-full items-center justify-between p-4"
         data-header
       >
         <div className="flex items-center justify-center gap-2">
-          <img src="/images/logo.svg" alt="AI PI Logo" className="w-auto h-8" />
+          <img src="/images/logo.svg" alt="AI PI Logo" className="h-8 w-auto" />
           <h2 className="text-lg font-bold">AI PI</h2>
         </div>
-        <HeaderButtons className="flex gap-x-1 items-center" />
+        <HeaderButtons className="flex items-center gap-x-1" />
       </header>
       <main
         data-autoscroll-container
-        className="overflow-y-auto overflow-x-hidden [scrollbar-gutter:stable] pt-6 flex-1"
+        className="flex-1 overflow-x-hidden overflow-y-auto pt-6 [scrollbar-gutter:stable]"
       >
         {children}
       </main>

@@ -20,7 +20,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={cn(inter.variable, "h-full root")}
+      className={cn(inter.variable, "root h-full")}
       suppressHydrationWarning
     >
       <body className="h-full">

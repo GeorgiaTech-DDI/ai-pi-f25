@@ -47,7 +47,7 @@ export async function embedDocs(docs: string[]): Promise<number[][]> {
   if (process.env.DEEPINFRA_API_KEY) {
     const client = new Embeddings(
       "intfloat/multilingual-e5-large",
-      process.env.DEEPINFRA_API_KEY,
+      process.env.DEEPINFRA_API_KEY
     );
     const output = await client.generate({ inputs: docs });
     return output.embeddings;

@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
       // 1. Process conversation history
       const { conversationHistory, metrics } = processHistory(
         history,
-        question,
+        question
       );
 
       // 2. Classify query
@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
           conversationHistory,
           writer,
           posthogDistinctId,
-          traceId,
+          traceId
         );
         llmStream = result.stream;
         contexts = result.contexts;
@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
           question,
           conversationHistory,
           posthogDistinctId,
-          traceId,
+          traceId
         );
       }
 

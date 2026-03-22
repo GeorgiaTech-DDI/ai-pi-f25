@@ -32,7 +32,7 @@ function summarizeOldContext(messages: ConversationMessage[]): string {
 
 export function pruneConversationHistory(
   messages: ConversationMessage[],
-  currentQuestion: string,
+  currentQuestion: string
 ): PrunedHistory {
   void currentQuestion; // reserved for future relevance scoring
   if (messages.length === 0) return { recentMessages: [], totalChars: 0 };
@@ -40,7 +40,7 @@ export function pruneConversationHistory(
   const recentMessages = messages.slice(-HISTORY_CONFIG.MAX_RECENT_MESSAGES);
   let totalChars = recentMessages.reduce(
     (sum, msg) => sum + msg.content.length,
-    0,
+    0
   );
 
   if (
@@ -55,7 +55,7 @@ export function pruneConversationHistory(
 
   if (messages.length > HISTORY_CONFIG.SUMMARY_THRESHOLD) {
     summaryContext = summarizeOldContext(
-      messages.slice(0, -HISTORY_CONFIG.MAX_RECENT_MESSAGES),
+      messages.slice(0, -HISTORY_CONFIG.MAX_RECENT_MESSAGES)
     );
   }
 
@@ -76,11 +76,11 @@ export function pruneConversationHistory(
 
 export function calculateConversationMetrics(
   originalMessages: ConversationMessage[],
-  prunedHistory: PrunedHistory,
+  prunedHistory: PrunedHistory
 ): ConversationMetrics {
   const originalChars = originalMessages.reduce(
     (sum, msg) => sum + msg.content.length,
-    0,
+    0
   );
   const compressionRatio =
     originalChars > 0 ? prunedHistory.totalChars / originalChars : 1;
@@ -109,8 +109,8 @@ export function formatHistoryForModel(prunedHistory: PrunedHistory): string {
       .filter(
         (msg) =>
           !["context for current question:", "invention studio context:"].some(
-            (s) => msg.content.toLowerCase().includes(s),
-          ),
+            (s) => msg.content.toLowerCase().includes(s)
+          )
       )
       .map((msg) => {
         const content = msg.content
@@ -129,7 +129,7 @@ export function formatHistoryForModel(prunedHistory: PrunedHistory): string {
 
 export function extractEmbeddingContext(
   conversationHistory: string,
-  currentQuestion: string,
+  currentQuestion: string
 ): string {
   if (!conversationHistory) return currentQuestion;
 
@@ -172,7 +172,7 @@ export function extractEmbeddingContext(
 
 export function processHistory(
   history: { role: string; content: string }[],
-  question: string,
+  question: string
 ): { conversationHistory: string; metrics: ConversationMetrics } {
   const emptyMetrics: ConversationMetrics = {
     originalMessageCount: 0,

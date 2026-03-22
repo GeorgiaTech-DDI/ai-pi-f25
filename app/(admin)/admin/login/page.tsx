@@ -35,7 +35,7 @@ export default function AdminLogin() {
   return (
     <div className={styles.container}>
       <div className={styles.loginCard}>
-        <div className="flex flex-col items-center text-center pb-4">
+        <div className="flex flex-col items-center pb-4 text-center">
           <Image
             src="/images/logo.svg"
             alt="AI PI Logo"

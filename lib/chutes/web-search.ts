@@ -12,7 +12,7 @@ export interface DuckDuckGoResult {
 
 export async function extractKeywordForDuckDuckGo(
   question: string,
-  posthogDistinctId = "anonymous",
+  posthogDistinctId = "anonymous"
 ): Promise<string> {
   try {
     const openrouter = getOpenRouter();
@@ -27,7 +27,7 @@ export async function extractKeywordForDuckDuckGo(
         maxTokens: 20,
         temperature: 0.1,
       },
-      { posthogDistinctId },
+      { posthogDistinctId }
     );
     const keywords = response.text?.trim() || "";
     if (keywords.length < 2) return "";
@@ -43,7 +43,7 @@ export async function extractKeywordForDuckDuckGo(
 // ──────────────────────────────────────────────
 
 export async function fetchDuckDuckGoContext(
-  keyword: string,
+  keyword: string
 ): Promise<DuckDuckGoResult | null> {
   if (!keyword) return null;
   try {
@@ -74,7 +74,7 @@ export async function fetchDuckDuckGoContext(
       source = "DuckDuckGo Answer";
     } else if (data.RelatedTopics?.length) {
       const direct = data.RelatedTopics.filter(
-        (t: any) => t.Text && !t.Name && t.Text.length > 20,
+        (t: any) => t.Text && !t.Name && t.Text.length > 20
       );
       if (direct.length) {
         contextText = direct[0].Text;

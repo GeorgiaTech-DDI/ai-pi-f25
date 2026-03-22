@@ -24,7 +24,7 @@ export default function Conversation({
   const isWebSearchLoading = userQueryStatus.status === "web_search_loading";
 
   return (
-    <div className="flex-1 flex flex-col px-4 max-w-3xl mx-auto w-full pt-1">
+    <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-4 pt-1">
       {messages.map((message, index) => (
         <div
           key={index}
@@ -45,13 +45,13 @@ export default function Conversation({
       ))}
       {isLoading && <LoadingDots />}
       {isWebSearchLoading && (
-        <p className="text-sm text-muted-foreground italic">
+        <p className="text-muted-foreground text-sm italic">
           {info ?? "Searching the web..."}
         </p>
       )}
       <div
         ref={spacerRef}
-        className="w-full pointer-events-none"
+        className="pointer-events-none w-full"
         aria-hidden="true"
       />
     </div>

@@ -8,7 +8,7 @@ export const maxDuration = 60;
 
 // Dynamic import for pdf-parse (CommonJS module)
 async function parsePDF(
-  buffer: Buffer,
+  buffer: Buffer
 ): Promise<{ text: string; numpages: number; info: any }> {
   // @ts-ignore - pdf-parse types are not compatible with ES modules
   const pdfParse = (await import("pdf-parse")).default;
@@ -27,7 +27,7 @@ function getPineconeIndex() {
       apiKey: process.env.PINECONE_API_KEY || "",
     });
     indexInstance = pineconeInstance.index(
-      process.env.PINECONE_INDEX_NAME || "rag-embeddings",
+      process.env.PINECONE_INDEX_NAME || "rag-embeddings"
     );
   }
   return indexInstance;
@@ -37,7 +37,7 @@ async function generateEmbeddings(texts: string[]): Promise<number[][]> {
   if (process.env.DEEPINFRA_API_KEY) {
     const client = new Embeddings(
       "intfloat/multilingual-e5-large",
-      process.env.DEEPINFRA_API_KEY,
+      process.env.DEEPINFRA_API_KEY
     );
     const output: any = await client.generate({
       inputs: texts.map((t) => `passage: ${t}`),
@@ -87,7 +87,7 @@ interface PineconeFile {
 function splitTextIntoChunks(
   text: string,
   maxChunkSize: number,
-  overlap: number,
+  overlap: number
 ): Array<{ text: string; start: number; end: number }> {
   const chunks: Array<{ text: string; start: number; end: number }> = [];
   let start = 0;
@@ -124,7 +124,7 @@ export async function GET(req: NextRequest) {
   if (errorMessage) {
     return NextResponse.json(
       { error: errorMessage },
-      { status: errorMessage.type === "auth" ? 401 : 500 },
+      { status: errorMessage.type === "auth" ? 401 : 500 }
     );
   }
 
@@ -159,7 +159,7 @@ export async function POST(req: NextRequest) {
     if (!process.env.PINECONE_API_KEY)
       return NextResponse.json(
         { error: "Server configuration error: PINECONE_API_KEY is missing." },
-        { status: 500 },
+        { status: 500 }
       );
     if (!process.env.DEEPINFRA_API_KEY && !process.env.HF_API_KEY)
       return NextResponse.json(
@@ -167,21 +167,21 @@ export async function POST(req: NextRequest) {
           error:
             "Server configuration error: No embedding provider configured.",
         },
-        { status: 500 },
+        { status: 500 }
       );
 
     const session = await auth.api.getSession({ headers: req.headers });
     if (!session)
       return NextResponse.json(
         { error: "Unauthorized - Please log in with a @gatech.edu account" },
-        { status: 401 },
+        { status: 401 }
       );
 
     const { filename, content, description } = await req.json();
     if (!filename || !content)
       return NextResponse.json(
         { error: "Filename and content are required" },
-        { status: 400 },
+        { status: 400 }
       );
 
     if (content.length > MAX_FILE_SIZE) {
@@ -194,7 +194,7 @@ export async function POST(req: NextRequest) {
             ? `PDF file too large: ${sizeMB}MB encoded exceeds the ${maxSizeMB}MB limit.`
             : `File too large: ${sizeMB}MB exceeds the ${maxSizeMB}MB limit.`,
         },
-        { status: 413 },
+        { status: 413 }
       );
     }
 
@@ -206,7 +206,7 @@ export async function POST(req: NextRequest) {
         {
           error: `File type not allowed. Accepted types: ${ALLOWED_EXTENSIONS.join(", ")}`,
         },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -222,12 +222,12 @@ export async function POST(req: NextRequest) {
         if (!textContent?.trim())
           return NextResponse.json(
             { error: "PDF file contains no extractable text." },
-            { status: 400 },
+            { status: 400 }
           );
       } catch {
         return NextResponse.json(
           { error: "Failed to parse PDF file." },
-          { status: 400 },
+          { status: 400 }
         );
       }
     } else {
@@ -246,7 +246,7 @@ export async function POST(req: NextRequest) {
     if (existingFiles.matches.length > 0)
       return NextResponse.json(
         { error: `File "${filename}" already exists.` },
-        { status: 409 },
+        { status: 409 }
       );
 
     const chunks = splitTextIntoChunks(textContent, 1000, 200);
@@ -288,7 +288,7 @@ export async function POST(req: NextRequest) {
     console.error("Error uploading file:", error);
     return NextResponse.json(
       { error: "Failed to upload file" },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }
@@ -304,7 +304,7 @@ export async function DELETE(req: NextRequest) {
     if (!filename)
       return NextResponse.json(
         { error: "Filename is required" },
-        { status: 400 },
+        { status: 400 }
       );
 
     const index = getPineconeIndex();
@@ -330,7 +330,7 @@ export async function DELETE(req: NextRequest) {
     console.error("Error deleting file:", error);
     return NextResponse.json(
       { error: "Failed to delete file" },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }
