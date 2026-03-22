@@ -17,11 +17,11 @@ There are two user-facing surfaces:
 | Framework | Next.js 16 (App Router, `"type": "module"`) |
 | Language | TypeScript 5.9 (strict) |
 | Styling | Tailwind CSS v4 + `tw-animate-css` |
-| Component library | shadcn/ui (`base-nova` style) built on Base UI React |
+| Component library | shadcn/ui (`base-nova` style, stone base color) built on Base UI React |
 | Icons | `lucide-react` |
-| Forms | `react-hook-form` + `zod` |
+| Forms | `react-hook-form` + `zod` v4 |
 | Auth | `better-auth` (Microsoft Azure AD OAuth, JWT plugin) |
-| LLM routing | OpenRouter via `@openrouter/ai-sdk-provider` + Vercel AI SDK |
+| LLM routing | OpenRouter via `@openrouter/ai-sdk-provider` + Vercel AI SDK v6 |
 | Embeddings | DeepInfra (`intfloat/multilingual-e5-large`) with Ollama and HuggingFace fallbacks |
 | Vector DB | Pinecone (`@pinecone-database/pinecone`) |
 | Analytics | PostHog (client + server, with AI tracing via `@posthog/ai`) |
@@ -83,7 +83,9 @@ CI runs `format:check`, `lint`, and `typecheck` in parallel on every push/PR to 
 ├── styles/                  # Global CSS
 ├── docs/                    # All project documentation (UPPERCASE .md files)
 ├── scripts/                 # Infrastructure helper scripts (cloudflared, Vercel tunnel)
-└── public/                  # Static assets
+├── public/                  # Static assets
+├── instrumentation-client.ts  # PostHog client-side init (Next.js 15.3+ pattern — do NOT add separate posthog init elsewhere)
+└── proxy.ts                 # Local dev cloudflared tunneling helper
 ```
 
 ---
@@ -174,7 +176,12 @@ Optional: `OLLAMA_URL` (for local embeddings), `HF_API_KEY` + `HF_API_URL` (Hugg
 
 - **`pdf-parse` is CommonJS**: always import with `const pdfParse = (await import("pdf-parse")).default` and suppress type errors with `// @ts-ignore`
 - **Pinecone upsert API**: use `index.upsert({ records: [...] })` shape (not the older array form) for query logs; use `index.upsert([...])` for document chunks
-- **AI SDK message format**: the API receives `parts`-based messages (Vercel AI SDK v4 format); extract text with `.parts.filter(p => p.type === "text").map(p => p.text).join("")`
+- **AI SDK message format**: the API receives `parts`-based messages (Vercel AI SDK v6 format); extract text with `.parts.filter(p => p.type === "text").map(p => p.text).join("")`
 - **Session timeout**: implemented via `react-idle-timer`; session state is tracked in `useSessionTimeout` hook and resets ToS acceptance on expiry
 - **PostHog reverse proxy**: `/ingest/*` routes in `next.config.js` proxy to PostHog; do not break these rewrites
+- **PostHog client init**: PostHog is initialized in `instrumentation-client.ts` (Next.js 15.3+ pattern). Never add a separate `posthog.init()` call elsewhere on the client.
 - The `proxy.ts` file at root is for local development tunneling with cloudflared (see `scripts/`)
+- **Embedding prefix convention**: documents use `passage: <text>` prefix; queries use `query: <text>` prefix (required by `intfloat/multilingual-e5-large`)
+- **`data-web_search_complete`** carries `{ found, keyword, source, error }` and is always emitted from the RAG path (even on DDG failure). Only `data-web_search_loading` is transient before the search.
+- **shadcn/ui components**: add new components via `pnpm dlx shadcn@latest add <component>` — do not hand-write shadcn primitives from scratch
+- **Loader components**: `components/loaders/spinner.tsx` and `loading-dots.tsx` are available for async/streaming states
