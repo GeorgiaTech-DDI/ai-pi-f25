@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { createUIMessageStream, createUIMessageStreamResponse } from "ai";
+import crypto from "crypto";
 import { processHistory } from "../../../lib/chutes/history";
 import {
   classifyQuery,
@@ -40,6 +41,7 @@ export async function POST(req: NextRequest) {
 
   const posthogDistinctId =
     req.headers.get("x-posthog-distinct-id") ?? "anonymous";
+  const traceId = crypto.randomUUID();
 
   const stream = createUIMessageStream({
     execute: async ({ writer }) => {
@@ -67,6 +69,7 @@ export async function POST(req: NextRequest) {
           conversationHistory,
           writer,
           posthogDistinctId,
+          traceId,
         );
         llmStream = result.stream;
         contexts = result.contexts;
@@ -82,13 +85,14 @@ export async function POST(req: NextRequest) {
           question,
           conversationHistory,
           posthogDistinctId,
+          traceId,
         );
       }
 
       // 4. Emit metadata before tokens arrive
       writer.write({
         type: "data-contexts",
-        data: { contexts, usedRAG: classification.needsRAG },
+        data: { contexts, usedRAG: classification.needsRAG, traceId },
         transient: true,
       });
       writer.write({
