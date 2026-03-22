@@ -16,7 +16,8 @@ export interface SessionTimeoutContextType {
   unregisterListener: (fn: () => void) => void;
 }
 
-export const SessionTimeoutContext = createContext<SessionTimeoutContextType | null>(null);
+export const SessionTimeoutContext =
+  createContext<SessionTimeoutContextType | null>(null);
 
 export function SessionTimeoutProvider({ children }: { children: ReactNode }) {
   const [isSessionExpired, setIsSessionExpired] = useState(false);
@@ -38,18 +39,18 @@ export function SessionTimeoutProvider({ children }: { children: ReactNode }) {
       });
     },
     onAction: () => {
-      if (toastIdRef.current) {
+      if (toastIdRef.current != null) {
         toast.dismiss(toastIdRef.current);
         toastIdRef.current = null;
       }
     },
     onIdle: () => {
-      if (toastIdRef.current) {
+      if (toastIdRef.current != null) {
         toast.dismiss(toastIdRef.current);
         toastIdRef.current = null;
       }
       setIsSessionExpired(true);
-      
+
       // Execute all registered listeners
       listenersRef.current.forEach((fn) => fn());
     },
