@@ -141,6 +141,7 @@ export default function Home() {
           setMessages([]);
           setMessageMetadata({});
           setQueryStatusType({ status: "ready" });
+          setIsTOSAccepted(false);
         }
       },
     });

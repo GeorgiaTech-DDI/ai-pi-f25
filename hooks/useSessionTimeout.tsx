@@ -1,49 +1,41 @@
-import { useState, useRef } from "react";
-import { useIdleTimer } from "react-idle-timer";
-import { toast } from "sonner";
-import { AlarmClock } from "lucide-react";
-
-export const IDLE_TIMEOUT = 1000 * 60 * 15; // 15 minutes
-export const IDLE_PROMPT = 1000 * 60 * 1; // 1 minute before timeout
+import { useContext, useEffect, useRef } from "react";
+import { SessionTimeoutContext } from "@/app/providers/session-timeout-provider";
 
 interface UseSessionTimeoutProps {
-  onSessionExpire: () => void;
+  onSessionExpire?: () => void;
 }
 
-export function useSessionTimeout({ onSessionExpire }: UseSessionTimeoutProps) {
-  const [isSessionExpired, setIsSessionExpired] = useState(false);
-  const toastIdRef = useRef<string | number | null>(null);
+export function useSessionTimeout({
+  onSessionExpire,
+}: UseSessionTimeoutProps = {}) {
+  const context = useContext(SessionTimeoutContext);
 
-  const idleTimer = useIdleTimer({
-    timeout: IDLE_TIMEOUT,
-    promptBeforeIdle: IDLE_PROMPT,
-    onPrompt: () => {
-      toastIdRef.current = toast("Are you still there?", {
-        description: "Your session will expire soon due to inactivity.",
-        action: {
-          label: "Stay Active",
-          onClick: () => idleTimer.reset(),
-        },
-        icon: <AlarmClock className="size-4 text-primary" />,
-        duration: IDLE_PROMPT, // Show until idle occurs
-      });
-    },
-    onAction: () => {
-      if (toastIdRef.current) {
-        toast.dismiss(toastIdRef.current);
-        toastIdRef.current = null;
-      }
-    },
-    onIdle: () => {
-      if (toastIdRef.current) {
-        toast.dismiss(toastIdRef.current);
-        toastIdRef.current = null;
-      }
-      setIsSessionExpired(true);
-      onSessionExpire(); // Execute the callback here
-    },
-    debounce: 500,
-  });
+  if (!context) {
+    throw new Error(
+      "useSessionTimeout must be used within a SessionTimeoutProvider",
+    );
+  }
 
-  return { isSessionExpired, setIsSessionExpired, idleTimer };
+  const callbackRef = useRef(onSessionExpire);
+
+  useEffect(() => {
+    callbackRef.current = onSessionExpire;
+  }, [onSessionExpire]);
+
+  useEffect(() => {
+    const handler = () => {
+      if (callbackRef.current) {
+        callbackRef.current();
+      }
+    };
+
+    context.registerListener(handler);
+    return () => context.unregisterListener(handler);
+  }, [context]);
+
+  return {
+    isSessionExpired: context.isSessionExpired,
+    setIsSessionExpired: context.setIsSessionExpired,
+    idleTimer: { reset: context.resetTimer },
+  };
 }
