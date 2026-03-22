@@ -141,10 +141,11 @@ export default function Home() {
           setMessages([]);
           setMessageMetadata({});
           setQueryStatusType({ status: "ready" });
-          setIsTOSAccepted(false);
-          posthog.capture("chat_logged_out_due_to_timeout");
-          posthog.reset();
         }
+
+        setIsTOSAccepted(false);
+        posthog.capture("chat_logged_out_due_to_timeout");
+        posthog.reset();
       },
     });
 
