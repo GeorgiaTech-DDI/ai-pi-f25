@@ -41,16 +41,17 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@tanstack/eslint-plugin-query": "^5.91.5",
+    "@eslint/eslintrc": "^3.3.5",
+    "@eslint/js": "^10.0.1",
     "@types/file-saver": "^2.0.7",
     "@types/node": "^25.3.3",
     "@types/react": "19.2.14",
     "architecture": "^0.0.0",
-    "eslint": "^10.1.0",
-    "eslint-config-next": "^16.1.6",
+    "eslint": "^9.21.0",
+    "eslint-config-next": "^16.2.1",
+    "eslint-config-prettier": "^10.1.8",
     "prettier-plugin-tailwindcss": "^0.7.2",
-    "typescript": "5.9.3",
-    "typescript-plugin-css-modules": "^5.2.0"
+    "typescript": "5.9.3"
   },
   "scripts": {
     "dev": "next dev",
