@@ -1,4 +1,5 @@
 import HeaderButtons from "./components/header-buttons/header-buttons";
+import Image from "next/image";
 
 /**
  * Public route group layout — no auth required.
@@ -16,7 +17,13 @@ export default function PublicLayout({
         data-header
       >
         <div className="flex items-center justify-center gap-2">
-          <img src="/images/logo.svg" alt="AI PI Logo" className="h-8 w-auto" />
+          <Image
+            src="/images/logo.svg"
+            alt="AI PI Logo"
+            className="h-8 w-auto"
+            width={32}
+            height={32}
+          />
           <h2 className="text-lg font-bold">AI PI</h2>
         </div>
         <HeaderButtons className="flex items-center gap-x-1" />

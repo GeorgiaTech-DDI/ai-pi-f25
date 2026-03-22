@@ -1,7 +1,8 @@
 "use client";
+
 import posthog from "posthog-js";
 import { PostHogProvider } from "posthog-js/react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useSession } from "@/lib/auth-client";
 import { ThemeProvider } from "@/components/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -11,7 +12,7 @@ import { SessionTimeoutProvider } from "@/app/providers/session-timeout-provider
 export default function Providers({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession();
 
-  const queryClient = new QueryClient();
+  const [queryClient] = useState(() => new QueryClient());
 
   useEffect(() => {
     if (session?.user?.email) {

@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import posthog from "posthog-js";
 import { useState } from "react";
 import { useSessionTimeout } from "@/hooks/useSessionTimeout";
+import Image from "next/image";
 
 interface FileMetadata {
   filename: string;
@@ -331,10 +332,12 @@ export default function AdminDashboard() {
         {/* Header */}
         <header className={styles.header}>
           <div className={styles.headerLeft}>
-            <img
+            <Image
               src="/images/logo.svg"
               alt="AI PI Logo"
               className={styles.logo}
+              width={32}
+              height={32}
             />
             <div className={styles.headerInfo}>
               <h1 className={styles.title}>AI PI Admin Dashboard</h1>
