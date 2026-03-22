@@ -6,6 +6,7 @@ import { useSession } from "@/lib/auth-client";
 import { ThemeProvider } from "@/components/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { SessionTimeoutProvider } from "@/app/providers/session-timeout-provider";
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession();
@@ -29,7 +30,9 @@ export default function Providers({ children }: { children: React.ReactNode }) {
           enableSystem
           disableTransitionOnChange
         >
-          <TooltipProvider>{children}</TooltipProvider>
+          <SessionTimeoutProvider>
+            <TooltipProvider>{children}</TooltipProvider>
+          </SessionTimeoutProvider>
         </ThemeProvider>
       </QueryClientProvider>
     </PostHogProvider>

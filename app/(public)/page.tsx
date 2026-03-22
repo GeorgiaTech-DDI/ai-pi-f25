@@ -4,9 +4,6 @@ import { useEffect, useState } from "react";
 import { useChat } from "@ai-sdk/react";
 import { ChatStatus, DefaultChatTransport } from "ai";
 import posthog from "posthog-js";
-// import ChatContainer from "../../components/Chat/ChatContainer";
-// import TermsOfServiceDialog from "../../components/Dialogs/TermsOfServiceDialog";
-// import { saveChatAsText } from "../../utils/chatUtils";
 import Chatbox from "./components/chatbox/chatbox";
 import { cn } from "@/lib/utils";
 import { Context } from "@/lib/types";
@@ -15,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import TermsOfServiceDialog from "./components/tos/tos-dialog";
 import ReferencesSheet from "./components/references/references-sheet";
+import { useSessionTimeout } from "@/hooks/useSessionTimeout";
 
 const SUGGESTED_ACTIONS = [
   "What's the Invention Studio?",
@@ -50,6 +48,7 @@ export default function Home() {
     status,
     sendMessage,
     stop,
+    setMessages,
   } = useChat({
     transport: new DefaultChatTransport({
       api: "/api/chutes",
@@ -128,14 +127,35 @@ export default function Home() {
     "tos-accepted",
     false,
   );
-  const [isTOSOpen, setIsTOSOpen] = useState<boolean>(!isTOSAccepted);
 
   const [isReferencesSheetOpen, setIsReferencesSheetOpen] = useState(false);
   const [activeReferenceIndex, setActiveReferenceIndex] = useState<
     number | null
   >(null);
 
-  const handleSubmit = (message: string): void => {
+  const { isSessionExpired, setIsSessionExpired, idleTimer } =
+    useSessionTimeout({
+      onSessionExpire: () => {
+        if (hasMessages) {
+          stop();
+          setMessages([]);
+          setMessageMetadata({});
+          setQueryStatusType({ status: "ready" });
+        }
+
+        setIsTOSAccepted(false);
+        posthog.capture("chat_logged_out_due_to_timeout");
+        posthog.reset();
+      },
+    });
+
+  const handleSubmit = (message: string): boolean | void => {
+    if (isSessionExpired && !hasMessages) {
+      setIsSessionExpired(false);
+      setIsTOSAccepted(false);
+      return false;
+    }
+
     setQueryStatusType({ status: "submitted" });
     posthog.capture("chat_message_submitted", {
       message_length: message.length,
@@ -147,12 +167,11 @@ export default function Home() {
   return (
     <>
       <TermsOfServiceDialog
-        open={isTOSOpen}
+        open={!isTOSAccepted}
         onAccept={() => {
           setIsTOSAccepted(true);
-          setIsTOSOpen(false);
+          idleTimer.reset();
         }}
-        setIsOpen={setIsTOSOpen}
       />
 
       {activeReferenceIndex !== null && (

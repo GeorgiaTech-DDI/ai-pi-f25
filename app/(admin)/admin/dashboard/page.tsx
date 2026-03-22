@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import posthog from "posthog-js";
 import { useState } from "react";
+import { useSessionTimeout } from "@/hooks/useSessionTimeout";
 
 interface FileMetadata {
   filename: string;
@@ -89,6 +90,21 @@ export default function AdminDashboard() {
   const [expandedReferences, setExpandedReferences] = useState<number | null>(
     null,
   );
+
+  useSessionTimeout({
+    onSessionExpire: async () => {
+      posthog.capture("admin_logged_out_due_to_timeout", { email: user?.email });
+      posthog.reset();
+      try {
+        await signOut({
+          fetchOptions: { onSuccess: () => router.replace("/") },
+        });
+      } catch (error) {
+        console.error("Timeout logout error:", error);
+        router.replace("/");
+      }
+    },
+  });
 
   const {
     data: files = [],
