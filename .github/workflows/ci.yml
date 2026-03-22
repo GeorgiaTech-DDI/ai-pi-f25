@@ -8,53 +8,49 @@ on:
 
 jobs:
   format:
+    name: Formatting Check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v3
+        with:
+          version: latest
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: "24"
+          node-version: "22"
           cache: "pnpm"
-      - run: npm install -g pnpm
       - run: pnpm install
       - run: pnpm run format:check
 
   lint:
+    name: ESLint Linting
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v3
+        with:
+          version: latest
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: "24"
+          node-version: "22"
           cache: "pnpm"
-      - run: npm install -g pnpm
       - run: pnpm install
       - run: pnpm run lint
 
   typecheck:
+    name: Typescript Type Checking
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v3
+        with:
+          version: latest
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: "24"
+          node-version: "22"
           cache: "pnpm"
-      - run: npm install -g pnpm
       - run: pnpm install
       - run: pnpm run typecheck
-
-  # test:
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - name: Setup Node
-  #       uses: actions/setup-node@v4
-  #       with:
-  #         node-version: "20"
-  #         cache: "pnpm"
-  #     - run: npm install -g pnpm
-  #     - run: pnpm install
-  #     - run: pnpm test
