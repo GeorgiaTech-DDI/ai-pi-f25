@@ -7,50 +7,19 @@ on:
     branches: [main]
 
 jobs:
-  format:
-    name: Formatting Check
+  ci:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        command: [format:check, lint, typecheck]
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v3
         with:
-          version: latest
-      - name: Setup Node
-        uses: actions/setup-node@v4
+          version: 9
+      - uses: actions/setup-node@v4
         with:
           node-version: "22"
           cache: "pnpm"
       - run: pnpm install
-      - run: pnpm run format:check
-
-  lint:
-    name: ESLint Linting
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v3
-        with:
-          version: latest
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: "pnpm"
-      - run: pnpm install
-      - run: pnpm run lint
-
-  typecheck:
-    name: Typescript Type Checking
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v3
-        with:
-          version: latest
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: "pnpm"
-      - run: pnpm install
-      - run: pnpm run typecheck
+      - run: pnpm run ${{ matrix.command }}
