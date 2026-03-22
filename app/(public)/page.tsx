@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import TermsOfServiceDialog from "./components/tos/tos-dialog";
 import ReferencesSheet from "./components/references/references-sheet";
+import { useSessionTimeout } from "@/hooks/useSessionTimeout";
 
 const SUGGESTED_ACTIONS = [
   "What's the Invention Studio?",
@@ -47,6 +48,7 @@ export default function Home() {
     status,
     sendMessage,
     stop,
+    setMessages,
   } = useChat({
     transport: new DefaultChatTransport({
       api: "/api/chutes",
@@ -132,7 +134,25 @@ export default function Home() {
     number | null
   >(null);
 
+  const { isSessionExpired, setIsSessionExpired, idleTimer } = useSessionTimeout({
+    onSessionExpire: () => {
+      if (hasMessages) {
+        stop();
+        setMessages([]);
+        setMessageMetadata({});
+        setQueryStatusType({ status: "ready" });
+      }
+    },
+  });
+
   const handleSubmit = (message: string): void => {
+    if (isSessionExpired && !hasMessages) {
+      setIsSessionExpired(false);
+      setIsTOSAccepted(false);
+      setIsTOSOpen(true);
+      return;
+    }
+
     setQueryStatusType({ status: "submitted" });
     posthog.capture("chat_message_submitted", {
       message_length: message.length,
@@ -148,6 +168,7 @@ export default function Home() {
         onAccept={() => {
           setIsTOSAccepted(true);
           setIsTOSOpen(false);
+          idleTimer.reset();
         }}
         setIsOpen={setIsTOSOpen}
       />
