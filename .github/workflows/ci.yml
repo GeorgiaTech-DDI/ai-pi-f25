@@ -18,7 +18,7 @@ jobs:
           cache: "pnpm"
       - run: npm install -g pnpm
       - run: pnpm install
-      - run: pnpm exec prettier --check .
+      - run: pnpm run format:check
 
   lint:
     runs-on: ubuntu-latest
