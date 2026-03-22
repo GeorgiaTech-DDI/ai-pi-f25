@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import posthog from "posthog-js";
 import { useState } from "react";
 import { useSessionTimeout } from "@/hooks/useSessionTimeout";
+import Image from "next/image";
 
 interface FileMetadata {
   filename: string;
@@ -81,19 +82,21 @@ export default function AdminDashboard() {
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadDescription, setUploadDescription] = useState("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(
-    null,
+    null
   );
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
   // Analytics state
   const [expandedReferences, setExpandedReferences] = useState<number | null>(
-    null,
+    null
   );
 
   useSessionTimeout({
     onSessionExpire: async () => {
-      posthog.capture("admin_logged_out_due_to_timeout", { email: user?.email });
+      posthog.capture("admin_logged_out_due_to_timeout", {
+        email: user?.email,
+      });
       posthog.reset();
       try {
         await signOut({
@@ -177,7 +180,7 @@ export default function AdminDashboard() {
         throw new Error(
           isPDF
             ? `PDF file too large: ${fileSizeMB}MB original → ${encodedSizeMB}MB encoded. Max is ${MAX_FILE_SIZE_MB}MB encoded.`
-            : `File too large: ${fileSizeMB}MB. Max is ${MAX_FILE_SIZE_MB}MB.`,
+            : `File too large: ${fileSizeMB}MB. Max is ${MAX_FILE_SIZE_MB}MB.`
         );
       }
       let content: string;
@@ -222,7 +225,7 @@ export default function AdminDashboard() {
       setUploadFile(null);
       setUploadDescription("");
       const fileInput = document.querySelector(
-        'input[type="file"]',
+        'input[type="file"]'
       ) as HTMLInputElement;
       if (fileInput) fileInput.value = "";
       await refetchFiles();
@@ -240,7 +243,7 @@ export default function AdminDashboard() {
     try {
       const response = await fetch(
         `/api/files?filename=${encodeURIComponent(filename)}`,
-        { method: "DELETE" },
+        { method: "DELETE" }
       );
       if (!response.ok) {
         const responseText = await response.text();
@@ -277,7 +280,7 @@ export default function AdminDashboard() {
     new Date(dateString).toLocaleString();
 
   const aggregatePDFScores = (
-    topDocuments: { filename: string; score: number }[],
+    topDocuments: { filename: string; score: number }[]
   ) => {
     const pdfScores: { [key: string]: { scores: number[]; count: number } } =
       {};
@@ -299,7 +302,7 @@ export default function AdminDashboard() {
   };
 
   const calculateAverageScore = (
-    topDocuments: { filename: string; score: number }[],
+    topDocuments: { filename: string; score: number }[]
   ) => {
     if (!topDocuments || topDocuments.length === 0) return 0;
     return (
@@ -329,10 +332,12 @@ export default function AdminDashboard() {
         {/* Header */}
         <header className={styles.header}>
           <div className={styles.headerLeft}>
-            <img
+            <Image
               src="/images/logo.svg"
               alt="AI PI Logo"
               className={styles.logo}
+              width={32}
+              height={32}
             />
             <div className={styles.headerInfo}>
               <h1 className={styles.title}>AI PI Admin Dashboard</h1>
@@ -1017,7 +1022,7 @@ export default function AdminDashboard() {
                           {log.topDocuments?.length ? (
                             (() => {
                               const aggregated = aggregatePDFScores(
-                                log.topDocuments,
+                                log.topDocuments
                               );
                               const isExpanded = expandedReferences === index;
                               const displayed = isExpanded
@@ -1085,7 +1090,7 @@ export default function AdminDashboard() {
                                     <button
                                       onClick={() =>
                                         setExpandedReferences(
-                                          isExpanded ? null : index,
+                                          isExpanded ? null : index
                                         )
                                       }
                                       style={{

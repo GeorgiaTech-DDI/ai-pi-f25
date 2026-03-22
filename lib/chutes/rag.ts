@@ -24,7 +24,7 @@ import { extractEmbeddingContext } from "./history";
 
 const pinecone = new Pinecone({ apiKey: process.env.PINECONE_API_KEY || "" });
 const index = pinecone.index(
-  process.env.PINECONE_INDEX_NAME || "rag-embeddings",
+  process.env.PINECONE_INDEX_NAME || "rag-embeddings"
 );
 
 type ChatMessage = { role: "system" | "user" | "assistant"; content: string };
@@ -35,7 +35,7 @@ type ChatMessage = { role: "system" | "user" | "assistant"; content: string };
 
 export function constructContext(
   contexts: Array<{ text: string; filename: string }>,
-  maxSectionLen = 5000,
+  maxSectionLen = 5000
 ): string {
   const chosen: string[] = [];
   let len = 0;
@@ -55,7 +55,7 @@ export function constructContext(
 export function createPayload(
   question: string,
   contextStr: string,
-  conversationHistory = "",
+  conversationHistory = ""
 ): { messages: ChatMessage[]; maxTokens: number; temperature: number } {
   const messages: ChatMessage[] = [
     { role: "system", content: SYSTEM_PROMPT_RAG },
@@ -93,7 +93,7 @@ export function createPayload(
 
 export async function classifyQuery(
   question: string,
-  posthogDistinctId = "anonymous",
+  posthogDistinctId = "anonymous"
 ): Promise<{ needsRAG: boolean; reasoning?: string }> {
   try {
     const openrouter = getOpenRouter();
@@ -121,7 +121,7 @@ export async function classifyQuery(
           additionalProperties: false,
         }),
       },
-      { posthogDistinctId },
+      { posthogDistinctId }
     );
     return {
       needsRAG: result.classification === "RAG",
@@ -151,7 +151,7 @@ export async function logQueryToPinecone(
     matchesAbove04: number;
     topDocuments: { filename: string; score: number }[];
     confidenceLevel: "high" | "medium" | "low" | "n/a";
-  },
+  }
 ): Promise<void> {
   try {
     const dv = new Array(EMBEDDING_DIM).fill(0);
@@ -203,7 +203,7 @@ export async function generateGeneralResponse(
   const openrouter = getOpenRouter();
   return openrouter.stream(
     { messages, maxTokens: 500, temperature: 0.75 },
-    { posthogDistinctId, posthogTraceId, provider: { order: ["Chutes"] } },
+    { posthogDistinctId, posthogTraceId, provider: { order: ["Chutes"] } }
   );
 }
 
@@ -248,7 +248,7 @@ export async function ragQuery(
   // 3. Web search (parallel with Pinecone would be ideal, but DDG keyword needs LLM)
   const keyword = await extractKeywordForDuckDuckGo(
     question,
-    posthogDistinctId,
+    posthogDistinctId
   );
   let duckDuckGoContext = null;
   try {
@@ -283,14 +283,14 @@ export async function ragQuery(
     });
     const unique = queryResult.matches.filter(
       (m: any) =>
-        !contexts.some((e: any) => e.id === m.id) && m.score && m.score > 0.3,
+        !contexts.some((e: any) => e.id === m.id) && m.score && m.score > 0.3
     );
     contexts = contexts.concat(unique);
   }
 
   // 5. Score and confidence check
   const relevantContexts = contexts.filter(
-    (m: any) => m.score && m.score >= 0.25 && m.metadata?.text,
+    (m: any) => m.score && m.score >= 0.25 && m.metadata?.text
   );
   const bestScore =
     relevantContexts.length > 0
@@ -317,7 +317,7 @@ export async function ragQuery(
       })),
       confidenceLevel:
         bestScore >= 0.7 ? "high" : bestScore >= 0.5 ? "medium" : "low",
-    },
+    }
   );
 
   // 7. Fall back to general if no confident match
@@ -338,7 +338,7 @@ export async function ragQuery(
     .map((m: any) =>
       m.metadata?.text && m.metadata?.filename
         ? { text: m.metadata.text, filename: m.metadata.filename }
-        : null,
+        : null
     )
     .filter(Boolean) as { text: string; filename: string }[];
 
@@ -358,7 +358,7 @@ export async function ragQuery(
       maxTokens: payload.maxTokens,
       temperature: payload.temperature,
     },
-    { posthogDistinctId, posthogTraceId, provider: { order: ["Chutes"] } },
+    { posthogDistinctId, posthogTraceId, provider: { order: ["Chutes"] } }
   );
 
   // 9. Build enhanced context list (prepend DDG result)

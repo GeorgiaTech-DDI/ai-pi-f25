@@ -44,7 +44,7 @@ export class OpenRouter {
    */
   private getTracedModel(
     modelId?: string,
-    options?: CompletionOptions,
+    options?: CompletionOptions
   ): LanguageModel {
     const targetModel = modelId ?? this.defaultModel;
 
@@ -93,7 +93,7 @@ export class OpenRouter {
   async generateObject<T>(
     params: any,
     output: Parameters<typeof Output.object>[0],
-    options?: CompletionOptions,
+    options?: CompletionOptions
   ) {
     const model = this.getTracedModel(params.model, options);
     const { output: result } = await generateText({

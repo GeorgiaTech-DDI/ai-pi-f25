@@ -9,7 +9,7 @@ export function UserMessageItem({
 }) {
   return (
     <div className={cn("flex justify-end", className)}>
-      <p className="px-4 py-2 rounded-md bg-secondary">{message}</p>
+      <p className="bg-secondary rounded-md px-4 py-2">{message}</p>
     </div>
   );
 }

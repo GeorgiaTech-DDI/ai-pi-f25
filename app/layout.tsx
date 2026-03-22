@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import "../globals.css";
-// import "../styles/theme.css";
 import { inter } from "@/lib/fonts";
 import { cn } from "@/lib/utils";
 import Providers from "./providers";
@@ -20,7 +19,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={cn(inter.variable, "h-full root")}
+      className={cn(inter.variable, "root h-full")}
       suppressHydrationWarning
     >
       <body className="h-full">

@@ -5,7 +5,7 @@ import { auth } from "../../../lib/auth";
 // Initialize Pinecone Client
 const pinecone = new Pinecone({ apiKey: process.env.PINECONE_API_KEY || "" });
 const index = pinecone.index(
-  process.env.PINECONE_INDEX_NAME || "rag-embeddings",
+  process.env.PINECONE_INDEX_NAME || "rag-embeddings"
 );
 
 interface QueryLog {
@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
   if (!session)
     return NextResponse.json(
       { error: "Authentication required" },
-      { status: 401 },
+      { status: 401 }
     );
 
   const userEmail = session.user.email ?? "unknown";
@@ -59,7 +59,7 @@ export async function GET(req: NextRequest) {
     });
 
     console.log(
-      `📊 Retrieved ${queryResult.matches.length} query logs from Pinecone`,
+      `📊 Retrieved ${queryResult.matches.length} query logs from Pinecone`
     );
 
     const logs: QueryLog[] = queryResult.matches
@@ -96,13 +96,13 @@ export async function GET(req: NextRequest) {
       .filter((log): log is QueryLog => log !== null)
       .sort(
         (a, b) =>
-          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
       );
 
     const totalQueries = logs.length;
     const ragSuccessCount = logs.filter((l) => l.decision === "USE_RAG").length;
     const generalFallbackCount = logs.filter(
-      (l) => l.decision === "USE_GENERAL",
+      (l) => l.decision === "USE_GENERAL"
     ).length;
     const ragSuccessRate =
       totalQueries > 0 ? (ragSuccessCount / totalQueries) * 100 : 0;
@@ -132,7 +132,7 @@ export async function GET(req: NextRequest) {
     });
 
     const documentationGaps: DocumentationGap[] = Array.from(
-      questionFrequency.entries(),
+      questionFrequency.entries()
     )
       .map(([question, data]) => ({
         question,
@@ -162,7 +162,7 @@ export async function GET(req: NextRequest) {
     });
 
     const documentPerformance: DocumentPerformance[] = Array.from(
-      documentStats.entries(),
+      documentStats.entries()
     )
       .map(([filename, data]) => {
         const avgScore =
@@ -204,7 +204,7 @@ export async function GET(req: NextRequest) {
         error: "Failed to generate analytics",
         details: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

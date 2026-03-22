@@ -25,7 +25,7 @@ export default function ReferencesSheet({
         </SheetHeader>
         <ScrollArea className="h-full overflow-y-auto">
           {contexts.map((context, index) => (
-            <div key={index} className="p-4 space-y-1">
+            <div key={index} className="space-y-1 p-4">
               <div className="flex flex-row items-center gap-2">
                 {context.metadata.type === "document_chunk" ? (
                   <FileIcon className="h-4 w-4" />
@@ -34,7 +34,7 @@ export default function ReferencesSheet({
                 )}
                 <h3 className="font-medium">{context.metadata.filename}</h3>
               </div>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-muted-foreground text-sm">
                 ...{context.metadata.text}...
               </p>
             </div>

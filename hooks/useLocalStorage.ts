@@ -2,22 +2,9 @@
 
 import { useState, useEffect, useCallback } from "react";
 
-// 1. Fix the "No overload matches this call" error by
-//    telling TypeScript our custom event exists.
-declare global {
-  interface WindowEventMap {
-    "local-storage": CustomEvent;
-  }
-}
-
 export function useLocalStorage<T>(key: string, initialValue: T) {
-  // Utility to safely read from localStorage
   const readValue = useCallback((): T => {
-    // Prevent errors during Server-Side Rendering (Next.js)
-    if (typeof window === "undefined") {
-      return initialValue;
-    }
-
+    if (typeof window === "undefined") return initialValue;
     try {
       const item = window.localStorage.getItem(key);
       return item ? (JSON.parse(item) as T) : initialValue;
@@ -27,46 +14,35 @@ export function useLocalStorage<T>(key: string, initialValue: T) {
     }
   }, [initialValue, key]);
 
-  // Initialize state with the value from storage (or initialValue)
   const [storedValue, setStoredValue] = useState<T>(readValue);
+  const [prevKey, setPrevKey] = useState(key);
 
-  // Persistence logic
+  if (key !== prevKey) {
+    setPrevKey(key);
+    setStoredValue(readValue());
+  }
+
   const setValue = useCallback(
     (value: T | ((val: T) => T)) => {
       try {
-        // Handle functional updates like setValue(prev => prev + 1)
-        const valueToStore =
-          value instanceof Function ? value(storedValue) : value;
-
-        // Update React State
-        setStoredValue(valueToStore);
-
-        // Save to Local Storage
-        if (typeof window !== "undefined") {
-          window.localStorage.setItem(key, JSON.stringify(valueToStore));
-
-          // Notify other instances of this hook in the SAME tab
-          window.dispatchEvent(new CustomEvent("local-storage"));
-        }
+        setStoredValue((prev) => {
+          const valueToStore = value instanceof Function ? value(prev) : value;
+          if (typeof window !== "undefined") {
+            window.localStorage.setItem(key, JSON.stringify(valueToStore));
+            window.dispatchEvent(new CustomEvent("local-storage"));
+          }
+          return valueToStore;
+        });
       } catch (error) {
         console.warn(`Error setting localStorage key “${key}”:`, error);
       }
     },
-    [key, storedValue],
+    [key]
   );
 
-  // Sync state if the key changes
-  useEffect(() => {
-    setStoredValue(readValue());
-  }, [readValue, key]);
-
-  // Listen for changes (cross-tab and same-tab)
   useEffect(() => {
     const handleStorageChange = (e: Event) => {
-      // If it's a native StorageEvent (from another tab), check the key
       if (e instanceof StorageEvent && e.key !== key) return;
-
-      // Update state
       setStoredValue(readValue());
     };
 

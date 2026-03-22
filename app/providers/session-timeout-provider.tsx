@@ -34,7 +34,7 @@ export function SessionTimeoutProvider({ children }: { children: ReactNode }) {
           label: "Stay Active",
           onClick: () => idleTimer.reset(),
         },
-        icon: <AlarmClock className="size-4 text-primary" />,
+        icon: <AlarmClock className="text-primary size-4" />,
         duration: IDLE_PROMPT, // Show until idle occurs
       });
     },

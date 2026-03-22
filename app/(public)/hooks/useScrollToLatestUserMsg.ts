@@ -8,11 +8,11 @@ export function useScrollToLatestUserMsg(messages: { role: string }[]) {
 
   const snapToMessage = useCallback(() => {
     const container = document.querySelector<HTMLElement>(
-      "[data-autoscroll-container]",
+      "[data-autoscroll-container]"
     );
     const header = document.querySelector<HTMLElement>("[data-header]");
     const chatbox = document.querySelector<HTMLElement>(
-      "[data-chatbox-container]",
+      "[data-chatbox-container]"
     );
     const spacer = spacerRef.current;
     if (!container || !spacer) return;
@@ -78,7 +78,7 @@ export function useScrollToLatestUserMsg(messages: { role: string }[]) {
     }, 0);
 
     return () => clearTimeout(id);
-  }, [messages.length, snapToMessage]);
+  }, [messages.length, snapToMessage, messages]);
 
   // Cleanup observer on unmount
   useEffect(() => {

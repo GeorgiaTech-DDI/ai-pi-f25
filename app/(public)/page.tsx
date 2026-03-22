@@ -83,7 +83,7 @@ export default function Home() {
         });
       } else if (type === "data-contexts") {
         const assistantIdx = sdkMessages.filter(
-          (m) => m.role === "user" || m.role === "assistant",
+          (m) => m.role === "user" || m.role === "assistant"
         ).length;
 
         setMessageMetadata((prev) => ({
@@ -99,11 +99,13 @@ export default function Home() {
     },
   });
 
-  useEffect(() => {
+  const [prevStatus, setPrevStatus] = useState(status);
+  if (prevStatus !== status) {
+    setPrevStatus(status);
     if (status !== "error") {
       setQueryStatusType({ status });
     }
-  }, [status]);
+  }
 
   // ── Derive display messages from SDK messages + local metadata ─────────────
   const isLoading =
@@ -124,7 +126,7 @@ export default function Home() {
 
   const [isTOSAccepted, setIsTOSAccepted] = useLocalStorage<boolean>(
     "tos-accepted",
-    false,
+    false
   );
 
   const [isReferencesSheetOpen, setIsReferencesSheetOpen] = useState(false);
@@ -181,11 +183,11 @@ export default function Home() {
         />
       )}
 
-      <div className="w-full min-h-full">
+      <div className="min-h-full w-full">
         <div
           className={cn(
-            "flex size-full mx-auto max-w-3xl flex-col md:px-2",
-            !hasMessages && "pt-[20vh]",
+            "mx-auto flex size-full max-w-3xl flex-col md:px-2",
+            !hasMessages && "pt-[20vh]"
           )}
         >
           <div className="flex-1">
@@ -202,7 +204,7 @@ export default function Home() {
               <div
                 className={cn(
                   "flex items-center justify-center",
-                  hasMessages && "h-screen",
+                  hasMessages && "h-screen"
                 )}
               >
                 <p className="text-3xl">Hey! How can I help?</p>
@@ -211,7 +213,7 @@ export default function Home() {
           </div>
 
           <div
-            className="sticky bottom-0 mx-auto w-full pt-6 relative z-[5] bg-background"
+            className="bg-background relative sticky bottom-0 z-[5] mx-auto w-full pt-6"
             data-chatbox-container
           >
             <Chatbox
@@ -221,12 +223,12 @@ export default function Home() {
               onStopPressed={stop}
             />
             {hasMessages ? (
-              <p className="text-xs text-muted-foreground font-normal text-center py-2">
+              <p className="text-muted-foreground py-2 text-center text-xs font-normal">
                 AI PI can make mistakes. Always verify technical steps and
                 safety protocols with a human PI.
               </p>
             ) : (
-              <div className="flex py-4 gap-x-4 w-full justify-center">
+              <div className="flex w-full justify-center gap-x-4 py-4">
                 {SUGGESTED_ACTIONS.map((action) => (
                   <Button
                     key={action}

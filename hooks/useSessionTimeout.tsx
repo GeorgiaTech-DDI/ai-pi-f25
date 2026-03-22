@@ -12,7 +12,7 @@ export function useSessionTimeout({
 
   if (!context) {
     throw new Error(
-      "useSessionTimeout must be used within a SessionTimeoutProvider",
+      "useSessionTimeout must be used within a SessionTimeoutProvider"
     );
   }
 

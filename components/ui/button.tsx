@@ -45,7 +45,7 @@ const buttonVariants = cva(
       variant: "default",
       size: "default",
     },
-  },
+  }
 );
 
 type ButtonProps = ButtonPrimitive.Props &
@@ -66,7 +66,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       href,
       ...props
     },
-    ref,
+    ref
   ) => {
     const isLink = !!href;
 
@@ -96,7 +96,8 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         <TooltipContent side={tooltipSide}>{tooltip}</TooltipContent>
       </Tooltip>
     );
-  },
+  }
 );
+Button.displayName = "Button";
 
 export { Button, buttonVariants };
