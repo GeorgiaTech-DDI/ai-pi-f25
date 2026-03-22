@@ -39,7 +39,7 @@ export default function Home() {
   const [messageMetadata, setMessageMetadata] = useState<
     Record<
       number,
-      { contexts?: Context[]; usedRAG?: boolean; feedback?: string; traceId?: string }
+      { contexts?: Context[]; usedRAG?: boolean; traceId?: string }
     >
   >({});
 
@@ -118,7 +118,6 @@ export default function Home() {
         .join(""),
       contexts: messageMetadata[i]?.contexts,
       usedRAG: messageMetadata[i]?.usedRAG,
-      feedback: messageMetadata[i]?.feedback,
       traceId: messageMetadata[i]?.traceId,
     }));
   const hasMessages = messages.length > 0;
