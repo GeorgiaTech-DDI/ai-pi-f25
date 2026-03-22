@@ -6,6 +6,7 @@ export interface Message {
   isNotification?: boolean;
   isStreaming?: boolean;
   usedRAG?: boolean; // Whether RAG was used for this response
+  traceId?: string;
 }
 
 export interface Context {

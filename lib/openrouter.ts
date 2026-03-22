@@ -6,6 +6,8 @@ import { getPostHogClient } from "./posthog-server";
 export type CompletionOptions = {
   /** PostHog distinct ID for LLM analytics (defaults to "anonymous") */
   posthogDistinctId?: string;
+  /** Custom PostHog trace ID for grouping */
+  posthogTraceId?: string;
   /** OpenRouter specific: e.g. { order: ["Chutes"] } */
   provider?: { order: string[] };
 };
@@ -57,6 +59,7 @@ export class OpenRouter {
     // Wrap with PostHog's withTracing to capture logs/metrics
     return withTracing(model, getPostHogClient(), {
       posthogDistinctId: options?.posthogDistinctId ?? "anonymous",
+      posthogTraceId: options?.posthogTraceId,
     });
   }
 

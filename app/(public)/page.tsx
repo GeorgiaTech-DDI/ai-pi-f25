@@ -39,7 +39,7 @@ export default function Home() {
   const [messageMetadata, setMessageMetadata] = useState<
     Record<
       number,
-      { contexts?: Context[]; usedRAG?: boolean; feedback?: string }
+      { contexts?: Context[]; usedRAG?: boolean; feedback?: string; traceId?: string }
     >
   >({});
 
@@ -92,6 +92,7 @@ export default function Home() {
             ...prev[assistantIdx],
             contexts: data.contexts,
             usedRAG: data.usedRAG,
+            traceId: data.traceId,
           },
         }));
       }
@@ -115,11 +116,10 @@ export default function Home() {
         .filter((p: any) => p.type === "text") // TODO: fix any typing
         .map((p: any) => p.text) // TODO: fix any typing
         .join(""),
-      isStreaming:
-        isLoading && i === sdkMessages.length - 1 && m.role === "assistant",
       contexts: messageMetadata[i]?.contexts,
       usedRAG: messageMetadata[i]?.usedRAG,
       feedback: messageMetadata[i]?.feedback,
+      traceId: messageMetadata[i]?.traceId,
     }));
   const hasMessages = messages.length > 0;
 

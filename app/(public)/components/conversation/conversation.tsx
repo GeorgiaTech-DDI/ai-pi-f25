@@ -38,6 +38,7 @@ export default function Conversation({
               message={message.content}
               hasReferences={message.usedRAG ?? false}
               onViewReferencesPressed={() => onViewReferencesPressed(index)}
+              traceId={message.traceId}
             />
           )}
         </div>

@@ -10,14 +10,17 @@ export function AIMessageItem({
   className,
   hasReferences,
   onViewReferencesPressed,
+  traceId,
 }: {
   message: string;
   className?: string;
   hasReferences: boolean;
   onViewReferencesPressed: () => void;
+  traceId?: string;
 }) {
   const { respond, response, triggerRef } = useThumbSurvey({
     surveyId: LLM_RESPONSE_SURVEY_ID,
+    ...(traceId ? { properties: { $trace_id: traceId } } : {})
   });
   return (
     <div className={cn("flex flex-col gap-y-2 group", className)}>

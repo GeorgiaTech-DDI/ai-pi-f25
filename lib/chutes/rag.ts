@@ -191,6 +191,7 @@ export async function generateGeneralResponse(
   question: string,
   conversationHistory = "",
   posthogDistinctId = "anonymous",
+  posthogTraceId?: string
 ): Promise<OpenRouterStream> {
   const messages: ChatMessage[] = [
     { role: "system", content: SYSTEM_PROMPT_GENERAL },
@@ -202,7 +203,7 @@ export async function generateGeneralResponse(
   const openrouter = getOpenRouter();
   return openrouter.stream(
     { messages, maxTokens: 500, temperature: 0.75 },
-    { posthogDistinctId, provider: { order: ["Chutes"] } },
+    { posthogDistinctId, posthogTraceId, provider: { order: ["Chutes"] } },
   );
 }
 
@@ -220,6 +221,7 @@ export async function ragQuery(
   conversationHistory = "",
   dataStream: UIMessageStreamWriter,
   posthogDistinctId = "anonymous",
+  posthogTraceId?: string
 ): Promise<RagQueryResult> {
   // 1. Build embedding context
   let textForEmbedding = extractEmbeddingContext(conversationHistory, question);
@@ -325,6 +327,7 @@ export async function ragQuery(
         question,
         conversationHistory,
         posthogDistinctId,
+        posthogTraceId
       ),
       contexts: [],
     };
@@ -355,7 +358,7 @@ export async function ragQuery(
       maxTokens: payload.maxTokens,
       temperature: payload.temperature,
     },
-    { posthogDistinctId, provider: { order: ["Chutes"] } },
+    { posthogDistinctId, posthogTraceId, provider: { order: ["Chutes"] } },
   );
 
   // 9. Build enhanced context list (prepend DDG result)
