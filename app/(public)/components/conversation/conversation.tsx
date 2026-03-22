@@ -22,6 +22,11 @@ export default function Conversation({
   }
   const isLoading = userQueryStatus.status === "submitted";
   const isWebSearchLoading = userQueryStatus.status === "web_search_loading";
+  const isActiveStreaming =
+    userQueryStatus.status === "submitted" ||
+    userQueryStatus.status === "streaming" ||
+    userQueryStatus.status === "web_search_loading" ||
+    userQueryStatus.status === "web_search_complete";
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-4 pt-1">
@@ -39,6 +44,7 @@ export default function Conversation({
               hasReferences={message.usedRAG ?? false}
               onViewReferencesPressed={() => onViewReferencesPressed(index)}
               traceId={message.traceId}
+              isStreaming={isActiveStreaming && index === messages.length - 1}
             />
           )}
         </div>
