@@ -67,7 +67,7 @@ export function AIMessageItem({
               size="icon"
               className={cn(
                 "text-muted-foreground hover:text-foreground",
-                isStreaming && "invisible pointer-events-none"
+                isStreaming && "pointer-events-none invisible"
               )}
               aria-hidden={isStreaming}
             >
