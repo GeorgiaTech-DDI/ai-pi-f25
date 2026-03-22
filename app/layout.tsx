@@ -4,7 +4,7 @@ import "../globals.css";
 import { inter } from "@/lib/fonts";
 import { cn } from "@/lib/utils";
 import Providers from "./providers";
-import { Toaster } from "@/components/ui/sonner"
+import { Toaster } from "@/components/ui/sonner";
 
 export const metadata: Metadata = {
   title: "AI PI",
