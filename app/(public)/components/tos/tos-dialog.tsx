@@ -15,13 +15,11 @@ import { cn } from "@/lib/utils";
 interface TermsOfServiceDialogProps {
   open: boolean;
   onAccept: () => void;
-  setIsOpen: (val: boolean) => void;
 }
 
 export default function TermsOfServiceDialog({
   open,
   onAccept,
-  setIsOpen,
 }: TermsOfServiceDialogProps) {
   const tosContentRef = useRef<HTMLDivElement>(null);
 
@@ -73,12 +71,7 @@ export default function TermsOfServiceDialog({
   }, [open]);
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={setIsOpen}
-      closable={false}
-      onCloseAttempt={handleCloseAttempt}
-    >
+    <Dialog open={open} closable={false} onCloseAttempt={handleCloseAttempt}>
       <DialogContent
         className="sm:max-w-[550px] flex flex-col max-h-[90vh]"
         showCloseButton={false}

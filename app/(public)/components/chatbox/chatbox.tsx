@@ -18,7 +18,7 @@ export default function Chatbox({
   onStopPressed,
 }: {
   className?: string;
-  onSubmit: (val: string) => void;
+  onSubmit: (val: string) => boolean | void;
   isLoading: boolean;
   onStopPressed: () => void;
 }) {
@@ -28,8 +28,10 @@ export default function Chatbox({
   });
 
   const onInternalSubmit = (data: z.infer<typeof formSchema>) => {
-    onSubmit(data.message);
-    reset();
+    const shouldClear = onSubmit(data.message);
+    if (shouldClear !== false) {
+      reset();
+    }
   };
 
   const messageValue = useWatch({

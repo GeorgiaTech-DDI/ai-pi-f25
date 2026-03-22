@@ -127,30 +127,29 @@ export default function Home() {
     "tos-accepted",
     false,
   );
-  const [isTOSOpen, setIsTOSOpen] = useState<boolean>(!isTOSAccepted);
 
   const [isReferencesSheetOpen, setIsReferencesSheetOpen] = useState(false);
   const [activeReferenceIndex, setActiveReferenceIndex] = useState<
     number | null
   >(null);
 
-  const { isSessionExpired, setIsSessionExpired, idleTimer } = useSessionTimeout({
-    onSessionExpire: () => {
-      if (hasMessages) {
-        stop();
-        setMessages([]);
-        setMessageMetadata({});
-        setQueryStatusType({ status: "ready" });
-      }
-    },
-  });
+  const { isSessionExpired, setIsSessionExpired, idleTimer } =
+    useSessionTimeout({
+      onSessionExpire: () => {
+        if (hasMessages) {
+          stop();
+          setMessages([]);
+          setMessageMetadata({});
+          setQueryStatusType({ status: "ready" });
+        }
+      },
+    });
 
-  const handleSubmit = (message: string): void => {
+  const handleSubmit = (message: string): boolean | void => {
     if (isSessionExpired && !hasMessages) {
       setIsSessionExpired(false);
       setIsTOSAccepted(false);
-      setIsTOSOpen(true);
-      return;
+      return false;
     }
 
     setQueryStatusType({ status: "submitted" });
@@ -164,13 +163,11 @@ export default function Home() {
   return (
     <>
       <TermsOfServiceDialog
-        open={isTOSOpen}
+        open={!isTOSAccepted}
         onAccept={() => {
           setIsTOSAccepted(true);
-          setIsTOSOpen(false);
           idleTimer.reset();
         }}
-        setIsOpen={setIsTOSOpen}
       />
 
       {activeReferenceIndex !== null && (
