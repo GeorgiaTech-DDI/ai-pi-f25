@@ -11,12 +11,14 @@ export function AIMessageItem({
   hasReferences,
   onViewReferencesPressed,
   traceId,
+  isStreaming,
 }: {
   message: string;
   className?: string;
   hasReferences: boolean;
   onViewReferencesPressed: () => void;
   traceId?: string;
+  isStreaming?: boolean;
 }) {
   const { respond, response, triggerRef } = useThumbSurvey({
     surveyId: LLM_RESPONSE_SURVEY_ID,
@@ -38,43 +40,41 @@ export function AIMessageItem({
             variant="ghost"
             size="icon"
             className={cn(
-              "text-muted-foreground hover:text-foreground h-8 w-8",
+              "text-muted-foreground hover:text-foreground",
               response === "up" &&
                 "bg-secondary text-green-500 hover:text-green-500"
             )}
           >
-            <ThumbsUp
-              className="h-4 w-4"
-              fill={response === "up" ? "currentColor" : "none"}
-            />
+            <ThumbsUp fill={response === "up" ? "currentColor" : "none"} />
           </Button>
           <Button
             onClick={() => respond("down")}
             variant="ghost"
             size="icon"
             className={cn(
-              "text-muted-foreground hover:text-foreground h-8 w-8",
+              "text-muted-foreground hover:text-foreground",
               response === "down" &&
-                "bg-secondary text-red-500 hover:text-red-500"
+                "bg-secondary text-destructive hover:text-destructive"
             )}
             ref={triggerRef}
           >
-            <ThumbsDown
-              className="h-4 w-4"
-              fill={response === "down" ? "currentColor" : "none"}
-            />
+            <ThumbsDown fill={response === "down" ? "currentColor" : "none"} />
           </Button>
+          {hasReferences && (
+            <Button
+              onClick={onViewReferencesPressed}
+              variant="ghost"
+              size="icon"
+              className={cn(
+                "text-muted-foreground hover:text-foreground",
+                isStreaming && "pointer-events-none invisible"
+              )}
+              aria-hidden={isStreaming}
+            >
+              <FileSearchCorner />
+            </Button>
+          )}
         </div>
-        {hasReferences && (
-          <Button
-            onClick={onViewReferencesPressed}
-            variant="ghost"
-            size="icon"
-            className="text-muted-foreground hover:text-foreground h-8 w-8"
-          >
-            <FileSearchCorner className="h-4 w-4" />
-          </Button>
-        )}
       </div>
     </div>
   );
