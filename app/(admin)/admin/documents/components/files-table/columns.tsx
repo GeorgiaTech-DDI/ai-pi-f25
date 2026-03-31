@@ -1,7 +1,7 @@
 import { Checkbox } from "@/components/ui/checkbox";
 import { PineconeFile } from "@/lib/files/types";
 import { ColumnDef } from "@tanstack/react-table";
-import { File, Trash } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, File, Trash } from "lucide-react";
 import { filesize } from "filesize";
 import { Button } from "@/components/ui/button";
 import FileRowButton from "./file-row-button";
@@ -32,7 +32,23 @@ export const columns: ColumnDef<PineconeFile>[] = [
   },
   {
     accessorKey: "metadata.filename",
-    header: "Name",
+    header: ({ column }) => {
+      return (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          Name
+          {column.getIsSorted() === "asc" ? (
+            <ArrowUp className="ml-2 h-4 w-4" />
+          ) : column.getIsSorted() === "desc" ? (
+            <ArrowDown className="ml-2 h-4 w-4" />
+          ) : (
+            <ArrowUpDown className="ml-2 h-4 w-4" />
+          )}
+        </Button>
+      );
+    },
     cell: ({ getValue }) => {
       const filename = getValue() as string;
       return (
@@ -47,7 +63,23 @@ export const columns: ColumnDef<PineconeFile>[] = [
   },
   {
     accessorKey: "metadata.uploadDate",
-    header: "Uploaded",
+    header: ({ column }) => {
+      return (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          Uploaded
+          {column.getIsSorted() === "asc" ? (
+            <ArrowUp className="ml-2 h-4 w-4" />
+          ) : column.getIsSorted() === "desc" ? (
+            <ArrowDown className="ml-2 h-4 w-4" />
+          ) : (
+            <ArrowUpDown className="ml-2 h-4 w-4" />
+          )}
+        </Button>
+      );
+    },
     cell: ({ getValue }) => {
       const date = getValue() as string;
       const dateObj = new Date(date);
