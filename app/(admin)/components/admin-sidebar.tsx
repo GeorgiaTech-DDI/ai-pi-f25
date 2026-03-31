@@ -29,7 +29,7 @@ export default function AdminSidebar() {
       <SidebarHeader className="p-4">
         <Logo />
       </SidebarHeader>
-      <SidebarContent className="px-3">
+      <SidebarContent className="px-3 pt-4">
         <SidebarMenu className="flex flex-col gap-y-1">
           {navItems.map(({ title, href, icon: Icon }) => (
             <SidebarMenuItem key={title}>
