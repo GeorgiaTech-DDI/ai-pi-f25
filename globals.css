@@ -28,6 +28,16 @@ body {
   color: #f0f0f9;
   scrollbar-width: thin;
   scrollbar-color: #333340 #000000;
+
+  /* Sidebar dark theme — mirrors .dark overrides since we use .root not .dark */
+  --color-sidebar: oklch(0.216 0.006 56.043);
+  --color-sidebar-foreground: oklch(0.985 0.001 106.423);
+  --color-sidebar-primary: oklch(0.795 0.184 86.047);
+  --color-sidebar-primary-foreground: oklch(0.987 0.026 102.212);
+  --color-sidebar-accent: oklch(0.268 0.007 34.298);
+  --color-sidebar-accent-foreground: oklch(0.985 0.001 106.423);
+  --color-sidebar-border: oklch(1 0 0 / 10%);
+  --color-sidebar-ring: oklch(0.553 0.013 58.071);
 }
 
 @keyframes fadeIn {
@@ -88,36 +98,6 @@ body {
   transition:
     transform 0.5s ease,
     opacity 0.5s ease;
-}
-
-.hidden {
-  opacity: 0;
-  pointer-events: none;
-}
-
-.entering {
-  opacity: 0;
-}
-
-.entering .dialogContent {
-  transform: translateY(20px);
-}
-
-.visible {
-  opacity: 1;
-}
-
-.visible .dialogContent {
-  transform: translateY(0);
-}
-
-.exiting {
-  opacity: 0;
-  pointer-events: none;
-}
-
-.exiting .dialogContent {
-  transform: translateY(20px);
 }
 
 @theme {

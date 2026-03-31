@@ -329,47 +329,6 @@ export default function AdminDashboard() {
   return (
     <>
       <div className={styles.container}>
-        {/* Header */}
-        <header className={styles.header}>
-          <div className={styles.headerLeft}>
-            <Image
-              src="/images/logo.svg"
-              alt="AI PI Logo"
-              className={styles.logo}
-              width={32}
-              height={32}
-            />
-            <div className={styles.headerInfo}>
-              <h1 className={styles.title}>AI PI Admin Dashboard</h1>
-              <p className={styles.subtitle}>
-                Welcome back, {user?.displayName || user?.email}
-              </p>
-            </div>
-          </div>
-          <div className={styles.headerActions}>
-            <button
-              onClick={() => router.push("/")}
-              className={`${styles.button} ${styles.buttonSecondary}`}
-            >
-              View Main App
-            </button>
-            <button
-              onClick={handleLogout}
-              disabled={isLoggingOut}
-              className={`${styles.button} ${styles.buttonDanger}`}
-            >
-              {isLoggingOut ? (
-                <>
-                  <span className={styles.buttonSpinner} />
-                  Logging out...
-                </>
-              ) : (
-                "Logout"
-              )}
-            </button>
-          </div>
-        </header>
-
         {/* Main Content */}
         <main className={styles.main}>
           {/* File Management */}
