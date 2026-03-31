@@ -2,8 +2,10 @@
 
 import {
   ColumnDef,
+  ColumnFiltersState,
   flexRender,
   getCoreRowModel,
+  getFilteredRowModel,
   getPaginationRowModel,
   getSortedRowModel,
   SortingState,
@@ -20,6 +22,7 @@ import {
 } from "@/components/ui/table";
 import { Button } from "./button";
 import { useState } from "react";
+import { Input } from "./input";
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
@@ -30,24 +33,32 @@ export function DataTable<TData, TValue>({
   columns,
   data,
 }: DataTableProps<TData, TValue>) {
-  const [sorting, setSorting] = useState<SortingState>([]);
+  const [sorting, setSorting] = useState<SortingState>([
+    { id: "metadata.uploadDate", desc: true },
+  ]);
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
 
   const table = useReactTable({
     data,
     columns,
-    getPaginationRowModel: getPaginationRowModel(),
+    state: {
+      sorting,
+      columnFilters,
+    },
+    onSortingChange: setSorting,
+    onColumnFiltersChange: (updater) => {
+      setColumnFilters(updater);
+      table.setPageIndex(0);
+    },
     initialState: {
       pagination: {
-        pageIndex: 0,
         pageSize: 8,
       },
     },
     getCoreRowModel: getCoreRowModel(),
-    onSortingChange: setSorting,
+    getFilteredRowModel: getFilteredRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    state: {
-      sorting,
-    },
+    getPaginationRowModel: getPaginationRowModel(),
   });
 
   const pageSize = table.getState().pagination.pageSize;
@@ -56,6 +67,24 @@ export function DataTable<TData, TValue>({
 
   return (
     <div className="w-full">
+      <div className="flex items-end justify-between py-4">
+        <h4 className="text-lg font-medium">Files</h4>
+
+        <Input
+          placeholder="Search by name..."
+          value={
+            (table
+              .getColumn("metadata.filename")
+              ?.getFilterValue() as string) ?? ""
+          }
+          onChange={(event) =>
+            table
+              .getColumn("metadata.filename")
+              ?.setFilterValue(event.target.value)
+          }
+          className="w-32"
+        />
+      </div>
       <div className="overflow-hidden rounded-md border">
         <Table className="w-full table-fixed">
           <TableHeader>

@@ -32,6 +32,7 @@ export const columns: ColumnDef<PineconeFile>[] = [
   },
   {
     accessorKey: "metadata.filename",
+    id: "metadata.filename",
     header: ({ column }) => {
       return (
         <Button
