@@ -74,7 +74,7 @@ export default async function AdminLayout({
             )
           }
           leftItem={
-            user && isNewSidebarEnabled  ? (
+            user && isNewSidebarEnabled ? (
               <SidebarTrigger />
             ) : (
               <Image
