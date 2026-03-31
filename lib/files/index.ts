@@ -20,3 +20,20 @@ export async function getPineconeFiles(): Promise<PineconeFile[]> {
 
   return data.files as PineconeFile[];
 }
+
+export async function deletePineconeFile(filename: string) {
+  const response = await fetch(
+    `/api/files?filename=${encodeURIComponent(filename)}`,
+    { method: "DELETE" }
+  );
+  if (!response.ok) {
+    const responseText = await response.text();
+    let errorMessage = "Delete failed";
+    try {
+      errorMessage = JSON.parse(responseText).error || errorMessage;
+    } catch {
+      errorMessage = responseText || `HTTP ${response.status}`;
+    }
+    throw new Error(errorMessage);
+  }
+}

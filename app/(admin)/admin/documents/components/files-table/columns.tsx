@@ -4,6 +4,7 @@ import { ColumnDef } from "@tanstack/react-table";
 import { File, Trash } from "lucide-react";
 import { filesize } from "filesize";
 import { Button } from "@/components/ui/button";
+import FileRowButton from "./file-row-button";
 
 export const columns: ColumnDef<PineconeFile>[] = [
   {
@@ -61,27 +62,24 @@ export const columns: ColumnDef<PineconeFile>[] = [
       const fileSize = getValue() as number;
       return filesize(fileSize);
     },
+    size: 100,
   },
   {
     accessorKey: "metadata.chunkCount",
     header: "Chunk Count",
+    size: 100,
   },
   {
     accessorKey: "metadata.description",
     header: "Description",
-    size: 200,
   },
   {
     id: "actions",
     cell: ({ row }) => {
       const file = row.original;
-      return (
-        <Button variant="ghost" onClick={() => console.log(file)}>
-          <Trash className="text-destructive h-4 w-4 shrink-0" />
-        </Button>
-      );
+      return <FileRowButton file={file} />;
     },
-    size: 20,
+    size: 30,
     enableSorting: false,
     enableHiding: false,
   },
