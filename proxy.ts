@@ -5,7 +5,7 @@ import { getSessionCookie } from "better-auth/cookies";
 const PROTECTED_PREFIXES = ["/admin/dashboard"];
 
 // Routes that authenticated users should be redirected away from
-const AUTH_ROUTES = ["/admin/login"];
+const AUTH_ROUTES = ["/login"];
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -20,7 +20,7 @@ export function proxy(request: NextRequest) {
 
   if (isProtected && !sessionCookie) {
     // Not logged in — redirect to login
-    const loginUrl = new URL("/admin/login", request.url);
+    const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(loginUrl);
   }
@@ -34,5 +34,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/dashboard/:path*", "/admin/login"],
+  matcher: ["/admin/:path*", "/login"],
 };

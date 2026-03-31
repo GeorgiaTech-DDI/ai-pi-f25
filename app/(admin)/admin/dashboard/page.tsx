@@ -7,20 +7,8 @@ import { useRouter } from "next/navigation";
 import posthog from "posthog-js";
 import { useState } from "react";
 import { useSessionTimeout } from "@/hooks/useSessionTimeout";
-import Image from "next/image";
-
-interface FileMetadata {
-  filename: string;
-  uploadDate: string;
-  fileSize: number;
-  chunkCount: number;
-  description?: string;
-}
-
-interface PineconeFile {
-  id: string;
-  metadata: FileMetadata;
-}
+import { PineconeFile } from "@/lib/files/types";
+import { getPineconeFiles } from "@/lib/files";
 
 interface DocumentationGap {
   question: string;
@@ -116,21 +104,7 @@ export default function AdminDashboard() {
     refetch: refetchFiles,
   } = useQuery({
     queryKey: ["files"],
-    queryFn: async () => {
-      const response = await fetch("/api/files");
-      if (!response.ok) {
-        const responseText = await response.text();
-        let errorMessage = "Failed to load files";
-        try {
-          errorMessage = JSON.parse(responseText).error || errorMessage;
-        } catch {
-          errorMessage = responseText || `HTTP ${response.status}`;
-        }
-        throw new Error(errorMessage);
-      }
-      const data = await response.json();
-      return data.files as PineconeFile[];
-    },
+    queryFn: getPineconeFiles,
     refetchInterval: 30000,
     staleTime: 10000,
   });
