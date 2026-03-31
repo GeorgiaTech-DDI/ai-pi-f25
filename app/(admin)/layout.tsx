@@ -1,16 +1,18 @@
 import Header from "@/components/header";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
+import Image from "next/image";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { auth } from "@/lib/auth";
-import { LogOut, PanelLeft } from "lucide-react";
+import { LogOut } from "lucide-react";
 import { headers } from "next/headers";
-import { redirect } from "next/navigation";
+import AdminSidebar from "./components/admin-sidebar";
+import { getPostHogClient } from "@/lib/posthog-server";
 
 /**
  * Admin route group layout.
@@ -28,10 +30,6 @@ export default async function AdminLayout({
     headers: await headers(),
   });
 
-  // if (!session) {
-  //   redirect("/");
-  // }
-
   // TODO: export name getting into a utility
   const name = session?.user.name;
   const firstName = name?.split(",")[1]?.trim();
@@ -46,36 +44,53 @@ export default async function AdminLayout({
       }
     : null;
 
+  const posthogClient = getPostHogClient();
+  const isNewSidebarEnabled = await posthogClient.isFeatureEnabled(
+    "new-sidebar",
+    user?.email ?? ""
+  );
+
   return (
-    <div className="flex h-full flex-col">
-      <Header
-        rightContent={
-          <DropdownMenu>
-            <DropdownMenuTrigger>
-              <Avatar>
-                <AvatarImage src={user?.image || ""} />
-                <AvatarFallback>{user?.initials}</AvatarFallback>
-              </Avatar>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem>
-                <LogOut className="text-destructive size-4" /> Logout
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        }
-        leftItem={
-          <Button size="icon" variant="ghost">
-            <PanelLeft className="size-4" />
-          </Button>
-        }
-      />
-      <main
-        data-autoscroll-container
-        className="flex-1 overflow-x-hidden overflow-y-auto pt-6 [scrollbar-gutter:stable]"
-      >
-        {children}
-      </main>
-    </div>
+    <SidebarProvider defaultOpen={false}>
+      <AdminSidebar />
+      <div className="flex min-h-svh w-full flex-col overflow-hidden">
+        <Header
+          rightContent={
+            user && (
+              <DropdownMenu>
+                <DropdownMenuTrigger>
+                  <Avatar>
+                    <AvatarImage src={user.image || ""} />
+                    <AvatarFallback>{user.initials}</AvatarFallback>
+                  </Avatar>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem>
+                    <LogOut className="text-destructive" />
+                    Logout
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )
+          }
+          leftItem={
+            user && isNewSidebarEnabled  ? (
+              <SidebarTrigger />
+            ) : (
+              <Image
+                src="/images/logo.svg"
+                alt="AI PI Logo"
+                className="h-8 w-auto"
+                width={32}
+                height={32}
+              />
+            )
+          }
+        />
+        <main className="flex-1 overflow-x-hidden overflow-y-auto">
+          {children}
+        </main>
+      </div>
+    </SidebarProvider>
   );
 }
