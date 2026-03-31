@@ -24,7 +24,7 @@ export default function HeaderButtons({ className }: { className?: string }) {
           <DropdownMenuItem variant="destructive">Restart</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-      <Button href="/admin/login" size="lg" variant="outline">
+      <Button href="/login" size="lg" variant="outline">
         Admin Log In
       </Button>
     </div>

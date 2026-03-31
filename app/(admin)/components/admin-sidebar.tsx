@@ -37,7 +37,7 @@ export default function AdminSidebar() {
                 tooltip={title}
                 className={cn(pathname == href && "bg-sidebar-accent")}
               >
-                <Link href={href} className="flex items-center gap-x-2">
+                <Link href={href} className="flex items-center gap-x-2 w-full">
                   <Icon />
                   <span>{title}</span>
                 </Link>

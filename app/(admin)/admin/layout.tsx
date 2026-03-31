@@ -11,7 +11,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { auth } from "@/lib/auth";
 import { LogOut } from "lucide-react";
 import { headers } from "next/headers";
-import AdminSidebar from "./components/admin-sidebar";
+import AdminSidebar from "../components/admin-sidebar";
 import { getPostHogClient } from "@/lib/posthog-server";
 
 /**
