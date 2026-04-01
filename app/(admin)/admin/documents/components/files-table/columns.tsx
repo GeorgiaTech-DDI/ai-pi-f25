@@ -1,7 +1,7 @@
 import { Checkbox } from "@/components/ui/checkbox";
 import { PineconeFile } from "@/lib/files/types";
 import { ColumnDef } from "@tanstack/react-table";
-import { ArrowDown, ArrowUp, ArrowUpDown, File, Trash } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, File } from "lucide-react";
 import { filesize } from "filesize";
 import { Button } from "@/components/ui/button";
 import FileRowButton from "./file-row-button";
@@ -64,6 +64,7 @@ export const columns: ColumnDef<PineconeFile>[] = [
   },
   {
     accessorKey: "metadata.uploadDate",
+    id: "metadata.uploadDate",
     header: ({ column }) => {
       return (
         <Button
