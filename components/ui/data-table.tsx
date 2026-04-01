@@ -82,7 +82,7 @@ export function DataTable<TData, TValue>({
               .getColumn("metadata.filename")
               ?.setFilterValue(event.target.value)
           }
-          className="w-32"
+          className="w-72"
         />
       </div>
       <div className="overflow-hidden rounded-md border">

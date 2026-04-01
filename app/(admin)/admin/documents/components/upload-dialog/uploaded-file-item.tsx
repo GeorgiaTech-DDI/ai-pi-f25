@@ -63,7 +63,6 @@ export function UploadedFileItem({
           )}
         </div>
 
-        {/* Middle Truncation Logic */}
         <div className="flex min-w-0 flex-1 flex-col">
           <div className="mb-1 flex w-full text-sm leading-none font-medium">
             <span className="truncate">{baseName}</span>
