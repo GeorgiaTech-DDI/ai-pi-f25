@@ -11,7 +11,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { auth } from "@/lib/auth";
 import { LogOut } from "lucide-react";
 import { headers } from "next/headers";
-import AdminSidebar from "./components/admin-sidebar";
+import AdminSidebar from "../components/admin-sidebar";
 import { getPostHogClient } from "@/lib/posthog-server";
 
 /**
@@ -87,7 +87,7 @@ export default async function AdminLayout({
             )
           }
         />
-        <main className="flex-1 overflow-x-hidden overflow-y-auto">
+        <main className="flex-1 overflow-x-hidden overflow-y-auto p-6 pt-4">
           {children}
         </main>
       </div>

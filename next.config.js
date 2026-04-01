@@ -79,6 +79,13 @@ const nextConfig = {
 
   // Security: Don't expose source maps in production
   productionBrowserSourceMaps: false,
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "5mb",
+    },
+  },
+
+  serverExternalPackages: ["pdf-parse"],
 };
 
 export default nextConfig;

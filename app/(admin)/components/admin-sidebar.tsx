@@ -29,7 +29,7 @@ export default function AdminSidebar() {
       <SidebarHeader className="p-4">
         <Logo />
       </SidebarHeader>
-      <SidebarContent className="px-3">
+      <SidebarContent className="px-3 pt-4">
         <SidebarMenu className="flex flex-col gap-y-1">
           {navItems.map(({ title, href, icon: Icon }) => (
             <SidebarMenuItem key={title}>
@@ -37,7 +37,10 @@ export default function AdminSidebar() {
                 tooltip={title}
                 className={cn(pathname == href && "bg-sidebar-accent")}
               >
-                <Link href={href} className="flex items-center gap-x-2">
+                <Link
+                  href={href}
+                  className="flex h-full w-full items-center gap-x-2"
+                >
                   <Icon />
                   <span>{title}</span>
                 </Link>
