@@ -2,8 +2,6 @@ import { Pinecone } from "@pinecone-database/pinecone";
 import { Embeddings } from "deepinfra";
 import { auth } from "../../../lib/auth";
 import { NextRequest, NextResponse } from "next/server";
-import { del, put } from "@vercel/blob";
-import { PineconeFile } from "@/lib/files/types";
 
 // API Route Configuration - Increase body size limit for file uploads
 export const maxDuration = 60;
@@ -74,6 +72,18 @@ async function generateEmbeddings(texts: string[]): Promise<number[][]> {
   return embeddings;
 }
 
+interface FileMetadata {
+  filename: string;
+  uploadDate: string;
+  fileSize: number;
+  chunkCount: number;
+  description?: string;
+}
+interface PineconeFile {
+  id: string;
+  metadata: FileMetadata;
+}
+
 function splitTextIntoChunks(
   text: string,
   maxChunkSize: number,
@@ -137,7 +147,7 @@ export async function GET(req: NextRequest) {
   for (const match of queryResponse.matches) {
     const meta = match.metadata as any;
     if (meta?.type === "file_metadata") {
-      files.push({ id: match.id, metadata: meta as PineconeFile["metadata"] });
+      files.push({ id: match.id, metadata: meta as FileMetadata });
     }
   }
 
@@ -167,21 +177,22 @@ export async function POST(req: NextRequest) {
         { status: 401 }
       );
 
-    const formData = await req.formData();
-    const file = formData.get("file") as File | null;
-    const description = formData.get("description") as string | null;
+    const { filename, content, description } = await req.json();
+    if (!filename || !content)
+      return NextResponse.json(
+        { error: "Filename and content are required" },
+        { status: 400 }
+      );
 
-    if (!file)
-      return NextResponse.json({ error: "File is required" }, { status: 400 });
-
-    const filename = file.name;
-
-    if (file.size > MAX_FILE_SIZE) {
-      const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+    if (content.length > MAX_FILE_SIZE) {
+      const sizeMB = (content.length / (1024 * 1024)).toFixed(2);
       const maxSizeMB = (MAX_FILE_SIZE / (1024 * 1024)).toFixed(0);
+      const isPDF = filename.toLowerCase().endsWith(".pdf");
       return NextResponse.json(
         {
-          error: `File too large: ${sizeMB}MB exceeds the ${maxSizeMB}MB limit.`,
+          error: isPDF
+            ? `PDF file too large: ${sizeMB}MB encoded exceeds the ${maxSizeMB}MB limit.`
+            : `File too large: ${sizeMB}MB exceeds the ${maxSizeMB}MB limit.`,
         },
         { status: 413 }
       );
@@ -199,13 +210,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-
     let textContent: string;
     if (fileExtension === ".pdf") {
       try {
-        const pdfData = await parsePDF(buffer);
+        const base64Data = content.includes("base64,")
+          ? content.split("base64,")[1]
+          : content;
+        const pdfBuffer = Buffer.from(base64Data, "base64");
+        const pdfData = await parsePDF(pdfBuffer);
         textContent = pdfData.text;
         if (!textContent?.trim())
           return NextResponse.json(
@@ -219,7 +231,7 @@ export async function POST(req: NextRequest) {
         );
       }
     } else {
-      textContent = buffer.toString("utf-8");
+      textContent = content;
     }
 
     const index = getPineconeIndex();
@@ -251,38 +263,21 @@ export async function POST(req: NextRequest) {
     }));
     const metadataVector = new Array(1024).fill(0);
     metadataVector[0] = 0.0001;
-
-    // atomic uploads
-    let uploadedBlobUrl = null;
-    try {
-      const blob = await put(`documents/${filename}`, file, {
-        access: "public",
-      });
-      uploadedBlobUrl = blob.url;
-
-      await index.upsert([
-        {
-          id: `file_metadata_${filename}`,
-          values: metadataVector,
-          metadata: {
-            type: "file_metadata",
-            filename,
-            uploadDate: new Date().toISOString(),
-            fileSize: textContent.length,
-            chunkCount: chunks.length,
-            blobUrl: uploadedBlobUrl,
-          },
+    await index.upsert([
+      ...vectors,
+      {
+        id: `file_metadata_${filename}`,
+        values: metadataVector,
+        metadata: {
+          type: "file_metadata",
+          filename,
+          uploadDate: new Date().toISOString(),
+          fileSize: textContent.length,
+          chunkCount: chunks.length,
+          description: description || "",
         },
-      ]);
-    } catch (error) {
-      if (uploadedBlobUrl) {
-        await del(uploadedBlobUrl);
-      }
-
-      console.error("Atomic operation failed, rolled back blob upload:", error);
-      throw new Error("Failed to process document. Storage was cleaned up.");
-    }
-
+      },
+    ]);
     return NextResponse.json({
       success: true,
       filename,
@@ -321,27 +316,15 @@ export async function DELETE(req: NextRequest) {
       includeMetadata: true,
       filter: { filename },
     });
-
     const idsToDelete = queryResponse.matches.map((match: any) => match.id);
     if (idsToDelete.length === 0)
       return NextResponse.json({ error: "File not found" }, { status: 404 });
-
-    const blobUrlsToDelete: string[] = queryResponse.matches
-      .map((match: any) => match.metadata?.blobUrl as string)
-      .filter((url: any): url is string => !!url);
-
     await index.deleteMany(idsToDelete);
-
-    if (blobUrlsToDelete.length > 0) {
-      await del(blobUrlsToDelete);
-    }
-
     return NextResponse.json({
       success: true,
       filename,
       deletedCount: idsToDelete.length,
-      deletedBlobs: blobUrlsToDelete.length,
-      message: "File and blobs deleted successfully",
+      message: "File deleted successfully",
     });
   } catch (error) {
     console.error("Error deleting file:", error);
