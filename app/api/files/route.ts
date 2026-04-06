@@ -3,6 +3,7 @@ import { Embeddings } from "deepinfra";
 import { auth } from "../../../lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { del, put } from "@vercel/blob";
+import { PineconeFile } from "@/lib/files/types";
 
 // API Route Configuration - Increase body size limit for file uploads
 export const maxDuration = 60;
@@ -73,20 +74,6 @@ async function generateEmbeddings(texts: string[]): Promise<number[][]> {
   return embeddings;
 }
 
-interface FileMetadata {
-  filename: string;
-  uploadDate: string;
-  fileSize: number;
-  chunkCount: number;
-  description?: string;
-  blobUrl?: string;
-}
-
-interface PineconeFile {
-  id: string;
-  metadata: FileMetadata;
-}
-
 function splitTextIntoChunks(
   text: string,
   maxChunkSize: number,
@@ -150,7 +137,7 @@ export async function GET(req: NextRequest) {
   for (const match of queryResponse.matches) {
     const meta = match.metadata as any;
     if (meta?.type === "file_metadata") {
-      files.push({ id: match.id, metadata: meta as FileMetadata });
+      files.push({ id: match.id, metadata: meta as PineconeFile["metadata"] });
     }
   }
 
@@ -334,15 +321,27 @@ export async function DELETE(req: NextRequest) {
       includeMetadata: true,
       filter: { filename },
     });
+
     const idsToDelete = queryResponse.matches.map((match: any) => match.id);
     if (idsToDelete.length === 0)
       return NextResponse.json({ error: "File not found" }, { status: 404 });
+
+    const blobUrlsToDelete: string[] = queryResponse.matches
+      .map((match: any) => match.metadata?.blobUrl as string)
+      .filter((url: any): url is string => !!url);
+
     await index.deleteMany(idsToDelete);
+
+    if (blobUrlsToDelete.length > 0) {
+      await del(blobUrlsToDelete);
+    }
+
     return NextResponse.json({
       success: true,
       filename,
       deletedCount: idsToDelete.length,
-      message: "File deleted successfully",
+      deletedBlobs: blobUrlsToDelete.length,
+      message: "File and blobs deleted successfully",
     });
   } catch (error) {
     console.error("Error deleting file:", error);

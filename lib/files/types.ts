@@ -4,6 +4,7 @@ interface FileMetadata {
   fileSize: number;
   chunkCount: number;
   description?: string;
+  blobUrl?: string;
 }
 
 export interface PineconeFile {

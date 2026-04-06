@@ -7,7 +7,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
   DropdownMenu,
@@ -16,14 +15,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useMutation } from "@tanstack/react-query";
-import { MoreVertical, Trash } from "lucide-react";
+import { Download, MoreVertical, Trash } from "lucide-react";
 import { useState } from "react";
 import { deleteFile } from "../../_actions";
 import { PineconeFile } from "@/lib/files/types";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Spinner } from "@/components/loaders/spinner";
-
 export default function FileRowButton({ file }: { file: PineconeFile }) {
   const queryClient = useQueryClient();
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -39,6 +37,17 @@ export default function FileRowButton({ file }: { file: PineconeFile }) {
       toast.error("Failed to delete file");
     },
   });
+
+  const handleDownload = () => {
+    const fileUrl = file.metadata.blobUrl;
+    if (!fileUrl) {
+      toast.error("File has no URL assigned");
+      return;
+    }
+
+    window.location.assign(`${fileUrl}?download=1`);
+    toast.success("Download started");
+  };
 
   return (
     <>
@@ -72,6 +81,11 @@ export default function FileRowButton({ file }: { file: PineconeFile }) {
           <MoreVertical className="size-4" />
         </DropdownMenuTrigger>
         <DropdownMenuContent>
+          {file.metadata.blobUrl && (
+            <DropdownMenuItem onClick={handleDownload}>
+              <Download className="size-4" /> Download
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem onClick={() => setIsDeleteDialogOpen(true)}>
             <Trash className="text-destructive size-4" /> Delete
           </DropdownMenuItem>
