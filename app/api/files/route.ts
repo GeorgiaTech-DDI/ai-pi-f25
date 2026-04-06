@@ -2,6 +2,7 @@ import { Pinecone } from "@pinecone-database/pinecone";
 import { Embeddings } from "deepinfra";
 import { auth } from "../../../lib/auth";
 import { NextRequest, NextResponse } from "next/server";
+import { del, put } from "@vercel/blob";
 
 // API Route Configuration - Increase body size limit for file uploads
 export const maxDuration = 60;
@@ -78,7 +79,9 @@ interface FileMetadata {
   fileSize: number;
   chunkCount: number;
   description?: string;
+  blobUrl?: string;
 }
+
 interface PineconeFile {
   id: string;
   metadata: FileMetadata;
@@ -177,22 +180,21 @@ export async function POST(req: NextRequest) {
         { status: 401 }
       );
 
-    const { filename, content, description } = await req.json();
-    if (!filename || !content)
-      return NextResponse.json(
-        { error: "Filename and content are required" },
-        { status: 400 }
-      );
+    const formData = await req.formData();
+    const file = formData.get("file") as File | null;
+    const description = formData.get("description") as string | null;
 
-    if (content.length > MAX_FILE_SIZE) {
-      const sizeMB = (content.length / (1024 * 1024)).toFixed(2);
+    if (!file)
+      return NextResponse.json({ error: "File is required" }, { status: 400 });
+
+    const filename = file.name;
+
+    if (file.size > MAX_FILE_SIZE) {
+      const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
       const maxSizeMB = (MAX_FILE_SIZE / (1024 * 1024)).toFixed(0);
-      const isPDF = filename.toLowerCase().endsWith(".pdf");
       return NextResponse.json(
         {
-          error: isPDF
-            ? `PDF file too large: ${sizeMB}MB encoded exceeds the ${maxSizeMB}MB limit.`
-            : `File too large: ${sizeMB}MB exceeds the ${maxSizeMB}MB limit.`,
+          error: `File too large: ${sizeMB}MB exceeds the ${maxSizeMB}MB limit.`,
         },
         { status: 413 }
       );
@@ -210,14 +212,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
     let textContent: string;
     if (fileExtension === ".pdf") {
       try {
-        const base64Data = content.includes("base64,")
-          ? content.split("base64,")[1]
-          : content;
-        const pdfBuffer = Buffer.from(base64Data, "base64");
-        const pdfData = await parsePDF(pdfBuffer);
+        const pdfData = await parsePDF(buffer);
         textContent = pdfData.text;
         if (!textContent?.trim())
           return NextResponse.json(
@@ -231,7 +232,7 @@ export async function POST(req: NextRequest) {
         );
       }
     } else {
-      textContent = content;
+      textContent = buffer.toString("utf-8");
     }
 
     const index = getPineconeIndex();
@@ -263,21 +264,38 @@ export async function POST(req: NextRequest) {
     }));
     const metadataVector = new Array(1024).fill(0);
     metadataVector[0] = 0.0001;
-    await index.upsert([
-      ...vectors,
-      {
-        id: `file_metadata_${filename}`,
-        values: metadataVector,
-        metadata: {
-          type: "file_metadata",
-          filename,
-          uploadDate: new Date().toISOString(),
-          fileSize: textContent.length,
-          chunkCount: chunks.length,
-          description: description || "",
+
+    // atomic uploads
+    let uploadedBlobUrl = null;
+    try {
+      const blob = await put(`documents/${filename}`, file, {
+        access: "public",
+      });
+      uploadedBlobUrl = blob.url;
+
+      await index.upsert([
+        {
+          id: `file_metadata_${filename}`,
+          values: metadataVector,
+          metadata: {
+            type: "file_metadata",
+            filename,
+            uploadDate: new Date().toISOString(),
+            fileSize: textContent.length,
+            chunkCount: chunks.length,
+            blobUrl: uploadedBlobUrl,
+          },
         },
-      },
-    ]);
+      ]);
+    } catch (error) {
+      if (uploadedBlobUrl) {
+        await del(uploadedBlobUrl);
+      }
+
+      console.error("Atomic operation failed, rolled back blob upload:", error);
+      throw new Error("Failed to process document. Storage was cleaned up.");
+    }
+
     return NextResponse.json({
       success: true,
       filename,

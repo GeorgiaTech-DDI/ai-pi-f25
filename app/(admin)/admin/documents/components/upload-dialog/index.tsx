@@ -1,7 +1,19 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { uploadFile } from "../../_actions";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+
+async function apiUploadFile(formData: FormData) {
+  const response = await fetch("/api/files", {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(errorText);
+  }
+}
 import {
   Dialog,
   DialogClose,
@@ -26,23 +38,26 @@ export default function UploadDialog() {
 
   const [open, setOpen] = useState(false);
 
-  const [isPending, startTransition] = useTransition();
+  const [isPending, setIsPending] = useState(false);
+  const router = useRouter();
 
   const handleUpload = async (formData: FormData) => {
     if (file) {
       formData.append("file", file);
     }
 
-    startTransition(async () => {
-      try {
-        await uploadFile(formData);
-        setOpen(false);
-        setFile(null);
-        setDescription("");
-      } catch (error) {
-        console.error("Upload failed", error);
-      }
-    });
+    setIsPending(true);
+    try {
+      await apiUploadFile(formData);
+      setOpen(false);
+      setFile(null);
+      setDescription("");
+      router.refresh();
+    } catch (error) {
+      console.error("Upload failed", error);
+    } finally {
+      setIsPending(false);
+    }
   };
 
   return (
