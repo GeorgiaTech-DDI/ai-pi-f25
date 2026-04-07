@@ -32,9 +32,7 @@ export default function AdminSidebar({
   return (
     <Sidebar collapsible="offcanvas">
       <SidebarHeader className="p-4">
-        <Link href="/">
-          <Logo />
-        </Link>
+        <Logo />
       </SidebarHeader>
       <SidebarContent className="px-3 pt-4">
         <SidebarMenu className="flex flex-col gap-y-1">
