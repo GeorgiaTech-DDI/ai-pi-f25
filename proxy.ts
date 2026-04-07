@@ -1,14 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionCookie } from "better-auth/cookies";
 
-// 1. Updated to catch ANY route starting with /admin
 const PROTECTED_PREFIXES = ["/admin"];
 const AUTH_ROUTES = ["/login"];
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Check if the current path starts with /admin
   const isProtected = PROTECTED_PREFIXES.some((prefix) =>
     pathname.startsWith(prefix)
   );
