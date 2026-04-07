@@ -1,14 +1,19 @@
 "use client";
 
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle
+} from "@/components/ui/alert";
+import { useSessionTimeout } from "@/hooks/useSessionTimeout";
 import { signOut, useSession } from "@/lib/auth-client";
+import { getPineconeFiles } from "@/lib/files";
 import styles from "@/styles/Dashboard.module.css";
 import { useQuery } from "@tanstack/react-query";
+import { InfoIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import posthog from "posthog-js";
 import { useState } from "react";
-import { useSessionTimeout } from "@/hooks/useSessionTimeout";
-import { PineconeFile } from "@/lib/files/types";
-import { getPineconeFiles } from "@/lib/files";
 
 interface DocumentationGap {
   question: string;
@@ -305,6 +310,20 @@ export default function AdminDashboard() {
       <div className={styles.container}>
         {/* Main Content */}
         <main className={styles.main}>
+          <Alert style={{ marginBottom: "16px" }}>
+            <InfoIcon className="size-4" />
+            <AlertTitle>Looking for the documents?</AlertTitle>
+            <AlertDescription>
+              They&apos;ve moved to their own page —{" "}
+              <a
+                href="/admin/documents"
+                className="hover:text-foreground font-medium underline underline-offset-4 transition-colors"
+              >
+                click here to go there now
+              </a>
+              , or check them out in the new sidebar too!
+            </AlertDescription>
+          </Alert>
           {/* Documentation Quality Analytics */}
           <section className={styles.fileManagement}>
             <div className={styles.fileListHeader}>
