@@ -1,6 +1,7 @@
 "use client";
 
 import Logo from "@/components/logo/logo";
+import { Button } from "@/components/ui/button";
 import {
   Sidebar,
   SidebarContent,
@@ -31,7 +32,9 @@ export default function AdminSidebar({
   return (
     <Sidebar collapsible="offcanvas">
       <SidebarHeader className="p-4">
-        <Logo />
+        <Link href="/">
+          <Logo />
+        </Link>
       </SidebarHeader>
       <SidebarContent className="px-3 pt-4">
         <SidebarMenu className="flex flex-col gap-y-1">
