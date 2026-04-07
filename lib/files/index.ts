@@ -1,3 +1,4 @@
+import { deleteFile } from "@/app/(admin)/admin/documents/_actions";
 import { PineconeFile } from "./types";
 
 export async function getPineconeFiles(): Promise<PineconeFile[]> {
@@ -31,4 +32,24 @@ export async function uploadPineconeFile(formData: FormData) {
     throw new Error(errorText);
   }
   return response.json();
+}
+
+export async function replacePineconeFile(formData: FormData) {
+  const oldFilename = formData.get("oldFilename") as string;
+
+  try {
+    await deleteFile(oldFilename);
+
+    const response = await fetch("/api/files/upload", {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!response.ok) throw new Error("Upload failed");
+
+    return await response.json();
+  } catch (error) {
+    console.error("Replacement failed:", error);
+    throw error;
+  }
 }

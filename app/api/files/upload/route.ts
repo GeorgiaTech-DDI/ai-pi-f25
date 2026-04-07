@@ -11,6 +11,7 @@ import { auth } from "@/lib/auth";
 import { getPinecone } from "@/lib/pinecone";
 import { del, getDownloadUrl, put } from "@vercel/blob";
 
+// bypass server action file limit
 export async function POST(req: NextRequest) {
   try {
     // setup

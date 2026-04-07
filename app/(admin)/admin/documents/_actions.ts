@@ -3,11 +3,20 @@
 import { getErrorMessage } from "@/lib/error";
 import { ActionPromise } from "@/lib/promise";
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { getPineconeIndex } from "@/lib/pinecone";
 import { del } from "@vercel/blob";
+import { auth } from "@/lib/auth";
 
 export async function deleteFile(filename: string): ActionPromise<void> {
   try {
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
+    if (!session) {
+      throw new Error("Unauthorized");
+    }
+
     const index = await getPineconeIndex();
     const dummyVector = new Array(1024).fill(0);
     dummyVector[0] = 0.0001;
