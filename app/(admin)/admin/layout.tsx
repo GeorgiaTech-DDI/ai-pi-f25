@@ -13,7 +13,7 @@ import { LogOut } from "lucide-react";
 import { headers } from "next/headers";
 import AdminSidebar from "../components/admin-sidebar";
 import { getPostHogClient } from "@/lib/posthog-server";
-import { Logout } from "./documents/components/logout-button";
+import { Logout } from "./components/logout-button";
 
 /**
  * Admin route group layout.

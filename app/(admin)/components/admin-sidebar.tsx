@@ -1,11 +1,9 @@
 "use client";
 
 import Logo from "@/components/logo/logo";
-import { Button } from "@/components/ui/button";
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
