@@ -15,7 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useMutation } from "@tanstack/react-query";
-import { Download, MoreVertical, Trash } from "lucide-react";
+import { Download, MoreVertical, Replace, Trash } from "lucide-react";
 import { useState } from "react";
 import { deleteFile } from "../../_actions";
 import { PineconeFile } from "@/lib/files/types";
@@ -23,6 +23,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Spinner } from "@/components/loaders/spinner";
 import { Button } from "@/components/ui/button";
+
 export default function FileRowButton({ file }: { file: PineconeFile }) {
   const queryClient = useQueryClient();
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -93,6 +94,9 @@ export default function FileRowButton({ file }: { file: PineconeFile }) {
               <Download className="size-4" /> Download
             </DropdownMenuItem>
           )}
+          <DropdownMenuItem>
+            <Replace className="size-4" /> Replace
+          </DropdownMenuItem>
           <DropdownMenuItem onClick={() => setIsDeleteDialogOpen(true)}>
             <Trash className="text-destructive size-4" /> Delete
           </DropdownMenuItem>
