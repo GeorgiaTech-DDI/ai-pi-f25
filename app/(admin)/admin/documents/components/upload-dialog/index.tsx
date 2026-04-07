@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 import {
   Dialog,
@@ -19,6 +18,7 @@ import { Plus, Loader2 } from "lucide-react";
 import { Dropzone } from "@/components/dropzone";
 import { UploadedFileItem } from "./uploaded-file-item";
 import { useMutation } from "@tanstack/react-query";
+import { uploadPineconeFile } from "@/lib/files";
 
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // note also controlled in next.config.js
 
@@ -29,17 +29,7 @@ export default function UploadDialog() {
   const [open, setOpen] = useState(false);
 
   const { mutateAsync: uploadFile, isPending } = useMutation({
-    mutationFn: async (formData: FormData) => {
-      const response = await fetch("/api/files", {
-        method: "POST",
-        body: formData,
-      });
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(errorText);
-      }
-      return response.json();
-    },
+    mutationFn: uploadPineconeFile,
     onSuccess: () => {
       setOpen(false);
       setFile(null);

@@ -20,3 +20,15 @@ export async function getPineconeFiles(): Promise<PineconeFile[]> {
 
   return data.files as PineconeFile[];
 }
+
+export async function uploadPineconeFile(formData: FormData) {
+  const response = await fetch("/api/files", {
+    method: "POST",
+    body: formData,
+  });
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(errorText);
+  }
+  return response.json();
+}
