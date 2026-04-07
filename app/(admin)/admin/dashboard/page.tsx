@@ -169,7 +169,7 @@ export default function AdminDashboard() {
       } else {
         content = await uploadFile.text();
       }
-      const response = await fetch("/api/files", {
+      const response = await fetch("/api/files/upload", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
