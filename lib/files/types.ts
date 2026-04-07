@@ -1,4 +1,4 @@
-interface FileMetadata {
+export interface FileMetadata {
   filename: string;
   uploadDate: string;
   fileSize: number;

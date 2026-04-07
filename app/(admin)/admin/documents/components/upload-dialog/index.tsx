@@ -1,19 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
-async function apiUploadFile(formData: FormData) {
-  const response = await fetch("/api/files", {
-    method: "POST",
-    body: formData,
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(errorText);
-  }
-}
 import {
   Dialog,
   DialogClose,
@@ -29,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Plus, Loader2 } from "lucide-react";
 import { Dropzone } from "@/components/dropzone";
 import { UploadedFileItem } from "./uploaded-file-item";
+import { useMutation } from "@tanstack/react-query";
 
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // note also controlled in next.config.js
 
@@ -38,26 +28,32 @@ export default function UploadDialog() {
 
   const [open, setOpen] = useState(false);
 
-  const [isPending, setIsPending] = useState(false);
-  const router = useRouter();
-
-  const handleUpload = async (formData: FormData) => {
-    if (file) {
-      formData.append("file", file);
-    }
-
-    setIsPending(true);
-    try {
-      await apiUploadFile(formData);
+  const { mutateAsync: uploadFile, isPending } = useMutation({
+    mutationFn: async (formData: FormData) => {
+      const response = await fetch("/api/files", {
+        method: "POST",
+        body: formData,
+      });
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText);
+      }
+      return response.json();
+    },
+    onSuccess: () => {
       setOpen(false);
       setFile(null);
       setDescription("");
-      router.refresh();
-    } catch (error) {
+    },
+    onError: (error) => {
       console.error("Upload failed", error);
-    } finally {
-      setIsPending(false);
-    }
+    },
+  });
+
+  const handleUpload = (formData: FormData) => {
+    if (file) formData.append("file", file);
+    if (description) formData.append("description", description);
+    uploadFile(formData);
   };
 
   return (
