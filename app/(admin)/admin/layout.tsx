@@ -13,6 +13,7 @@ import { LogOut } from "lucide-react";
 import { headers } from "next/headers";
 import AdminSidebar from "../components/admin-sidebar";
 import { getPostHogClient } from "@/lib/posthog-server";
+import { Logout } from "./documents/components/logout-button";
 
 /**
  * Admin route group layout.
@@ -71,8 +72,7 @@ export default async function AdminLayout({
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem>
-                    <LogOut className="text-destructive" />
-                    Logout
+                    <Logout />
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
