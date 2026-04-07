@@ -17,12 +17,15 @@ import { Input } from "@/components/ui/input";
 import { Plus, Loader2 } from "lucide-react";
 import { Dropzone } from "@/components/dropzone";
 import { UploadedFileItem } from "./uploaded-file-item";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { uploadPineconeFile } from "@/lib/files";
+import { toast } from "sonner";
 
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // note also controlled in next.config.js
 
 export default function UploadDialog() {
+  const queryClient = useQueryClient();
+
   const [file, setFile] = useState<File | null>(null);
   const [description, setDescription] = useState("");
 
@@ -34,9 +37,12 @@ export default function UploadDialog() {
       setOpen(false);
       setFile(null);
       setDescription("");
+      queryClient.refetchQueries({ queryKey: ["files"] });
+      toast.success("File uploaded successfully");
     },
     onError: (error) => {
       console.error("Upload failed", error);
+      toast.error("Failed to upload file");
     },
   });
 
@@ -47,7 +53,16 @@ export default function UploadDialog() {
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) {
+          setFile(null);
+          setDescription("");
+        }
+        setOpen(o);
+      }}
+    >
       <DialogTrigger
         render={
           <Button>

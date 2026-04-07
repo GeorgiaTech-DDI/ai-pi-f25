@@ -31,7 +31,7 @@ export default function FileRowButton({ file }: { file: PineconeFile }) {
     onSuccess: () => {
       setIsDeleteDialogOpen(false);
       toast.success("File deleted successfully");
-      queryClient.invalidateQueries({ queryKey: ["files"] });
+      queryClient.refetchQueries({ queryKey: ["files"] });
     },
     onError: () => {
       toast.error("Failed to delete file");
@@ -39,7 +39,7 @@ export default function FileRowButton({ file }: { file: PineconeFile }) {
   });
 
   const handleDownload = () => {
-    const fileUrl = file.metadata.blobUrl;
+    const fileUrl = file.metadata.downloadUrl;
     if (!fileUrl) {
       toast.error("File has no URL assigned");
       return;
@@ -81,7 +81,7 @@ export default function FileRowButton({ file }: { file: PineconeFile }) {
           <MoreVertical className="size-4" />
         </DropdownMenuTrigger>
         <DropdownMenuContent>
-          {file.metadata.blobUrl && (
+          {file.metadata.downloadUrl && (
             <DropdownMenuItem onClick={handleDownload}>
               <Download className="size-4" /> Download
             </DropdownMenuItem>

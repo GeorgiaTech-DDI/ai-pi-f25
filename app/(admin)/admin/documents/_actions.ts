@@ -4,6 +4,7 @@ import { getErrorMessage } from "@/lib/error";
 import { ActionPromise } from "@/lib/promise";
 import { revalidatePath } from "next/cache";
 import { getPineconeIndex } from "@/lib/pinecone";
+import { del } from "@vercel/blob";
 
 export async function deleteFile(filename: string): ActionPromise<void> {
   try {
@@ -22,7 +23,18 @@ export async function deleteFile(filename: string): ActionPromise<void> {
     if (idsToDelete.length === 0)
       return { isError: true, message: "File not found" };
 
-    await index.deleteMany({ ids: idsToDelete });
+    const results = await Promise.allSettled([
+      index.deleteMany({ ids: idsToDelete }),
+      del(filename),
+    ]);
+
+    if (results[0].status === "rejected") {
+      throw results[0].reason;
+    }
+
+    if (results[1].status === "rejected") {
+      throw results[1].reason;
+    }
 
     revalidatePath("/admin/documents");
     return { isError: false };

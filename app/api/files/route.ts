@@ -10,6 +10,7 @@ import {
 } from "./utils";
 import { FileMetadata, PineconeFile } from "@/lib/files/types";
 import { getPinecone, getPineconeIndex } from "@/lib/pinecone";
+import { del, getDownloadUrl, put } from "@vercel/blob";
 
 export async function GET(req: NextRequest) {
   const session = await auth.api.getSession({ headers: req.headers });
@@ -159,39 +160,68 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    let downloadUrl: string;
+    let blobUrl: string;
+    try {
+      const blob = await put(filename, file, { access: "private" });
+      blobUrl = blob.url;
+      downloadUrl = getDownloadUrl(blobUrl);
+    } catch (error) {
+      console.error("Failed to upload to Vercel Blob", error);
+      return NextResponse.json(
+        { error: "Failed to upload file to storage." },
+        { status: 500 }
+      );
+    }
+
     const chunks = splitTextIntoChunks(textContent, 1000, 200);
-
-    const embeddingsArray = await generateEmbeddings(chunks.map((c) => c.text));
-    const vectors = chunks.map((chunk, idx) => ({
-      id: `${filename}_chunk_${idx}`,
-      values: embeddingsArray[idx],
-      metadata: {
-        text: chunk.text,
-        filename,
-        chunkIndex: idx,
-        type: "document_chunk",
-      },
-    }));
-
-    const metadataVector = new Array(1024).fill(0);
-    metadataVector[0] = 0.0001;
-    await index.upsert({
-      records: [
-        ...vectors,
-        {
-          id: `file_metadata_${filename}`,
-          values: metadataVector,
-          metadata: {
-            type: "file_metadata",
-            filename,
-            uploadDate: new Date().toISOString(),
-            fileSize: textContent.length,
-            chunkCount: chunks.length,
-            description: description || "",
-          },
+    try {
+      const embeddingsArray = await generateEmbeddings(
+        chunks.map((c) => c.text)
+      );
+      const vectors = chunks.map((chunk, idx) => ({
+        id: `${filename}_chunk_${idx}`,
+        values: embeddingsArray[idx],
+        metadata: {
+          text: chunk.text,
+          filename,
+          chunkIndex: idx,
+          type: "document_chunk",
         },
-      ],
-    });
+      }));
+
+      const metadataVector = new Array(1024).fill(0);
+      metadataVector[0] = 0.0001;
+
+      await index.upsert({
+        records: [
+          ...vectors,
+          {
+            id: `file_metadata_${filename}`,
+            values: metadataVector,
+            metadata: {
+              type: "file_metadata",
+              filename,
+              downloadUrl,
+              uploadDate: new Date().toISOString(),
+              fileSize: textContent.length,
+              chunkCount: chunks.length,
+              description: description || "",
+            },
+          },
+        ],
+      });
+    } catch (error) {
+      console.error("Failed to upsert to Pinecone, rolling back blob", error);
+      await del(blobUrl).catch((e) =>
+        console.error("Failed to rollback blob", e)
+      );
+      return NextResponse.json(
+        { error: "Failed to store file embeddings." },
+        { status: 500 }
+      );
+    }
+
     return NextResponse.json({
       success: true,
       filename,
