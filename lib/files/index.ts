@@ -22,7 +22,7 @@ export async function getPineconeFiles(): Promise<PineconeFile[]> {
 }
 
 export async function uploadPineconeFile(formData: FormData) {
-  const response = await fetch("/api/files", {
+  const response = await fetch("/api/files/upload", {
     method: "POST",
     body: formData,
   });
