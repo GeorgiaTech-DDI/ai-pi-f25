@@ -14,36 +14,31 @@ export function isAllowedExtension(filename: string) {
   return { allowed: ALLOWED_EXTENSIONS.includes(fileExtension), fileExtension };
 }
 
-export async function parseFile(file: File): Promise<string> {
-  const { fileExtension } = isAllowedExtension(file.name);
-  const arrayBuffer = await file.arrayBuffer();
-
+export async function parseFileFromBuffer(
+  buffer: Buffer | Uint8Array,
+  extension: string
+): Promise<string> {
   let content = "";
 
-  switch (fileExtension) {
+  switch (extension) {
     case ".txt":
     case ".md":
-      content = new TextDecoder().decode(arrayBuffer);
+      content = new TextDecoder().decode(buffer);
       break;
 
     case ".pdf":
       try {
-        const pdfProxy = await getDocumentProxy(new Uint8Array(arrayBuffer));
+        const pdfProxy = await getDocumentProxy(new Uint8Array(buffer));
         const { text } = await extractText(pdfProxy, { mergePages: true });
         content = text;
-        if (!content?.trim()) {
-          throw new Error("PDF file contains no extractable text.");
-        }
+        if (!content?.trim()) throw new Error("Empty PDF");
       } catch (error) {
-        console.error("Failed to parse PDF file", error);
-        throw new Error("Failed to parse PDF file.");
+        throw new Error("Failed to parse PDF");
       }
       break;
-
     default:
-      throw new Error(`Unsupported file type: ${fileExtension}`);
+      throw new Error("Unsupported type");
   }
-
   return content;
 }
 

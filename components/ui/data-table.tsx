@@ -28,11 +28,13 @@ import { Search } from "lucide-react";
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
+  isLoading: boolean;
 }
 
 export function DataTable<TData, TValue>({
   columns,
   data,
+  isLoading,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>([
     { id: "metadata.uploadDate", desc: true },
@@ -146,7 +148,7 @@ export function DataTable<TData, TValue>({
             ) : (
               <TableRow className="h-[530px]">
                 <TableCell colSpan={columns.length} className="text-center">
-                  No results.
+                  {isLoading ? "Loading..." : "No results."}
                 </TableCell>
               </TableRow>
             )}
