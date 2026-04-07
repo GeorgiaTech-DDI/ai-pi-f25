@@ -11,8 +11,6 @@ import { auth } from "@/lib/auth";
 import { getPinecone } from "@/lib/pinecone";
 import { del, getDownloadUrl, put } from "@vercel/blob";
 
-// so it doesn't run on the edge and pdf-parse will work
-export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
   try {

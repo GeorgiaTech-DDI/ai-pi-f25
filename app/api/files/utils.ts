@@ -1,9 +1,9 @@
-import { PDFParse, VerbosityLevel } from "pdf-parse";
 import { Embeddings } from "deepinfra";
+import { extractText, getDocumentProxy } from "unpdf";
 
 export const MAX_FILE_SIZE = 4 * 1024 * 1024;
 
-export const ALLOWED_EXTENSIONS = [".txt", "  .md", ".pdf"];
+export const ALLOWED_EXTENSIONS = [".txt", ".md", ".pdf"];
 
 function getFileExtension(filename: string) {
   return filename.toLowerCase().substring(filename.lastIndexOf("."));
@@ -16,34 +16,30 @@ export function isAllowedExtension(filename: string) {
 
 export async function parseFile(file: File): Promise<string> {
   const { fileExtension } = isAllowedExtension(file.name);
-
   const arrayBuffer = await file.arrayBuffer();
 
   let content = "";
+
   switch (fileExtension) {
     case ".txt":
-      content = Buffer.from(arrayBuffer).toString("utf-8");
-      break;
     case ".md":
-      content = Buffer.from(arrayBuffer).toString("utf-8");
+      content = new TextDecoder().decode(arrayBuffer);
       break;
+
     case ".pdf":
-      const parser = new PDFParse({
-        data: arrayBuffer,
-        verbosity: VerbosityLevel.ERRORS,
-      });
       try {
-        const data = await parser.getText();
-        content = data.text;
-        if (!content?.trim())
+        const pdfProxy = await getDocumentProxy(new Uint8Array(arrayBuffer));
+        const { text } = await extractText(pdfProxy, { mergePages: true });
+        content = text;
+        if (!content?.trim()) {
           throw new Error("PDF file contains no extractable text.");
+        }
       } catch (error) {
         console.error("Failed to parse PDF file", error);
         throw new Error("Failed to parse PDF file.");
-      } finally {
-        await parser.destroy();
       }
       break;
+
     default:
       throw new Error(`Unsupported file type: ${fileExtension}`);
   }
