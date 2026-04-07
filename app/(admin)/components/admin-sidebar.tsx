@@ -21,7 +21,11 @@ const navItems = [
   { title: "Query Logs", href: "/admin/logs", icon: ScrollText },
 ];
 
-export default function AdminSidebar() {
+export default function AdminSidebar({
+  shouldShowQueryLogs,
+}: {
+  shouldShowQueryLogs: boolean;
+}) {
   const pathname = usePathname();
 
   return (
@@ -31,22 +35,29 @@ export default function AdminSidebar() {
       </SidebarHeader>
       <SidebarContent className="px-3 pt-4">
         <SidebarMenu className="flex flex-col gap-y-1">
-          {navItems.map(({ title, href, icon: Icon }) => (
-            <SidebarMenuItem key={title}>
-              <SidebarMenuButton
-                tooltip={title}
-                className={cn(pathname == href && "bg-sidebar-accent")}
-              >
-                <Link
-                  href={href}
-                  className="flex h-full w-full items-center gap-x-2"
+          {navItems
+            .filter(({ title }) => {
+              if (title === "Query Logs") {
+                return shouldShowQueryLogs;
+              }
+              return true;
+            })
+            .map(({ title, href, icon: Icon }) => (
+              <SidebarMenuItem key={title}>
+                <SidebarMenuButton
+                  tooltip={title}
+                  className={cn(pathname == href && "bg-sidebar-accent")}
                 >
-                  <Icon />
-                  <span>{title}</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          ))}
+                  <Link
+                    href={href}
+                    className="flex h-full w-full items-center gap-x-2"
+                  >
+                    <Icon />
+                    <span>{title}</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
         </SidebarMenu>
       </SidebarContent>
     </Sidebar>

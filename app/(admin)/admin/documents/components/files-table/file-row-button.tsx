@@ -22,6 +22,7 @@ import { PineconeFile } from "@/lib/files/types";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Spinner } from "@/components/loaders/spinner";
+import { Button } from "@/components/ui/button";
 export default function FileRowButton({ file }: { file: PineconeFile }) {
   const queryClient = useQueryClient();
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -77,9 +78,13 @@ export default function FileRowButton({ file }: { file: PineconeFile }) {
       </AlertDialog>
 
       <DropdownMenu>
-        <DropdownMenuTrigger>
-          <MoreVertical className="size-4" />
-        </DropdownMenuTrigger>
+        <DropdownMenuTrigger
+          render={
+            <Button variant="ghost" size="icon" className="hover:bg-red-500">
+              <MoreVertical className="size-4" />
+            </Button>
+          }
+        />
         <DropdownMenuContent>
           {file.metadata.downloadUrl && (
             <DropdownMenuItem onClick={handleDownload}>
