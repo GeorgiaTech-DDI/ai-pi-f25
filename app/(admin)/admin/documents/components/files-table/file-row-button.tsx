@@ -46,7 +46,9 @@ export default function FileRowButton({ file }: { file: PineconeFile }) {
       return;
     }
 
-    window.location.assign(`/api/files/download?url=${encodeURIComponent(fileUrl)}`);
+    window.location.assign(
+      `/api/files/download?url=${encodeURIComponent(fileUrl)}`
+    );
     toast.success("Download completed");
   };
 
