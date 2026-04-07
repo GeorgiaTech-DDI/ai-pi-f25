@@ -11,7 +11,6 @@ import { auth } from "@/lib/auth";
 import { getPinecone } from "@/lib/pinecone";
 import { del, getDownloadUrl, put } from "@vercel/blob";
 
-
 export async function POST(req: NextRequest) {
   try {
     // setup
