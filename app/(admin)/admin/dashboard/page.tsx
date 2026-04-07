@@ -1,10 +1,6 @@
 "use client";
 
-import {
-  Alert,
-  AlertDescription,
-  AlertTitle
-} from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useSessionTimeout } from "@/hooks/useSessionTimeout";
 import { signOut, useSession } from "@/lib/auth-client";
 import { getPineconeFiles } from "@/lib/files";
