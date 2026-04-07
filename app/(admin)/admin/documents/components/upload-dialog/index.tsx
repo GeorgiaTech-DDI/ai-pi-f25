@@ -33,11 +33,11 @@ export default function UploadDialog() {
 
   const { mutateAsync: uploadFile, isPending } = useMutation({
     mutationFn: uploadPineconeFile,
-    onSuccess: () => {
+    onSuccess: async () => {
+      await queryClient.refetchQueries({ queryKey: ["files"] });
       setOpen(false);
-      setFile(null);
       setDescription("");
-      queryClient.refetchQueries({ queryKey: ["files"] });
+      setFile(null);
       toast.success("File uploaded successfully");
     },
     onError: (error) => {

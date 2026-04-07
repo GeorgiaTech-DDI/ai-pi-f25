@@ -4,7 +4,7 @@ import {
   generateEmbeddings,
   isAllowedExtension,
   MAX_FILE_SIZE,
-  parseFile,
+  parseFileFromBuffer,
   splitTextIntoChunks,
 } from "../utils";
 import { auth } from "@/lib/auth";
@@ -84,9 +84,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const arrayBuffer = await file.arrayBuffer();
+    const fileBuffer = Buffer.from(arrayBuffer);
+
     let textContent: string;
     try {
-      textContent = await parseFile(file);
+      textContent = await parseFileFromBuffer(fileBuffer, fileExtension);
     } catch (error) {
       console.error("Failed to parse file", error);
       return NextResponse.json(
@@ -110,7 +113,10 @@ export async function POST(req: NextRequest) {
     let downloadUrl: string;
     let blobUrl: string;
     try {
-      const blob = await put(filename, file, { access: "private" });
+      const blob = await put(filename, fileBuffer, {
+        access: "private",
+        contentType: file.type,
+      });
       blobUrl = blob.url;
       downloadUrl = getDownloadUrl(blobUrl);
     } catch (error) {

@@ -6,10 +6,10 @@ import { DataTable } from "@/components/ui/data-table";
 import { columns } from "./columns";
 
 export default function FilesTable() {
-  const { data = [] } = useQuery({
+  const { data = [], isLoading } = useQuery({
     queryKey: ["files"],
     queryFn: getPineconeFiles,
   });
 
-  return <DataTable columns={columns} data={data} />;
+  return <DataTable columns={columns} data={data} isLoading={isLoading} />;
 }
