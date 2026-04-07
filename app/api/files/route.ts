@@ -1,104 +1,16 @@
-import { Pinecone } from "@pinecone-database/pinecone";
-import { Embeddings } from "deepinfra";
 import { auth } from "../../../lib/auth";
 import { NextRequest, NextResponse } from "next/server";
-
-// API Route Configuration - Increase body size limit for file uploads
-export const maxDuration = 60;
-
-// Dynamic import for pdf-parse (CommonJS module)
-async function parsePDF(
-  buffer: Buffer
-): Promise<{ text: string; numpages: number; info: any }> {
-  // @ts-ignore - pdf-parse types are not compatible with ES modules
-  const pdfParse = (await import("pdf-parse")).default;
-  // @ts-ignore
-  return await pdfParse(buffer);
-}
-
-const MAX_FILE_SIZE = 4 * 1024 * 1024;
-const ALLOWED_EXTENSIONS = [".txt", ".md", ".pdf"];
-
-let pineconeInstance: Pinecone | null = null;
-let indexInstance: any = null;
-function getPineconeIndex() {
-  if (!pineconeInstance) {
-    pineconeInstance = new Pinecone({
-      apiKey: process.env.PINECONE_API_KEY || "",
-    });
-    indexInstance = pineconeInstance.index(
-      process.env.PINECONE_INDEX_NAME || "rag-embeddings"
-    );
-  }
-  return indexInstance;
-}
-
-async function generateEmbeddings(texts: string[]): Promise<number[][]> {
-  if (process.env.DEEPINFRA_API_KEY) {
-    const client = new Embeddings(
-      "intfloat/multilingual-e5-large",
-      process.env.DEEPINFRA_API_KEY
-    );
-    const output: any = await client.generate({
-      inputs: texts.map((t) => `passage: ${t}`),
-    });
-    if (!output || !Array.isArray(output.embeddings))
-      throw new Error("DeepInfra returned invalid embeddings response");
-    return output.embeddings as number[][];
-  }
-  const hfApiUrl =
-    process.env.HF_API_URL || "https://api-inference.huggingface.co";
-  const hfApiKey = process.env.HF_API_KEY;
-  if (!hfApiKey) throw new Error("No embedding provider configured");
-  const headers = {
-    Accept: "application/json",
-    Authorization: `Bearer ${hfApiKey}`,
-    "Content-Type": "application/json",
-  } as const;
-  const embeddings: number[][] = [];
-  for (const text of texts) {
-    const response = await fetch(hfApiUrl, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ inputs: `passage: ${text}` }),
-    });
-    if (!response.ok)
-      throw new Error(`Hugging Face API error: ${response.status}`);
-    const result = await response.json();
-    if (!Array.isArray(result))
-      throw new Error("Unexpected embedding format from Hugging Face");
-    embeddings.push(result);
-  }
-  return embeddings;
-}
-
-interface FileMetadata {
-  filename: string;
-  uploadDate: string;
-  fileSize: number;
-  chunkCount: number;
-  description?: string;
-}
-interface PineconeFile {
-  id: string;
-  metadata: FileMetadata;
-}
-
-function splitTextIntoChunks(
-  text: string,
-  maxChunkSize: number,
-  overlap: number
-): Array<{ text: string; start: number; end: number }> {
-  const chunks: Array<{ text: string; start: number; end: number }> = [];
-  let start = 0;
-  while (start < text.length) {
-    const end = Math.min(start + maxChunkSize, text.length);
-    chunks.push({ text: text.slice(start, end), start, end });
-    if (end === text.length) break;
-    start = end - overlap;
-  }
-  return chunks;
-}
+import {
+  ALLOWED_EXTENSIONS,
+  generateEmbeddings,
+  isAllowedExtension,
+  MAX_FILE_SIZE,
+  parseFile,
+  splitTextIntoChunks,
+} from "./utils";
+import { FileMetadata, PineconeFile } from "@/lib/files/types";
+import { getPinecone, getPineconeIndex } from "@/lib/pinecone";
+import { del, getDownloadUrl, put } from "@vercel/blob";
 
 export async function GET(req: NextRequest) {
   const session = await auth.api.getSession({ headers: req.headers });
@@ -128,9 +40,7 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  // TODO: resolve the any typing using correct Pinecone SDK
-  // get all files from Pinecone via a dummy vector query
-  const index = getPineconeIndex();
+  const index = await getPineconeIndex();
   const dummyVector = new Array(1024).fill(0);
   dummyVector[0] = 0.0001;
 
@@ -156,12 +66,19 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    if (!process.env.PINECONE_API_KEY)
+    // setup
+    if (!process.env.PINECONE_API_KEY) {
+      console.error("Server configuration error: PINECONE_API_KEY is missing.");
       return NextResponse.json(
         { error: "Server configuration error: PINECONE_API_KEY is missing." },
         { status: 500 }
       );
-    if (!process.env.DEEPINFRA_API_KEY && !process.env.HF_API_KEY)
+    }
+
+    if (!process.env.DEEPINFRA_API_KEY && !process.env.HF_API_KEY) {
+      console.error(
+        "Server configuration error: No embedding provider configured."
+      );
       return NextResponse.json(
         {
           error:
@@ -169,25 +86,35 @@ export async function POST(req: NextRequest) {
         },
         { status: 500 }
       );
+    }
 
     const session = await auth.api.getSession({ headers: req.headers });
-    if (!session)
+    if (!session) {
+      console.error("Unauthorized user");
       return NextResponse.json(
         { error: "Unauthorized - Please log in with a @gatech.edu account" },
         { status: 401 }
       );
+    }
 
-    const { filename, content, description } = await req.json();
-    if (!filename || !content)
-      return NextResponse.json(
-        { error: "Filename and content are required" },
-        { status: 400 }
-      );
+    // get file and description from form data
+    const formData = await req.formData();
+    const file = formData.get("file") as File | null;
+    const description = formData.get("description") as string | null;
 
-    if (content.length > MAX_FILE_SIZE) {
-      const sizeMB = (content.length / (1024 * 1024)).toFixed(2);
+    if (!file) {
+      console.error("File is required", JSON.stringify(formData, null, 2));
+      return NextResponse.json({ error: "File is required" }, { status: 400 });
+    }
+
+    const { name: filename, size: fileSize } = file;
+
+    // check file size
+    if (fileSize > MAX_FILE_SIZE) {
+      const sizeMB = (fileSize / (1024 * 1024)).toFixed(2);
       const maxSizeMB = (MAX_FILE_SIZE / (1024 * 1024)).toFixed(0);
       const isPDF = filename.toLowerCase().endsWith(".pdf");
+      console.error("File too large", JSON.stringify(file, null, 2));
       return NextResponse.json(
         {
           error: isPDF
@@ -198,10 +125,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const fileExtension = filename
-      .toLowerCase()
-      .substring(filename.lastIndexOf("."));
-    if (!ALLOWED_EXTENSIONS.includes(fileExtension)) {
+    // check file type
+    const { fileExtension, allowed } = isAllowedExtension(filename);
+    if (!allowed) {
+      console.error("File type not allowed", { fileExtension });
       return NextResponse.json(
         {
           error: `File type not allowed. Accepted types: ${ALLOWED_EXTENSIONS.join(", ")}`,
@@ -211,73 +138,90 @@ export async function POST(req: NextRequest) {
     }
 
     let textContent: string;
-    if (fileExtension === ".pdf") {
-      try {
-        const base64Data = content.includes("base64,")
-          ? content.split("base64,")[1]
-          : content;
-        const pdfBuffer = Buffer.from(base64Data, "base64");
-        const pdfData = await parsePDF(pdfBuffer);
-        textContent = pdfData.text;
-        if (!textContent?.trim())
-          return NextResponse.json(
-            { error: "PDF file contains no extractable text." },
-            { status: 400 }
-          );
-      } catch {
-        return NextResponse.json(
-          { error: "Failed to parse PDF file." },
-          { status: 400 }
-        );
-      }
-    } else {
-      textContent = content;
+    try {
+      textContent = await parseFile(file);
+    } catch (error) {
+      console.error("Failed to parse file", error);
+      return NextResponse.json(
+        { error: "Failed to parse file" },
+        { status: 400 }
+      );
     }
 
-    const index = getPineconeIndex();
-    const dummyVector = new Array(1024).fill(0);
-    dummyVector[0] = 0.0001;
-    const existingFiles = await index.query({
-      vector: dummyVector,
-      topK: 1,
-      includeMetadata: true,
-      filter: { type: "file_metadata", filename },
-    });
-    if (existingFiles.matches.length > 0)
+    const pineconeClient = getPinecone();
+    const index = await pineconeClient.index();
+
+    const matches = await pineconeClient.queryByFilename(filename);
+    if (matches.length > 0) {
+      console.error("File already exists", { filename });
       return NextResponse.json(
         { error: `File "${filename}" already exists.` },
         { status: 409 }
       );
+    }
+
+    let downloadUrl: string;
+    let blobUrl: string;
+    try {
+      const blob = await put(filename, file, { access: "private" });
+      blobUrl = blob.url;
+      downloadUrl = getDownloadUrl(blobUrl);
+    } catch (error) {
+      console.error("Failed to upload to Vercel Blob", error);
+      return NextResponse.json(
+        { error: "Failed to upload file to storage." },
+        { status: 500 }
+      );
+    }
 
     const chunks = splitTextIntoChunks(textContent, 1000, 200);
-    const embeddingsArray = await generateEmbeddings(chunks.map((c) => c.text));
-    const vectors = chunks.map((chunk, idx) => ({
-      id: `${filename}_chunk_${idx}`,
-      values: embeddingsArray[idx],
-      metadata: {
-        text: chunk.text,
-        filename,
-        chunkIndex: idx,
-        type: "document_chunk",
-      },
-    }));
-    const metadataVector = new Array(1024).fill(0);
-    metadataVector[0] = 0.0001;
-    await index.upsert([
-      ...vectors,
-      {
-        id: `file_metadata_${filename}`,
-        values: metadataVector,
+    try {
+      const embeddingsArray = await generateEmbeddings(
+        chunks.map((c) => c.text)
+      );
+      const vectors = chunks.map((chunk, idx) => ({
+        id: `${filename}_chunk_${idx}`,
+        values: embeddingsArray[idx],
         metadata: {
-          type: "file_metadata",
+          text: chunk.text,
           filename,
-          uploadDate: new Date().toISOString(),
-          fileSize: textContent.length,
-          chunkCount: chunks.length,
-          description: description || "",
+          chunkIndex: idx,
+          type: "document_chunk",
         },
-      },
-    ]);
+      }));
+
+      const metadataVector = new Array(1024).fill(0);
+      metadataVector[0] = 0.0001;
+
+      await index.upsert({
+        records: [
+          ...vectors,
+          {
+            id: `file_metadata_${filename}`,
+            values: metadataVector,
+            metadata: {
+              type: "file_metadata",
+              filename,
+              downloadUrl,
+              uploadDate: new Date().toISOString(),
+              fileSize: textContent.length,
+              chunkCount: chunks.length,
+              description: description || "",
+            },
+          },
+        ],
+      });
+    } catch (error) {
+      console.error("Failed to upsert to Pinecone, rolling back blob", error);
+      await del(blobUrl).catch((e) =>
+        console.error("Failed to rollback blob", e)
+      );
+      return NextResponse.json(
+        { error: "Failed to store file embeddings." },
+        { status: 500 }
+      );
+    }
+
     return NextResponse.json({
       success: true,
       filename,
@@ -288,48 +232,6 @@ export async function POST(req: NextRequest) {
     console.error("Error uploading file:", error);
     return NextResponse.json(
       { error: "Failed to upload file" },
-      { status: 500 }
-    );
-  }
-}
-
-export async function DELETE(req: NextRequest) {
-  try {
-    const session = await auth.api.getSession({ headers: req.headers });
-    if (!session)
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-    const { searchParams } = new URL(req.url);
-    const filename = searchParams.get("filename");
-    if (!filename)
-      return NextResponse.json(
-        { error: "Filename is required" },
-        { status: 400 }
-      );
-
-    const index = getPineconeIndex();
-    const dummyVector = new Array(1024).fill(0);
-    dummyVector[0] = 0.0001;
-    const queryResponse = await index.query({
-      vector: dummyVector,
-      topK: 1000,
-      includeMetadata: true,
-      filter: { filename },
-    });
-    const idsToDelete = queryResponse.matches.map((match: any) => match.id);
-    if (idsToDelete.length === 0)
-      return NextResponse.json({ error: "File not found" }, { status: 404 });
-    await index.deleteMany(idsToDelete);
-    return NextResponse.json({
-      success: true,
-      filename,
-      deletedCount: idsToDelete.length,
-      message: "File deleted successfully",
-    });
-  } catch (error) {
-    console.error("Error deleting file:", error);
-    return NextResponse.json(
-      { error: "Failed to delete file" },
       { status: 500 }
     );
   }

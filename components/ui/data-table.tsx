@@ -23,6 +23,7 @@ import {
 import { Button } from "./button";
 import { useState } from "react";
 import { Input } from "./input";
+import { Search } from "lucide-react";
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
@@ -70,20 +71,23 @@ export function DataTable<TData, TValue>({
       <div className="flex items-end justify-between py-4">
         <h4 className="text-lg font-medium">Files</h4>
 
-        <Input
-          placeholder="Search by name..."
-          value={
-            (table
-              .getColumn("metadata.filename")
-              ?.getFilterValue() as string) ?? ""
-          }
-          onChange={(event) =>
-            table
-              .getColumn("metadata.filename")
-              ?.setFilterValue(event.target.value)
-          }
-          className="w-72"
-        />
+        <div className="focus-within:ring-ring flex w-72 items-center rounded-md border px-3 focus-within:ring-1">
+          <Search className="text-muted-foreground h-4 w-4 shrink-0" />
+          <Input
+            placeholder="Search by name..."
+            value={
+              (table
+                .getColumn("metadata.filename")
+                ?.getFilterValue() as string) ?? ""
+            }
+            onChange={(event) =>
+              table
+                .getColumn("metadata.filename")
+                ?.setFilterValue(event.target.value)
+            }
+            className="border-0 bg-transparent px-2 shadow-none focus-visible:ring-0 dark:bg-transparent"
+          />
+        </div>
       </div>
       <div className="overflow-hidden rounded-md border">
         <Table className="w-full table-fixed">

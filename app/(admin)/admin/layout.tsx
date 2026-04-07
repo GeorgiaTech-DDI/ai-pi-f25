@@ -50,9 +50,14 @@ export default async function AdminLayout({
     user?.email ?? ""
   );
 
+  const shouldShowQueryLogs = await posthogClient.isFeatureEnabled(
+    "show-query-logs-sidebar",
+    user?.email ?? ""
+  );
+
   return (
     <SidebarProvider defaultOpen={false}>
-      <AdminSidebar />
+      <AdminSidebar shouldShowQueryLogs={!!shouldShowQueryLogs} />
       <div className="flex min-h-svh w-full flex-col overflow-hidden">
         <Header
           rightContent={

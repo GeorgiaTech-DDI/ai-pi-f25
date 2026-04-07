@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { uploadFile } from "../../_actions";
+import { useState } from "react";
+
 import {
   Dialog,
   DialogClose,
@@ -17,36 +17,52 @@ import { Input } from "@/components/ui/input";
 import { Plus, Loader2 } from "lucide-react";
 import { Dropzone } from "@/components/dropzone";
 import { UploadedFileItem } from "./uploaded-file-item";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { uploadPineconeFile } from "@/lib/files";
+import { toast } from "sonner";
 
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // note also controlled in next.config.js
 
 export default function UploadDialog() {
+  const queryClient = useQueryClient();
+
   const [file, setFile] = useState<File | null>(null);
   const [description, setDescription] = useState("");
 
   const [open, setOpen] = useState(false);
 
-  const [isPending, startTransition] = useTransition();
+  const { mutateAsync: uploadFile, isPending } = useMutation({
+    mutationFn: uploadPineconeFile,
+    onSuccess: () => {
+      setOpen(false);
+      setFile(null);
+      setDescription("");
+      queryClient.refetchQueries({ queryKey: ["files"] });
+      toast.success("File uploaded successfully");
+    },
+    onError: (error) => {
+      console.error("Upload failed", error);
+      toast.error("Failed to upload file");
+    },
+  });
 
-  const handleUpload = async (formData: FormData) => {
-    if (file) {
-      formData.append("file", file);
-    }
-
-    startTransition(async () => {
-      try {
-        await uploadFile(formData);
-        setOpen(false);
-        setFile(null);
-        setDescription("");
-      } catch (error) {
-        console.error("Upload failed", error);
-      }
-    });
+  const handleUpload = (formData: FormData) => {
+    if (file) formData.append("file", file);
+    if (description) formData.append("description", description);
+    uploadFile(formData);
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) {
+          setFile(null);
+          setDescription("");
+        }
+        setOpen(o);
+      }}
+    >
       <DialogTrigger
         render={
           <Button>

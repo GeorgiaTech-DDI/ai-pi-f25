@@ -5,8 +5,6 @@ import {
 } from "@tanstack/react-query";
 import { getPineconeFiles } from "@/lib/files";
 import FilesTable from "./components/files-table";
-import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
 import UploadDialog from "./components/upload-dialog";
 
 export default async function Page() {

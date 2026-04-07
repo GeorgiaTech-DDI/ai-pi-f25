@@ -1,14 +1,15 @@
 "use client";
 
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { useSessionTimeout } from "@/hooks/useSessionTimeout";
 import { signOut, useSession } from "@/lib/auth-client";
+import { getPineconeFiles } from "@/lib/files";
 import styles from "@/styles/Dashboard.module.css";
 import { useQuery } from "@tanstack/react-query";
+import { InfoIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import posthog from "posthog-js";
 import { useState } from "react";
-import { useSessionTimeout } from "@/hooks/useSessionTimeout";
-import { PineconeFile } from "@/lib/files/types";
-import { getPineconeFiles } from "@/lib/files";
 
 interface DocumentationGap {
   question: string;
@@ -305,175 +306,20 @@ export default function AdminDashboard() {
       <div className={styles.container}>
         {/* Main Content */}
         <main className={styles.main}>
-          {/* File Management */}
-          <section className={styles.fileManagement}>
-            <h2 className={styles.sectionTitle}>File Management</h2>
-            <div className={styles.fileManagementGrid}>
-              {/* Upload Section */}
-              <div className={styles.fileManagementSection}>
-                <h3 className={styles.subsectionTitle}>Upload New File</h3>
-                <form onSubmit={handleFileUpload} className={styles.uploadForm}>
-                  <div className={styles.formGroup}>
-                    <label className={styles.label}>
-                      Select File:
-                      <input
-                        type="file"
-                        onChange={(e) =>
-                          setUploadFile(e.target.files?.[0] || null)
-                        }
-                        accept=".txt,.md,.pdf"
-                        className={styles.fileInput}
-                        disabled={uploading}
-                      />
-                    </label>
-                    <p
-                      style={{
-                        fontSize: "12px",
-                        color: "#64748b",
-                        marginTop: "4px",
-                      }}
-                    >
-                      Accepted formats: .txt, .md (max 4MB), .pdf (max ~3MB due
-                      to encoding overhead)
-                    </p>
-                    {uploadFile &&
-                      (() => {
-                        const isPDF = uploadFile.name
-                          .toLowerCase()
-                          .endsWith(".pdf");
-                        const estimatedSize = isPDF
-                          ? uploadFile.size * 1.33
-                          : uploadFile.size;
-                        const isTooBig = estimatedSize > 4 * 1024 * 1024;
-                        return (
-                          <div
-                            style={{
-                              marginTop: "8px",
-                              padding: "8px 12px",
-                              backgroundColor: "#1e293b",
-                              borderRadius: "6px",
-                              fontSize: "13px",
-                            }}
-                          >
-                            <div
-                              style={{ color: "#94a3b8", marginBottom: "4px" }}
-                            >
-                              <strong>Selected:</strong> {uploadFile.name}
-                            </div>
-                            <div
-                              style={{
-                                color: isTooBig ? "#ef4444" : "#22c55e",
-                                fontWeight: "600",
-                              }}
-                            >
-                              {isPDF ? (
-                                <>
-                                  Original: {formatFileSize(uploadFile.size)} →
-                                  Encoded: {formatFileSize(estimatedSize)}
-                                  {isTooBig ? " ⚠️ Too large!" : " ✓"}
-                                </>
-                              ) : (
-                                <>
-                                  Size: {formatFileSize(uploadFile.size)}
-                                  {isTooBig ? " ⚠️ Too large!" : " ✓"}
-                                </>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })()}
-                  </div>
-                  <div className={styles.formGroup}>
-                    <label className={styles.label}>
-                      Description (optional):
-                      <input
-                        type="text"
-                        value={uploadDescription}
-                        onChange={(e) => setUploadDescription(e.target.value)}
-                        placeholder="Brief description of the file content"
-                        className={styles.textInput}
-                        disabled={uploading}
-                      />
-                    </label>
-                  </div>
-                  <button
-                    type="submit"
-                    disabled={!uploadFile || uploading}
-                    className={`${styles.button} ${styles.buttonPrimary}`}
-                  >
-                    {uploading ? "Uploading..." : "Upload File"}
-                  </button>
-                </form>
-              </div>
-
-              {/* File List */}
-              <div className={styles.fileManagementSection}>
-                <div className={styles.fileListHeader}>
-                  <h3 className={styles.subsectionTitle}>Uploaded Files</h3>
-                  <button
-                    onClick={() => refetchFiles()}
-                    disabled={isFilesLoading}
-                    className={`${styles.button} ${styles.buttonSecondary} ${styles.smallButton}`}
-                  >
-                    {isFilesLoading ? "Refreshing..." : "Refresh"}
-                  </button>
-                </div>
-                {error && (
-                  <div className={styles.errorMessage}>Error: {error}</div>
-                )}
-                {success && (
-                  <div className={styles.successMessage}>{success}</div>
-                )}
-                {isFilesLoading ? (
-                  <div className={styles.loadingMessage}>Loading files...</div>
-                ) : files.length === 0 ? (
-                  <div className={styles.emptyMessage}>
-                    No files uploaded yet.
-                  </div>
-                ) : (
-                  <div className={styles.fileList}>
-                    {files.map((file) => (
-                      <div key={file.id} className={styles.fileItem}>
-                        <div className={styles.fileInfo}>
-                          <div className={styles.fileName}>
-                            {file.metadata.filename}
-                          </div>
-                          <div className={styles.fileDetails}>
-                            <span>
-                              Size: {formatFileSize(file.metadata.fileSize)}
-                            </span>
-                            <span>Chunks: {file.metadata.chunkCount}</span>
-                            <span>
-                              Uploaded: {formatDate(file.metadata.uploadDate)}
-                            </span>
-                          </div>
-                          {file.metadata.description && (
-                            <div className={styles.fileDescription}>
-                              {file.metadata.description}
-                            </div>
-                          )}
-                        </div>
-                        <div className={styles.fileActions}>
-                          <button
-                            onClick={() =>
-                              setShowDeleteConfirm(file.metadata.filename)
-                            }
-                            disabled={deleting === file.metadata.filename}
-                            className={`${styles.button} ${styles.buttonDanger} ${styles.smallButton}`}
-                          >
-                            {deleting === file.metadata.filename
-                              ? "Deleting..."
-                              : "Delete"}
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          </section>
-
+          <Alert style={{ marginBottom: "16px" }}>
+            <InfoIcon className="size-4" />
+            <AlertTitle>Looking for the documents?</AlertTitle>
+            <AlertDescription>
+              They&apos;ve moved to their own page —{" "}
+              <a
+                href="/admin/documents"
+                className="hover:text-foreground font-medium underline underline-offset-4 transition-colors"
+              >
+                click here to go there now
+              </a>
+              , or check them out in the new sidebar too!
+            </AlertDescription>
+          </Alert>
           {/* Documentation Quality Analytics */}
           <section className={styles.fileManagement}>
             <div className={styles.fileListHeader}>
