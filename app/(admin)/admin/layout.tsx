@@ -1,6 +1,5 @@
 import Header from "@/components/header";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import Image from "next/image";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,7 +8,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { auth } from "@/lib/auth";
-import { LogOut } from "lucide-react";
 import { headers } from "next/headers";
 import AdminSidebar from "../components/admin-sidebar";
 import { getPostHogClient } from "@/lib/posthog-server";
@@ -45,11 +43,11 @@ export default async function AdminLayout({
       }
     : null;
 
+  if (!user) {
+    return null;
+  }
+
   const posthogClient = getPostHogClient();
-  const isNewSidebarEnabled = await posthogClient.isFeatureEnabled(
-    "new-sidebar",
-    user?.email ?? ""
-  );
 
   const shouldShowQueryLogs = await posthogClient.isFeatureEnabled(
     "show-query-logs-sidebar",
@@ -78,19 +76,7 @@ export default async function AdminLayout({
               </DropdownMenu>
             )
           }
-          leftItem={
-            user && isNewSidebarEnabled ? (
-              <SidebarTrigger />
-            ) : (
-              <Image
-                src="/images/logo.svg"
-                alt="AI PI Logo"
-                className="h-8 w-auto"
-                width={32}
-                height={32}
-              />
-            )
-          }
+          leftItem={<SidebarTrigger />}
         />
         <main className="flex-1 overflow-x-hidden overflow-y-auto p-6 pt-4">
           {children}
