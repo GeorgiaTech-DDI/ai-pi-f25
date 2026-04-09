@@ -24,7 +24,9 @@ You can think of creating a new instance like setting up a new copy of an app fo
 
 - Framework: Next.js 16 with the App Router
 - Language: TypeScript
-- UI: React 19
+- Framework: React 19
+- CSS: Tailwind CSS
+- UI Components: Shadcn UI - Base UI
 - Authentication: Better Auth with Microsoft / Azure AD
 - LLM routing: OpenRouter
 - Vector database: Pinecone
@@ -108,6 +110,8 @@ BETTER_AUTH_SECRET=
 
 VERCEL_PROJECT_PRODUCTION_URL=
 PREVIEW_URL_PATTERN=
+
+BLOB_READ_WRITE_TOKEN=
 ```
 
 Notes:
@@ -197,6 +201,7 @@ NEXT_PUBLIC_POSTHOG_HOST=
 BETTER_AUTH_SECRET=
 VERCEL_PROJECT_PRODUCTION_URL=
 PREVIEW_URL_PATTERN=
+BLOB_READ_WRITE_TOKEN=
 ```
 
 Recommended values:
@@ -210,10 +215,20 @@ Recommended values:
 The app currently uses Better Auth with Microsoft as the social provider.
 
 In Azure:
-
-- Create an app registration
-- Save the client ID, tenant ID, and client secret
-- Add the production callback URL used by the app
+1. Sign into your Azure account with your Georgia Tech account
+2. In the search bar, search for "App registrations" and click on it
+3. Click "+ New Registration"
+4. Enter a name for this registration so that you know what this is for
+5. Ensure "Supported account types" is "Single Tenant Only"
+6. For redirect URI, select "Web" and enter the following URL: `https://ai-pi-f25-flax.vercel.app/api/auth/callback/microsoft`
+7. Click "Register"
+8. In the "Overview" page, copy the "Application (client) ID" and "Directory (tenant) ID"
+9. Click on "Certificates & secrets" in the left sidebar
+10. Click on "New client secret"
+11. Select an expiration time
+12. Click "Add"
+13. Copy the "Value" of the client secret and put it in `AZURE_AD_CLIENT_SECRET`
+14. Optionally repeat steps 9-13 to create another client secret for local development
 
 The auth callback route in this project is:
 
