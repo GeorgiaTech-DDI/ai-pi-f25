@@ -1,6 +1,11 @@
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { FileSearchCorner, ThumbsUp, ThumbsDown, TriangleAlert } from "lucide-react";
+import {
+  FileSearchCorner,
+  ThumbsUp,
+  ThumbsDown,
+  TriangleAlert,
+} from "lucide-react";
 import { useThumbSurvey } from "posthog-js/react/surveys";
 
 const LLM_RESPONSE_SURVEY_ID = "019d16a8-a562-0000-f48b-b4997727d842"; // LLM Feedback v2 in Posthog
