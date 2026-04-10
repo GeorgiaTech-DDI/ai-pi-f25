@@ -9,6 +9,7 @@ export default function FilesTable() {
   const { data = [], isLoading } = useQuery({
     queryKey: ["files"],
     queryFn: getPineconeFiles,
+    placeholderData: (prev) => prev ?? [],
   });
 
   return <DataTable columns={columns} data={data} isLoading={isLoading} />;

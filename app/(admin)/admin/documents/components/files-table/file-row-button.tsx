@@ -63,14 +63,14 @@ export default function FileRowButton({ file }: { file: PineconeFile }) {
       <DeleteFileAlertDialog
         isDeleteDialogOpen={isDeleteDialogOpen}
         setIsDeleteDialogOpen={setIsDeleteDialogOpen}
-        onConfirm={() => deleteMutation(file.metadata.filename)}
+        onConfirm={() => deleteMutation(file.metadata.fileUUID)}
         isDeleting={isDeleting}
       />
 
       <FileActionDialog
         isPending={isReplacing}
         onAction={(formData) => replaceMutation(formData)}
-        extraData={{ oldFilename: file.metadata.filename }}
+        extraData={{ oldFileUUID: file.metadata.fileUUID }}
         title="Replace File"
         descriptionLabel="Accepts .pdf, .md, and .txt"
         open={isReplaceDialogOpen}

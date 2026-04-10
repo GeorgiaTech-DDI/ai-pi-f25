@@ -1,4 +1,5 @@
 import {
+  DeleteManyOptions,
   Pinecone,
   RecordMetadata,
   ScoredPineconeRecord,
@@ -32,8 +33,8 @@ class PineconeClient {
     return this.indexInstance;
   }
 
-  async deleteMany(ids: string[]) {
-    await this.indexInstance?.deleteMany({ ids });
+  async deleteMany(options: DeleteManyOptions) {
+    await this.indexInstance?.deleteMany(options);
   }
 
   async query(vector: number[], topK: number, filter: any) {

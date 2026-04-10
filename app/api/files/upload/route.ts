@@ -10,6 +10,7 @@ import {
 import { auth } from "@/lib/auth";
 import { getPinecone } from "@/lib/pinecone";
 import { del, getDownloadUrl, put } from "@vercel/blob";
+import { randomUUID } from "crypto";
 
 // bypass server action file limit
 export async function POST(req: NextRequest) {
@@ -133,14 +134,18 @@ export async function POST(req: NextRequest) {
       const embeddingsArray = await generateEmbeddings(
         chunks.map((c) => c.text)
       );
+
+      const fileUUID = randomUUID();
+
       const vectors = chunks.map((chunk, idx) => ({
-        id: `${filename}_chunk_${idx}`,
+        id: `${fileUUID}_chunk_${idx}`,
         values: embeddingsArray[idx],
         metadata: {
           text: chunk.text,
           filename,
           chunkIndex: idx,
           type: "document_chunk",
+          fileUUID,
         },
       }));
 
@@ -151,11 +156,12 @@ export async function POST(req: NextRequest) {
         records: [
           ...vectors,
           {
-            id: `file_metadata_${filename}`,
+            id: `file_metadata_${fileUUID}`,
             values: metadataVector,
             metadata: {
               type: "file_metadata",
               filename,
+              fileUUID,
               downloadUrl,
               uploadDate: new Date().toISOString(),
               fileSize: textContent.length,

@@ -7,8 +7,9 @@ import { headers } from "next/headers";
 import { getPineconeIndex } from "@/lib/pinecone";
 import { del } from "@vercel/blob";
 import { auth } from "@/lib/auth";
+import { UUID } from "crypto";
 
-export async function deleteFile(filename: string): ActionPromise<void> {
+export async function deleteFile(fileUUID: UUID): ActionPromise<void> {
   try {
     const session = await auth.api.getSession({
       headers: await headers(),
@@ -25,16 +26,24 @@ export async function deleteFile(filename: string): ActionPromise<void> {
       vector: dummyVector,
       topK: 1000,
       includeMetadata: true,
-      filter: { filename },
+      filter: { fileUUID: { $eq: fileUUID } },
     });
 
-    const idsToDelete = queryResponse.matches.map((match) => match.id);
-    if (idsToDelete.length === 0)
+    const dataToDelete = queryResponse.matches.map((match) => ({
+      id: match.id,
+      fileName: match.metadata?.filename,
+    }));
+
+    if (dataToDelete.length === 0)
       return { isError: true, message: "File not found" };
 
     const results = await Promise.allSettled([
-      index.deleteMany({ ids: idsToDelete }),
-      del(filename),
+      index.deleteMany({ ids: dataToDelete.map((data) => data.id) }),
+      del(
+        dataToDelete
+          .filter((data) => data.fileName)
+          .map((data) => String(data.fileName))
+      ),
     ]);
 
     if (results[0].status === "rejected") {

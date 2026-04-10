@@ -1,3 +1,5 @@
+import { UUID } from "crypto";
+
 export interface FileMetadata {
   filename: string;
   uploadDate: string;
@@ -5,6 +7,7 @@ export interface FileMetadata {
   chunkCount: number;
   description?: string;
   downloadUrl?: string;
+  fileUUID: UUID;
 }
 
 export interface PineconeFile {
