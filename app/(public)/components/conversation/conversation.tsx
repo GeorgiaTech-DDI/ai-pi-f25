@@ -45,6 +45,7 @@ export default function Conversation({
               onViewReferencesPressed={() => onViewReferencesPressed(index)}
               traceId={message.traceId}
               isStreaming={isActiveStreaming && index === messages.length - 1}
+              usedRAG={message.usedRAG}
             />
           )}
         </div>
