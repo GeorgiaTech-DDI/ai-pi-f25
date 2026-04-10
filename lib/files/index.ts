@@ -1,5 +1,6 @@
 import { deleteFile } from "@/app/(admin)/admin/documents/_actions";
 import { PineconeFile } from "./types";
+import { UUID } from "crypto";
 
 export async function getPineconeFiles(): Promise<PineconeFile[]> {
   const response = await fetch("/api/files", {
@@ -35,10 +36,11 @@ export async function uploadPineconeFile(formData: FormData) {
 }
 
 export async function replacePineconeFile(formData: FormData) {
-  const oldFilename = formData.get("oldFilename") as string;
+  const oldFileUUID = formData.get("oldFileUUID");
+  if (!oldFileUUID) throw new Error("File UUID is required");
 
   try {
-    await deleteFile(oldFilename);
+    await deleteFile(oldFileUUID as UUID);
 
     const response = await fetch("/api/files/upload", {
       method: "POST",

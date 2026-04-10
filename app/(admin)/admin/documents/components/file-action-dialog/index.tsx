@@ -53,7 +53,6 @@ export default function FileActionDialog({
     if (file) formData.append("file", file);
     if (description) formData.append("description", description);
 
-    // Append any extra metadata passed by the caller
     Object.entries(extraData).forEach(([key, value]) => {
       formData.append(key, value);
     });
