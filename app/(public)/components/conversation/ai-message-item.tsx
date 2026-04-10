@@ -1,6 +1,11 @@
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { FileSearchCorner, ThumbsUp, ThumbsDown } from "lucide-react";
+import {
+  FileSearchCorner,
+  ThumbsUp,
+  ThumbsDown,
+  TriangleAlert,
+} from "lucide-react";
 import { useThumbSurvey } from "posthog-js/react/surveys";
 
 const LLM_RESPONSE_SURVEY_ID = "019d16a8-a562-0000-f48b-b4997727d842"; // LLM Feedback v2 in Posthog
@@ -12,6 +17,7 @@ export function AIMessageItem({
   onViewReferencesPressed,
   traceId,
   isStreaming,
+  usedRAG,
 }: {
   message: string;
   className?: string;
@@ -19,6 +25,7 @@ export function AIMessageItem({
   onViewReferencesPressed: () => void;
   traceId?: string;
   isStreaming?: boolean;
+  usedRAG?: boolean;
 }) {
   const { respond, response, triggerRef } = useThumbSurvey({
     surveyId: LLM_RESPONSE_SURVEY_ID,
@@ -76,6 +83,14 @@ export function AIMessageItem({
           )}
         </div>
       </div>
+      {!isStreaming && usedRAG === false && (
+        <div className="flex items-center gap-x-1.5 text-xs text-amber-600 dark:text-amber-400">
+          <TriangleAlert className="size-3 shrink-0" />
+          <span>
+            Generated with general AI knowledge, not Invention Studio data
+          </span>
+        </div>
+      )}
     </div>
   );
 }
